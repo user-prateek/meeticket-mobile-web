@@ -1,0 +1,36 @@
+.mt-shell-wrap {
+  min-height: 100dvh;
+  background: var(--mt-shell);
+}
+
+.mt-shell {
+  width: 100%;
+  max-width: 430px;
+  height: 100dvh;
+  margin: 0 auto;
+  background: var(--mt-page);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.mt-shell > * {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+@media (min-width: 480px) {
+  .mt-shell-wrap {
+    display: flex;
+    justify-content: center;
+    padding: 16px 0;
+  }
+
+  .mt-shell {
+    height: min(874px, calc(100dvh - 32px));
+    border-radius: 24px;
+    box-shadow: 0 12px 40px rgba(10, 30, 50, 0.18);
+  }
+}

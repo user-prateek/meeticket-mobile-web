@@ -1,0 +1,264 @@
+.mt-details-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  flex: 1;
+  background: var(--mt-page);
+}
+
+.mt-details-page__body {
+  flex: 1;
+  overflow: auto;
+  padding: 12px 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mt-details-page__note {
+  margin: 32px 8px 0;
+  text-align: center;
+  font-size: 14px;
+  color: var(--mt-muted);
+}
+
+.mt-leg,
+.mt-walk-card {
+  background: #fff;
+  border: 1px solid var(--mt-border);
+  border-radius: 12px;
+}
+
+.mt-leg {
+  padding: 12px;
+}
+
+.mt-leg__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.mt-leg__head strong {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.mt-leg__fare {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--mt-text);
+}
+
+.mt-leg__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.mt-leg__icon.is-metro {
+  background: var(--mt-metro);
+}
+
+.mt-leg__icon.is-bus {
+  background: var(--mt-bus);
+}
+
+.mt-leg__icon.is-walk {
+  background: var(--mt-walk-green);
+}
+
+.mt-leg__body {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.mt-leg__duration {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--mt-text);
+  text-align: center;
+}
+
+.mt-leg__duration span {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.mt-leg__stops {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mt-leg__rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.mt-leg__rail .mt-stop__dot,
+.mt-leg__rail .mt-stop__sq {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+}
+
+.mt-leg__rail .mt-stop__dot {
+  border-radius: 999px;
+  background: var(--mt-metro);
+}
+
+.mt-leg__rail .mt-stop__sq {
+  background: var(--mt-metro);
+}
+
+.mt-leg.is-bus .mt-leg__rail .mt-stop__dot,
+.mt-leg.is-bus .mt-leg__rail .mt-stop__sq {
+  background: var(--mt-bus);
+}
+
+.mt-leg__rail .mt-stop__line {
+  width: 2px;
+  flex: 1;
+  min-height: 28px;
+  background: #d5dae2;
+}
+
+.mt-leg__copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+}
+
+.mt-leg__copy div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mt-leg__copy span {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.mt-leg__copy small {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--mt-muted);
+}
+
+.mt-walk-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+}
+
+.mt-walk-card__copy {
+  min-width: 0;
+}
+
+.mt-walk-card__copy strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--mt-text);
+}
+
+.mt-walk-card__copy p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--mt-muted);
+}
+
+.mt-services {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.mt-services button {
+  height: 40px;
+  border: 1.5px solid var(--mt-navy);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--mt-navy);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mt-services button.is-active {
+  background: var(--mt-navy);
+  color: #fff;
+}
+
+.mt-details-page__panel {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
+  background: #fff;
+  border-top: 1px solid #e6e6e6;
+}
+
+.mt-pay {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--mt-text);
+}
+
+.mt-pay span {
+  flex: 1;
+  text-align: left;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mt-pay strong {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--mt-text);
+}
+
+.mt-pay svg:last-of-type {
+  color: #c2c2c2;
+  width: 18px;
+  height: 18px;
+}
+
+.mt-srp__cta {
+  width: 100%;
+  height: 48px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--mt-navy);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+}
