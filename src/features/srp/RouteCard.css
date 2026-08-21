@@ -7,6 +7,26 @@
   cursor: pointer;
 }
 
+.mt-card.is-selected {
+  border-color: var(--mt-primary);
+  box-shadow: 0 0 0 1px var(--mt-primary);
+}
+
+.mt-card.is-not-suggested {
+  opacity: 0.92;
+}
+
+.mt-card__hint {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff7e8;
+  color: #8a5a00;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
 .mt-card:active {
   transform: scale(0.997);
 }
@@ -14,17 +34,23 @@
 .mt-compact {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   padding: 4px 4px 14px;
-  font-size: 13px;
-  font-weight: 700;
   color: #111827;
+}
+
+.mt-compact__copy {
+  min-width: 0;
 }
 
 .mt-compact__title {
   margin: 0;
   font-size: 14px;
   font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .mt-compact__title.is-metro {
@@ -35,11 +61,22 @@
   color: var(--mt-bus);
 }
 
-.mt-compact__dot {
-  width: 4px;
-  height: 4px;
-  border-radius: 999px;
-  background: #c5cad3;
+.mt-compact__sep {
+  color: #9aa0a6;
+  font-weight: 700;
+}
+
+.mt-compact__time {
+  color: var(--mt-text);
+  font-weight: 700;
+}
+
+.mt-compact__fare {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--mt-text);
 }
 
 .mt-timeline {
@@ -64,7 +101,7 @@
   flex: 1;
   min-width: 16px;
   height: 0;
-  margin: 50px 4px 0;
+  margin: 18px 4px 0;
   border-top: 2px dotted #c5cad3;
 }
 
@@ -72,7 +109,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   min-width: 74px;
   text-align: center;
 }
@@ -81,7 +118,7 @@
   display: flex;
   flex-direction: column;
   gap: 1px;
-  min-height: 34px;
+  margin-top: 2px;
   font-size: 12px;
   font-weight: 700;
   color: var(--mt-text);
@@ -96,6 +133,14 @@
   color: var(--mt-bus);
 }
 
+.mt-timeline__step.is-interchange .mt-timeline__meta {
+  color: #666666;
+}
+
+.mt-timeline__icon.is-interchange {
+  background: transparent;
+}
+
 .mt-timeline__icon {
   width: 36px;
   height: 36px;
@@ -104,48 +149,28 @@
   place-items: center;
   color: #fff;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
-.mt-timeline__icon.is-metro,
-.mt-stop.is-metro .mt-stop__dot,
-.mt-stop.is-metro .mt-stop__sq,
-.mt-stop.is-metro .mt-stop__line {
-  background: var(--mt-metro);
-}
-
-.mt-timeline__icon.is-bus,
-.mt-stop.is-bus .mt-stop__dot,
-.mt-stop.is-bus .mt-stop__sq,
-.mt-stop.is-bus .mt-stop__line {
-  background: var(--mt-bus);
-}
-
-.mt-timeline__icon.is-walk {
-  background: var(--mt-walk-icon-bg);
-  color: var(--mt-walk);
-  border: 1.5px solid var(--mt-walk-icon-border);
+.mt-timeline__icon img {
+  display: block;
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
 }
 
 .mt-timeline__label {
   margin: 0;
   max-width: 92px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.25;
   color: #6b7280;
 }
 
-.mt-timeline__label.is-metro {
-  color: var(--mt-metro);
-}
-
-.mt-timeline__label.is-bus {
-  color: var(--mt-bus);
-}
-
 .mt-stops {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 8px;
   margin-bottom: 12px;
 }
@@ -189,8 +214,18 @@
 .mt-stop__sq {
   width: 8px;
   height: 8px;
-  background: #111827;
+  background: var(--mt-metro);
   flex-shrink: 0;
+}
+
+.mt-stop.is-metro .mt-stop__dot,
+.mt-stop.is-metro .mt-stop__sq {
+  background: var(--mt-metro);
+}
+
+.mt-stop.is-bus .mt-stop__dot,
+.mt-stop.is-bus .mt-stop__sq {
+  background: var(--mt-bus);
 }
 
 .mt-stop__copy {
@@ -206,6 +241,9 @@
   font-weight: 700;
   color: #1f2937;
   line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mt-lastmile {
@@ -233,23 +271,22 @@
 }
 
 .mt-brand {
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1;
+  display: block;
+  height: 16px;
+  width: auto;
+  object-fit: contain;
 }
 
 .mt-brand--ola {
-  color: #111;
+  height: 14px;
 }
 
 .mt-brand--rapido {
-  color: #f5b400;
-  font-style: italic;
+  height: 18px;
 }
 
 .mt-brand--refex {
-  color: #128c4a;
+  height: 14px;
 }
 
 .mt-lastmile__row {
@@ -279,9 +316,19 @@
   font-weight: 600;
 }
 
+.mt-chip__icon {
+  display: block;
+  flex-shrink: 0;
+  color: #666666;
+}
+
 .mt-chip.is-selected {
   border-color: var(--mt-navy);
   background: #ececff;
+  color: var(--mt-navy);
+}
+
+.mt-chip.is-selected .mt-chip__icon {
   color: var(--mt-navy);
 }
 
