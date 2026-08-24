@@ -205,8 +205,9 @@ export function mapJourneyOption(item, index, trip) {
     access,
     egress,
     payment: { method: 'Cash', amountInr: fare },
-    totalDistanceKm: kmFromMeters(walkM),
-    totalTimeMin: Math.round(Number(item.total_duration_minutes) || 0),
+    // totalDistanceKm: kmFromMeters(walkM),
+    totalDistanceKm:'--',
+    totalTimeMin: Math.round(Number(item.metro.total_duration_minutes) || 0),
     totalFareInr: fare,
     notSuggested,
     note:

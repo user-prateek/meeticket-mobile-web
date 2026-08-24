@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ModeIcon } from '../../components/icons'
+import { metroLineFromRouteId } from '../../constants/metroLines'
 import olaLogo from '../../assets/brands/ola.png'
 import rapidoLogo from '../../assets/brands/rapido.png'
 import refexLogo from '../../assets/brands/refex.png'
@@ -50,6 +51,7 @@ function CompactHeader({ segment }) {
 }
 
 function Timeline({ segments }) {
+  const isInterchange = segments.find((segment) => segment.mode === 'interchange')
   return (
     <div className="mt-timeline">
       {segments.map((segment, index) => (
@@ -65,7 +67,7 @@ function Timeline({ segments }) {
               ) : (
                 <>
                   <span>{segment.durationMin} Min</span>
-                  {segment.fareInr != null ? <span>₹{segment.fareInr}</span> : null}
+                  {segment.fareInr != null && !isInterchange ? <span>₹{segment.fareInr}</span> : null}
                 </>
               )}
             </div>
@@ -90,7 +92,7 @@ export function RouteCard({ option, selected = false, onSelect, onOpenDetails })
 
   function selectLastMile(event, id) {
     event.stopPropagation()
-    setLastMile(id)
+    //setLastMile(id)
   }
 
   function viewDetails(event) {
@@ -116,22 +118,31 @@ export function RouteCard({ option, selected = false, onSelect, onOpenDetails })
 
       {option.stops?.length > 0 ? (
         <div className={`mt-stops${option.stops.length === 1 ? ' is-single' : ''}`}>
-          {option.stops.map((stop) => (
-            <div
-              key={`${stop.from}-${stop.to}-${stop.routeId || ''}`}
-              className={`mt-stop ${stop.mode ? MODE_CLASS[stop.mode] : ''}`}
-            >
-              <div className="mt-stop__rail" aria-hidden="true">
-                <span className="mt-stop__dot" />
-                <span className="mt-stop__line" />
-                <span className="mt-stop__sq" />
+          {option.stops.map((stop) => {
+            const line =
+              stop.mode === 'metro' ? metroLineFromRouteId(stop.routeId) : null
+            const lineStyle = line ? { background: line.hex } : undefined
+            const railStyle = line
+              ? { background: `color-mix(in srgb, ${line.hex} 35%, #d5dae2)` }
+              : undefined
+
+            return (
+              <div
+                key={`${stop.from}-${stop.to}-${stop.routeId || ''}`}
+                className={`mt-stop ${stop.mode ? MODE_CLASS[stop.mode] : ''}`.trim()}
+              >
+                <div className="mt-stop__rail" aria-hidden="true">
+                  <span className="mt-stop__dot" style={lineStyle} />
+                  <span className="mt-stop__line" style={railStyle} />
+                  <span className="mt-stop__sq" style={lineStyle} />
+                </div>
+                <div className="mt-stop__copy">
+                  <span>{stop.from}</span>
+                  <span>{stop.to}</span>
+                </div>
               </div>
-              <div className="mt-stop__copy">
-                <span>{stop.from}</span>
-                <span>{stop.to}</span>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       ) : null}
 
@@ -168,7 +179,7 @@ export function RouteCard({ option, selected = false, onSelect, onOpenDetails })
       <div className="mt-metrics">
         <div>
           <span>Total Distance</span>
-          <strong>{option.totalDistanceKm} km</strong>
+          <strong>{option.totalDistanceKm}</strong>
         </div>
         <div>
           <span>Total Time</span>
