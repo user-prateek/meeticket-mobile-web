@@ -1,27 +1,32 @@
 import { atom } from 'jotai'
+import { atomWithStorage, createJSONStorage } from 'jotai/utils'
+
+/** Survive refresh on /cab, /journey-detail, /success (tab-scoped). */
+const storage = createJSONStorage(() => sessionStorage)
+const persist = (key, initial) => atomWithStorage(key, initial, storage, { getOnInit: true })
 
 /** Trip from `/journey` query params (coords + place names). */
-export const tripAtom = atom(null)
+export const tripAtom = persist('mt:trip', null)
 
 /** Last trip key used to fetch options. */
-export const journeyTripKeyAtom = atom('')
+export const journeyTripKeyAtom = persist('mt:trip-key', '')
 
 /** Mapped journey options list (ids: 1, 2, 3, …). */
-export const journeyOptionsAtom = atom([])
+export const journeyOptionsAtom = persist('mt:options', [])
 
 /** idle | loading | ready | error */
-export const journeyStatusAtom = atom('idle')
+export const journeyStatusAtom = persist('mt:status', 'idle')
 
-export const journeyErrorAtom = atom('')
+export const journeyErrorAtom = persist('mt:error', '')
 
 /** Selected option id (number). */
-export const selectedJourneyIdAtom = atom(null)
+export const selectedJourneyIdAtom = persist('mt:selected-id', null)
 
 /** Raw API payload for last successful fetch. */
-export const journeyRawAtom = atom([])
+export const journeyRawAtom = persist('mt:raw', [])
 
 /** Booking after cab confirm (success page). */
-export const bookingAtom = atom(null)
+export const bookingAtom = persist('mt:booking', null)
 
 export const selectedJourneyAtom = atom((get) => {
   const id = get(selectedJourneyIdAtom)

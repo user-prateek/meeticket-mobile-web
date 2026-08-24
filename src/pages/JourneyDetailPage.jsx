@@ -3,9 +3,10 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAtomValue } from 'jotai'
 import { Header } from '../components/Header'
 import { CashIcon, ChevronIcon, ClockIcon, ModeIcon } from '../components/icons'
+import { metroLineFromRouteId } from '../constants/metroLines'
 import { useJourneyOptionById, useSelectJourney } from '../hooks/useJourneyOptions'
-import { tripAtom } from '../store/journey'
 import { tripToSearch } from '../lib/tripQuery'
+import { tripAtom } from '../store/journey'
 import './JourneyDetailPage.css'
 
 function formatClock(value) {
@@ -15,17 +16,25 @@ function formatClock(value) {
   return `${h}:${m}`
 }
 
-function LegCard({ segment }) {
+function LegCard({ segment, isInterchange }) {
   const depart = formatClock(segment.departTime)
   const arrive = formatClock(segment.arrivalTime)
   const title = segment.detailTitle || segment.title
+  const line =
+    segment.mode === 'metro'
+      ? metroLineFromRouteId(segment.routeId || segment.routeShortName || title)
+      : null
+  const markerStyle = line ? { background: line.hex } : undefined
+  const railStyle = line
+    ? { background: `color-mix(in srgb, ${line.hex} 40%, #d5dae2)` }
+    : undefined
 
   return (
     <article className={`mt-leg is-${segment.mode}`}>
       <div className="mt-leg__head">
         <ModeIcon mode={segment.mode} size={32} className="mt-leg__badge" />
-        <strong>{title}</strong>
-        {segment.fareInr != null ? <span className="mt-leg__fare">₹{segment.fareInr}</span> : null}
+        <strong style={line ? { color: line.hex } : undefined}>{title}</strong>
+        {segment.fareInr != null && !isInterchange ? <span className="mt-leg__fare">₹{segment.fareInr}</span> : null}
       </div>
 
       <div className="mt-leg__body">
@@ -42,9 +51,9 @@ function LegCard({ segment }) {
         {segment.from && segment.to ? (
           <div className="mt-leg__stops">
             <div className="mt-leg__rail" aria-hidden="true">
-              <span className="mt-stop__dot" />
-              <span className="mt-stop__line" />
-              <span className="mt-stop__sq" />
+              <span className="mt-stop__dot" style={markerStyle} />
+              <span className="mt-stop__line" style={railStyle} />
+              <span className="mt-stop__sq" style={markerStyle} />
             </div>
             <div className="mt-leg__copy">
               <div>
@@ -86,6 +95,7 @@ function JourneyDetailView({ journey, onBack, onConfirm, onSelectService }) {
     setService(item.id)
     onSelectService?.(item)
   }
+  const isInterchange = journey.segments.find((segment) => segment.mode === 'interchange')
 
   return (
     <section className="mt-details-page">
@@ -101,7 +111,7 @@ function JourneyDetailView({ journey, onBack, onConfirm, onSelectService }) {
               segment.mode === 'interchange' ? (
                 <InterchangeCard key={segment.id} segment={segment} />
               ) : (
-                <LegCard key={segment.id} segment={segment} />
+                <LegCard key={segment.id} segment={segment} isInterchange={isInterchange} />
               ),
             )}
 

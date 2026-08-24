@@ -72,7 +72,7 @@ export function JourneyPage() {
 
   function continueWith(option) {
     selectJourney(option)
-    navigate(`/cab?id=${option.id}&service=pickup`)
+    navigate(`/journey-detail?id=${option.id}`)
   }
 
   return (

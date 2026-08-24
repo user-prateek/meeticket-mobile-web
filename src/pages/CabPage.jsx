@@ -1,8 +1,10 @@
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAtomValue, useSetAtom } from 'jotai'
+import { useEffect } from 'react'
 import { buildBooking } from '../constants/tickets'
 import { LastMilePage } from '../features/lastMile/LastMilePage'
 import { useJourneyOptionById, useSelectJourney } from '../hooks/useJourneyOptions'
+import { preloadGoogleMaps } from '../lib/googleMaps'
 import { tripToSearch } from '../lib/tripQuery'
 import { bookingAtom, tripAtom } from '../store/journey'
 
@@ -20,7 +22,12 @@ export function CabPage() {
   const serviceId = params.get('service') === 'drop' ? 'drop' : 'pickup'
   const journey = useJourneyOptionById(id)
 
+  useEffect(() => {
+    preloadGoogleMaps()
+  }, [])
+
   if (!journey) {
+    // Prefer returning to the loaded trip list; never bounce to `/` demo home.
     const fallback = trip ? `/journey${tripToSearch(trip)}` : '/journey'
     return <Navigate to={fallback} replace />
   }
@@ -39,6 +46,7 @@ export function CabPage() {
       journey={journey}
       serviceId={serviceId}
       mile={mile}
+      trip={trip}
       fromPlace={mile?.fromLabel || trip?.fromPlace || 'Pickup'}
       toPlace={mile?.toLabel || trip?.toPlace || 'Drop'}
       onBack={() => navigate(`/journey-detail?id=${journey.id}`)}

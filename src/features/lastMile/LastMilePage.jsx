@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { CabMap } from '../../components/CabMap'
 import { BackIcon, ModeIcon } from '../../components/icons'
 import {
   LAST_MILE_MODE_DEFAULT,
@@ -9,6 +10,7 @@ import {
   getLastMileProvider,
   getLastMileVehicles,
 } from '../../constants/lastMile'
+import { preloadGoogleMaps, resolveCabMapPoints } from '../../lib/googleMaps'
 import './LastMilePage.css'
 
 function optionMeta(vehicle) {
@@ -23,6 +25,7 @@ export function LastMilePage({
   journey,
   serviceId,
   mile,
+  trip,
   onBack,
   onBook,
   fromPlace = 'Ameerpet',
@@ -38,6 +41,22 @@ export function LastMilePage({
     () => getLastMileVehicles(providerId, modeId),
     [providerId, modeId],
   )
+
+  const mapPoints = useMemo(
+    () =>
+      resolveCabMapPoints({
+        serviceId,
+        mile,
+        trip,
+        fromLabel: fromPlace,
+        toLabel: toPlace,
+      }),
+    [serviceId, mile, trip, fromPlace, toPlace],
+  )
+
+  useEffect(() => {
+    preloadGoogleMaps()
+  }, [])
 
   useEffect(() => {
     if (modes.length === 0) {
@@ -66,19 +85,11 @@ export function LastMilePage({
     <section className="mt-lastmile-page">
       <div className="mt-lastmile-page__map" aria-label="Map">
         <div className="mt-lastmile-page__map-canvas">
+          <CabMap from={mapPoints?.from} to={mapPoints?.to} />
+
           <button type="button" className="mt-lastmile-page__back" onClick={onBack} aria-label="Go back">
             <BackIcon size={20} />
           </button>
-
-          <div className="mt-lastmile-page__pin mt-lastmile-page__pin--from">
-            <span className="mt-lastmile-page__pin-dot is-from" />
-            <span>{fromPlace}</span>
-          </div>
-          <div className="mt-lastmile-page__route-line" aria-hidden="true" />
-          <div className="mt-lastmile-page__pin mt-lastmile-page__pin--to">
-            <span className="mt-lastmile-page__pin-dot is-to" />
-            <span>{toPlace}</span>
-          </div>
         </div>
       </div>
 
