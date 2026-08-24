@@ -1,9 +1,11 @@
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { useEffect } from 'react'
 import { buildBooking } from '../constants/tickets'
 import { LastMilePage } from '../features/lastMile/LastMilePage'
+import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useJourneyOptionById, useSelectJourney } from '../hooks/useJourneyOptions'
+import { withAppContext } from '../lib/appContext'
 import { preloadGoogleMaps } from '../lib/googleMaps'
 import { tripToSearch } from '../lib/tripQuery'
 import { bookingAtom, tripAtom } from '../store/journey'
@@ -14,7 +16,7 @@ import { bookingAtom, tripAtom } from '../store/journey'
  */
 export function CabPage() {
   const [params] = useSearchParams()
-  const navigate = useNavigate()
+  const navigate = useAppNavigate()
   const trip = useAtomValue(tripAtom)
   const setBooking = useSetAtom(bookingAtom)
   const selectJourney = useSelectJourney()
@@ -27,9 +29,8 @@ export function CabPage() {
   }, [])
 
   if (!journey) {
-    // Prefer returning to the loaded trip list; never bounce to `/` demo home.
     const fallback = trip ? `/journey${tripToSearch(trip)}` : '/journey'
-    return <Navigate to={fallback} replace />
+    return <Navigate to={withAppContext(fallback)} replace />
   }
 
   const mile = serviceId === 'drop' ? journey.egress : journey.access

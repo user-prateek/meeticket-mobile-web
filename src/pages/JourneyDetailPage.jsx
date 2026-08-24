@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import { useAtomValue } from 'jotai'
 import { Header } from '../components/Header'
 import { CashIcon, ChevronIcon, ClockIcon, ModeIcon } from '../components/icons'
 import { metroLineFromRouteId } from '../constants/metroLines'
+import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useJourneyOptionById, useSelectJourney } from '../hooks/useJourneyOptions'
+import { withAppContext } from '../lib/appContext'
 import { tripToSearch } from '../lib/tripQuery'
 import { tripAtom } from '../store/journey'
 import './JourneyDetailPage.css'
@@ -157,7 +159,7 @@ function JourneyDetailView({ journey, onBack, onConfirm, onSelectService }) {
  */
 export function JourneyDetailPage() {
   const [params] = useSearchParams()
-  const navigate = useNavigate()
+  const navigate = useAppNavigate()
   const trip = useAtomValue(tripAtom)
   const selectJourney = useSelectJourney()
   const id = params.get('id')
@@ -165,7 +167,7 @@ export function JourneyDetailPage() {
 
   if (!journey) {
     const fallback = trip ? `/journey${tripToSearch(trip)}` : '/journey'
-    return <Navigate to={fallback} replace />
+    return <Navigate to={withAppContext(fallback)} replace />
   }
 
   function openCab(serviceId = 'pickup') {

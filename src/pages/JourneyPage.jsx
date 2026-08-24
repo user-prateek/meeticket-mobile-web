@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { Header } from '../components/Header'
 import { SortIcon } from '../components/icons'
 import { SORT_DEFAULT, SORT_OPTIONS } from '../constants/journey'
 import { RouteCard } from '../features/srp/RouteCard'
+import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useJourneyOptions, useSelectJourney } from '../hooks/useJourneyOptions'
+import { GOTO_HOME_PATH } from '../lib/appContext'
 import { hasRequiredTripParams, parseTripQuery } from '../lib/tripQuery'
 import './JourneyPage.css'
 
@@ -28,7 +30,7 @@ function sortOptionsList(options, sortBy) {
  */
 export function JourneyPage() {
   const location = useLocation()
-  const navigate = useNavigate()
+  const navigate = useAppNavigate()
   const selectJourney = useSelectJourney()
 
   const paramsOk = hasRequiredTripParams(location.search)
@@ -47,10 +49,15 @@ export function JourneyPage() {
   const loading = status === 'loading'
   const failed = status === 'error'
 
+  function goHome() {
+    // Root of the WebView flow — signal native app to close and show home.
+    navigate(GOTO_HOME_PATH, { replace: true })
+  }
+
   if (!paramsOk) {
     return (
       <section className="mt-srp">
-        <Header title="Journey Options" />
+        <Header title="Journey Options" onBack={goHome} />
         <p className="mt-srp__empty">
           Open this page with trip coordinates:
           <br />
@@ -77,7 +84,7 @@ export function JourneyPage() {
 
   return (
     <section className="mt-srp">
-      <Header title="Journey Options" subtitle={subtitle} />
+      <Header title="Journey Options" subtitle={subtitle} onBack={goHome} />
 
       <div className="mt-srp__sort" aria-label="Sort journey options">
         <span className="mt-srp__sort-label">

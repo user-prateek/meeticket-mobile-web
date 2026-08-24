@@ -35,7 +35,19 @@ export const urls = { journey: `${baseUrl}/journey?` }
 
 Calls go directly to the API host (CORS handled on the backend).
 
-## Cab map (Google Maps)
+## WebView (Android / iOS)
+
+Entry example:
+
+```
+/journey?from_lat=…&from_lon=…&to_lat=…&to_lon=…&from=…&to=…
+  &access_mode=walk&egress_mode=walk&candidates=2
+  &src=android&versionName=1.2.3
+```
+
+- `src` + `versionName` are stored and **appended on every navigation** (`/journey-detail`, `/cab`, `/success`, …).
+- Back on the journey list goes to **`/gotohome`** (empty page). The native app should intercept that URL and close the WebView / show native home.
+
 
 On `/cab?id=2&service=pickup|drop`:
 

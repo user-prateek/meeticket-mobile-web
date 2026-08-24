@@ -1,8 +1,10 @@
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import { useAtomValue } from 'jotai'
 import { buildBooking } from '../constants/tickets'
 import { TicketsPage } from '../features/tickets/TicketsPage'
+import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useJourneyOptionById } from '../hooks/useJourneyOptions'
+import { withAppContext } from '../lib/appContext'
 import { tripToSearch } from '../lib/tripQuery'
 import { bookingAtom, tripAtom } from '../store/journey'
 
@@ -12,7 +14,7 @@ import { bookingAtom, tripAtom } from '../store/journey'
  */
 export function SuccessPage() {
   const [params] = useSearchParams()
-  const navigate = useNavigate()
+  const navigate = useAppNavigate()
   const trip = useAtomValue(tripAtom)
   const storedBooking = useAtomValue(bookingAtom)
   const id = params.get('id')
@@ -20,7 +22,7 @@ export function SuccessPage() {
 
   if (!journey) {
     const fallback = trip ? `/journey${tripToSearch(trip)}` : '/journey'
-    return <Navigate to={fallback} replace />
+    return <Navigate to={withAppContext(fallback)} replace />
   }
 
   const booking = storedBooking ?? buildBooking({ journey, trip })
