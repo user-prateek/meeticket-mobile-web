@@ -38,6 +38,44 @@ function kmFromMeters(n) {
   return Math.round((Number(n) || 0) / 100) / 10
 }
 
+/**
+ * Ensure metro station display names include "Metro Station".
+ * e.g. "Ameerpet" → "Ameerpet Metro Station"
+ */
+export function formatMetroStationName(name) {
+  if (name == null) return name
+  const trimmed = String(name).trim()
+  if (!trimmed) return trimmed
+  if (/metro\s*station/i.test(trimmed)) {
+    return trimmed.replace(/metro\s*station/i, 'Metro Station')
+  }
+  if (/\bmetro$/i.test(trimmed)) {
+    return trimmed.replace(/\s*metro$/i, ' Metro Station')
+  }
+  return `${trimmed} Metro Station`
+}
+
+function stationName(name, mode) {
+  if (mode !== 'metro') return name
+  return formatMetroStationName(name)
+}
+
+function stationKey(name) {
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s*metro\s*station$/i, '')
+    .replace(/\s+/g, ' ')
+}
+
+function isMetroEndpoint(name, metro) {
+  if (!name || !metro?.stops?.length) return false
+  const key = stationKey(name)
+  return metro.stops.some(
+    (stop) => stationKey(stop.from) === key || stationKey(stop.to) === key,
+  )
+}
+
 function parseTimeToMinutes(value) {
   if (!value || typeof value !== 'string') return null
   const [h, m, s] = value.split(':').map(Number)
@@ -89,8 +127,10 @@ function mapTransitHops(block, mode, prefix) {
   legs.forEach((leg, index) => {
     if (index > 0) {
       const wait = waitMinutes(legs[index - 1].arrival_time, leg.depart_time)
-      const transferName =
-        block.transfer_station_name || legs[index - 1].to_station_name || leg.from_station_name
+      const transferName = stationName(
+        block.transfer_station_name || legs[index - 1].to_station_name || leg.from_station_name,
+        mode,
+      )
 
       hops.push({
         id: `${prefix}-interchange-${index}`,
@@ -99,14 +139,16 @@ function mapTransitHops(block, mode, prefix) {
         title: 'Interchange',
         subtitle: 'Interchange',
         detailTitle: transferName ? `Interchange at ${transferName}` : 'Interchange',
-        from: legs[index - 1].to_station_name,
-        to: leg.from_station_name,
+        from: stationName(legs[index - 1].to_station_name, mode),
+        to: stationName(leg.from_station_name, mode),
         transferName,
         stationId: block.transfer_station_id || legs[index - 1].to_station_id,
       })
     }
 
     const title = mode === 'metro' ? 'Metro' : 'Bus TGSRTC'
+    const from = stationName(leg.from_station_name, mode)
+    const to = stationName(leg.to_station_name, mode)
 
     hops.push({
       id: `${prefix}-${index}`,
@@ -116,8 +158,8 @@ function mapTransitHops(block, mode, prefix) {
       title,
       subtitle: title,
       detailTitle: lineLabel(mode, leg),
-      from: leg.from_station_name,
-      to: leg.to_station_name,
+      from,
+      to,
       fromId: leg.from_station_id,
       toId: leg.to_station_id,
       routeId: leg.route_id,
@@ -128,8 +170,8 @@ function mapTransitHops(block, mode, prefix) {
     })
 
     stops.push({
-      from: leg.from_station_name,
-      to: leg.to_station_name,
+      from,
+      to,
       mode,
       routeId: leg.route_id,
     })
@@ -153,7 +195,7 @@ function mapTransitHops(block, mode, prefix) {
     fare,
     durationMin: Math.round(durationMin),
     direct: Boolean(block.direct),
-    transferName: block.transfer_station_name || null,
+    transferName: stationName(block.transfer_station_name, mode) || null,
   }
 }
 
@@ -169,11 +211,17 @@ function optionLabel(metro, bus) {
 }
 
 export function mapJourneyOption(item, index, trip) {
-  const origin = item.origin_station_name || 'Origin station'
-  const dest = item.destination_station_name || 'Destination station'
-
   const metro = mapTransitHops(item.metro, 'metro', 'seg-metro')
   const bus = mapTransitHops(item.bus, 'bus', 'seg-bus')
+
+  const originRaw = item.origin_station_name || 'Origin station'
+  const destRaw = item.destination_station_name || 'Destination station'
+  const origin = isMetroEndpoint(originRaw, metro)
+    ? formatMetroStationName(originRaw)
+    : originRaw
+  const dest = isMetroEndpoint(destRaw, metro)
+    ? formatMetroStationName(destRaw)
+    : destRaw
 
   const segments = [...bus.hops, ...metro.hops]
   const cardSegments = segments
@@ -206,7 +254,7 @@ export function mapJourneyOption(item, index, trip) {
     egress,
     payment: { method: 'Cash', amountInr: fare },
     // totalDistanceKm: kmFromMeters(walkM),
-    totalDistanceKm:'--',
+    totalDistanceKm: '--',
     totalTimeMin: Math.round(Number(item.metro.total_duration_minutes) || 0),
     totalFareInr: fare,
     notSuggested,

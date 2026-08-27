@@ -145,10 +145,21 @@
   height: 16px;
 }
 
+.mt-lastmile-page__tab.is-disabled,
+.mt-lastmile-page__tab:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.mt-lastmile-page__tab.is-disabled .mt-lastmile-page__tab-logo,
+.mt-lastmile-page__tab:disabled .mt-lastmile-page__tab-logo {
+  filter: grayscale(1);
+}
+
 .mt-lastmile-page__modes {
   display: flex;
-  gap: 8px;
-  margin: 12px 14px 0;
+  gap: 6px;
+  margin: 14px 14px 0;
   padding: 4px;
   border-radius: 999px;
   background: #eef0f3;
@@ -171,9 +182,9 @@
 }
 
 .mt-lastmile-page__mode.is-active {
-  background: #4f6ef7;
-  color: #fff;
-  box-shadow: 0 1px 4px rgba(79, 110, 247, 0.35);
+  background: #fff;
+  color: var(--mt-navy);
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.12);
 }
 
 .mt-lastmile-page__mode-icon {
@@ -212,8 +223,9 @@
 }
 
 .mt-lastmile-page__option.is-selected {
-  border-color: #4f6ef7;
-  background: #f7f9ff;
+  border-color: var(--mt-navy);
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--mt-navy);
 }
 
 .mt-lastmile-page__vehicle {
@@ -246,7 +258,7 @@
   height: 18px;
   padding: 0 6px;
   border-radius: 4px;
-  background: #3b6ef5;
+  background: var(--mt-navy);
   color: #fff;
   font-size: 10px;
   font-weight: 700;
@@ -277,13 +289,40 @@
 
 .mt-lastmile-page__footer {
   flex-shrink: 0;
-  padding: 8px 14px 14px;
+  padding: 10px 14px 14px;
   border-top: 1px solid #eceff3;
   background: #fff;
 }
 
+.mt-lastmile-page__footer-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mt-lastmile-page__footer-logo {
+  display: block;
+  flex-shrink: 0;
+  width: auto;
+  max-width: 56px;
+  object-fit: contain;
+}
+
+.mt-lastmile-page__footer-logo--ola {
+  height: 28px;
+}
+
+.mt-lastmile-page__footer-logo--rapido {
+  height: 24px;
+}
+
+.mt-lastmile-page__footer-logo--refex {
+  height: 22px;
+}
+
 .mt-lastmile-page__book {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   height: 48px;
   border: 0;
   border-radius: 10px;
@@ -293,8 +332,21 @@
   font-weight: 700;
 }
 
+.mt-lastmile-page__book:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
 .mt-lastmile-page__book:active {
   filter: brightness(1.08);
+}
+
+.mt-lastmile-page__book-error {
+  margin: 8px 0 0;
+  color: #b42318;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
 }
 
 .mt-lastmile-page__pay-note {

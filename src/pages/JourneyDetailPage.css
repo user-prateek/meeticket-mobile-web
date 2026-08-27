@@ -9,7 +9,7 @@
 .mt-details-page__body {
   flex: 1;
   overflow: auto;
-  padding: 12px 12px 8px;
+  padding: 12px 16px 8px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -33,40 +33,21 @@
   line-height: 1.4;
 }
 
-.mt-walk-card.is-interchange {
-  background: #f7f8fa;
-}
-
-.mt-leg,
-.mt-walk-card {
-  background: #fff;
-  border: 1px solid var(--mt-border);
-  border-radius: 12px;
-}
-
+/* —— Transit leg —— */
 .mt-leg {
+  background: #fff;
+  border: 1px solid #e6e9ee;
+  border-radius: 12px;
   padding: 0;
+  overflow: hidden;
 }
 
 .mt-leg__head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px;
+  gap: 10px;
+  padding: 12px 14px;
   border-bottom: 1px solid #eceff3;
-}
-
-.mt-leg__head strong {
-  flex: 1;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--mt-text);
-}
-
-.mt-leg__fare {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--mt-text);
 }
 
 .mt-leg__badge {
@@ -78,12 +59,29 @@
   border-radius: 999px;
 }
 
+.mt-leg__head strong {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #111827;
+}
+
+.mt-leg__fare {
+  flex-shrink: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #111827;
+}
+
 .mt-leg__body {
   display: grid;
-  grid-template-columns: 64px 1fr;
+  grid-template-columns: 52px 1fr;
   gap: 8px;
   align-items: stretch;
-  padding: 12px;
+  padding: 14px;
 }
 
 .mt-leg__duration {
@@ -92,26 +90,15 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  color: var(--mt-text);
+  color: #6b7280;
   text-align: center;
 }
 
 .mt-leg__duration span {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.2;
-}
-
-.mt-leg__clock {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--mt-muted);
-  line-height: 1.2;
-}
-
-.mt-walk-card.is-transfer {
-  background: #f7f8fa;
-  border-style: dashed;
+  color: #4b5563;
 }
 
 .mt-leg__stops {
@@ -124,7 +111,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 6px 0;
+  padding: 4px 0;
 }
 
 .mt-leg__rail .mt-stop__dot,
@@ -149,7 +136,7 @@
 }
 
 .mt-leg__rail .mt-stop__line {
-  width: 2px;
+  width: 1.5px;
   flex: 1;
   min-height: 28px;
   background: #d5dae2;
@@ -159,7 +146,7 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 16px;
+  gap: 18px;
   min-width: 0;
 }
 
@@ -173,67 +160,342 @@
   font-size: 13px;
   font-weight: 700;
   line-height: 1.3;
-  color: var(--mt-text);
+  color: #111827;
 }
 
 .mt-leg__copy small {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
-  color: var(--mt-muted);
+  line-height: 1.25;
+  color: #8a9099;
 }
 
+/* —— Walk transfer —— */
 .mt-walk-card {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 12px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid #e6e9ee;
+  border-radius: 12px;
 }
 
 .mt-walk-card__copy {
   min-width: 0;
+  padding-top: 2px;
 }
 
 .mt-walk-card__copy strong {
   display: block;
   font-size: 14px;
   font-weight: 700;
-  color: var(--mt-text);
+  line-height: 1.3;
+  color: #111827;
 }
 
 .mt-walk-card__copy p {
   margin: 4px 0 0;
   font-size: 12px;
+  font-weight: 500;
   line-height: 1.4;
-  color: var(--mt-muted);
+  color: #8a9099;
 }
 
-.mt-services {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 4px;
-}
-
-.mt-services button {
-  height: 40px;
-  border: 1.5px solid var(--mt-navy);
-  border-radius: 8px;
+/* —— Pickup service —— */
+.mt-pickup {
   background: #fff;
-  color: var(--mt-navy);
+  border: 1px solid #e6e9ee;
+  border-radius: 12px;
+  padding: 12px 12px 14px;
+}
+
+.mt-pickup__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  min-height: 24px;
+}
+
+.mt-pickup__head strong {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #111827;
+}
+
+.mt-pickup__more {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--mt-metro);
   font-size: 13px;
   font-weight: 700;
+  line-height: 1.2;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
-.mt-services button.is-active {
-  background: #ececff;
+.mt-pickup__dest {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
 }
 
+.mt-pickup__dest-title {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #111827;
+}
+
+.mt-pickup__dest-divider {
+  height: 1px;
+  background: #eceff3;
+}
+
+.mt-pickup__dest-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mt-pickup__pin {
+  flex-shrink: 0;
+  color: var(--mt-navy);
+}
+
+.mt-pickup__dest-station {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mt-pickup__modes {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.mt-pickup__mode {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid #d7dce3;
+  border-radius: 8px;
+  background: #fff;
+  color: #4b5563;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mt-pickup__mode.is-selected {
+  border-color: var(--mt-navy);
+  color: var(--mt-navy);
+  box-shadow: 0 0 0 1px var(--mt-navy);
+}
+
+.mt-pickup__mode-icon {
+  display: block;
+  flex-shrink: 0;
+}
+
+.mt-pickup__providers {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid #e6e9ee;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.mt-pickup__provider {
+  display: grid;
+  place-items: center;
+  min-height: 52px;
+  padding: 12px 8px;
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.mt-pickup__provider + .mt-pickup__provider {
+  border-left: 1px solid #e6e9ee;
+}
+
+.mt-pickup__provider.is-selected {
+  outline: 2px solid var(--mt-navy);
+  outline-offset: -2px;
+  z-index: 1;
+}
+
+.mt-pickup__provider.is-disabled,
+.mt-pickup__provider:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.mt-pickup__empty {
+  margin: 0;
+  padding: 14px 8px;
+  border: 1px dashed #e6e9ee;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #8a9099;
+  background: #fafbfc;
+}
+
+.mt-brand {
+  display: block;
+  height: 18px;
+  width: auto;
+  max-width: 72px;
+  object-fit: contain;
+}
+
+.mt-brand--ola {
+  height: 16px;
+}
+
+.mt-brand--rapido {
+  height: 20px;
+}
+
+.mt-brand--refex {
+  height: 16px;
+}
+
+/* Provider vehicle slots — match RouteCard */
+.mt-provider-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 0;
+  background: transparent;
+}
+
+.mt-provider-options__cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 64px;
+  padding: 10px 6px 8px;
+  background: #fff;
+  border: 1px solid #e6e9ee;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.mt-provider-options__cell.is-empty {
+  visibility: hidden;
+  min-height: 64px;
+  padding: 0;
+  border: 0;
+}
+
+.mt-provider-options__cell.is-selected {
+  border-color: var(--mt-metro);
+  box-shadow: 0 0 0 1px var(--mt-metro);
+}
+
+.mt-provider-options__check {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--mt-metro);
+}
+
+.mt-provider-options__row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 20px;
+}
+
+.mt-provider-options__row .mt-brand {
+  display: block;
+  height: 18px;
+  width: auto;
+  max-width: 72px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.mt-brand--ola {
+  height: 16px;
+}
+
+.mt-brand--rapido {
+  height: 20px;
+}
+
+.mt-brand--refex {
+  height: 16px;
+}
+
+.mt-provider-options__mode-icon {
+  display: block;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: #666666;
+}
+
+.mt-provider-options__meta {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-align: center;
+  color: #4b5563;
+}
+
+.mt-provider-options__eta {
+  color: #4b5563;
+}
+
+.mt-provider-options__dot {
+  color: #9ca3af;
+}
+
+.mt-provider-options__fare {
+  color: var(--mt-fare);
+}
+
+/* —— Footer —— */
 .mt-details-page__panel {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
+  gap: 12px;
+  padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
   background: #fff;
   border-top: 1px solid #e6e6e6;
 }
@@ -243,11 +505,11 @@
   align-items: center;
   gap: 10px;
   width: 100%;
-  height: 40px;
+  min-height: 40px;
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--mt-text);
+  color: #111827;
 }
 
 .mt-pay span {
@@ -255,12 +517,14 @@
   text-align: left;
   font-size: 15px;
   font-weight: 600;
+  line-height: 1.2;
 }
 
 .mt-pay strong {
   font-size: 18px;
   font-weight: 700;
-  color: var(--mt-text);
+  line-height: 1.2;
+  color: #111827;
 }
 
 .mt-pay__chevron {

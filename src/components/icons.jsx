@@ -48,6 +48,27 @@ const MODE_PNG = {
   walk: walkPng,
 }
 
+/** White metro glyph for dark capsules (no circular plate). */
+export function MetroGlyph({ size = 14, className, style, ...rest }) {
+  return (
+    <SvgIcon size={size} color="currentColor" className={className} style={style} viewBox="0 0 12 14" {...rest}>
+      <path d="M1.5 14V13.2632L2.625 12.5263C1.8875 12.5263 1.26562 12.2776 0.759375 11.7803C0.253125 11.2829 0 10.6719 0 9.94737V2.94737C0 1.92807 0.48125 1.18202 1.44375 0.709211C2.40625 0.236404 3.925 0 6 0C8.15 0 9.6875 0.227193 10.6125 0.681579C11.5375 1.13596 12 1.89123 12 2.94737V9.94737C12 10.6719 11.7469 11.2829 11.2406 11.7803C10.7344 12.2776 10.1125 12.5263 9.375 12.5263L10.5 13.2632V14H1.5ZM1.5 5.89474H10.5V3.68421H1.5V5.89474ZM6.79688 9.99342C7.01562 9.77851 7.125 9.51754 7.125 9.21053C7.125 8.90351 7.01562 8.64254 6.79688 8.42763C6.57812 8.21272 6.3125 8.10526 6 8.10526C5.6875 8.10526 5.42188 8.21272 5.20312 8.42763C4.98438 8.64254 4.875 8.90351 4.875 9.21053C4.875 9.51754 4.98438 9.77851 5.20312 9.99342C5.42188 10.2083 5.6875 10.3158 6 10.3158C6.3125 10.3158 6.57812 10.2083 6.79688 9.99342Z" fill="currentColor"/>
+    </SvgIcon>
+  )
+}
+
+/** White bus glyph for dark capsules. */
+export function BusGlyph({ size = 14, className, style, ...rest }) {
+  return (
+    <SvgIcon size={size} color="currentColor" className={className} style={style} viewBox="0 0 14 14" {...rest}>
+      <path
+        fill="currentColor"
+        d="M2.5 1.5h9c.83 0 1.5.67 1.5 1.5v6.5c0 .83-.67 1.5-1.5 1.5h-.4l.4 1.5h-1.5l-.35-1.5H4.35L4 12.5H2.5l.4-1.5H2.5c-.83 0-1.5-.67-1.5-1.5V3c0-.83.67-1.5 1.5-1.5Zm1 2v3h7v-3h-7Zm1.15 4.75a.85.85 0 1 0 0 1.7.85.85 0 0 0 0-1.7Zm5.7 0a.85.85 0 1 0 0 1.7.85.85 0 0 0 0-1.7Z"
+      />
+    </SvgIcon>
+  )
+}
+
 export function MetroIcon({ size = 36, className }) {
   return <ModePng mode="metro" size={size} className={className} />
 }
@@ -178,6 +199,17 @@ export function AppLogo({ size = 36, className }) {
       <circle cx="22" cy="16" r="7" fill="#3d5bff" />
       <path d="M18 11.5v14" stroke="#fff" strokeWidth="1.6" />
     </svg>
+  )
+}
+
+export function PinIcon({ size = 16, color = 'currentColor', className, style, ...rest }) {
+  return (
+    <SvgIcon size={size} color={color} className={className} style={style} viewBox="0 0 16 16" {...rest}>
+      <path
+        fill="currentColor"
+        d="M8 1.2A4.4 4.4 0 0 0 3.6 5.6C3.6 8.7 8 14.8 8 14.8s4.4-6.1 4.4-9.2A4.4 4.4 0 0 0 8 1.2Zm0 6.2A1.8 1.8 0 1 1 8 3.8a1.8 1.8 0 0 1 0 3.6Z"
+      />
+    </SvgIcon>
   )
 }
 

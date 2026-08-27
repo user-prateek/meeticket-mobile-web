@@ -97,6 +97,14 @@
   cursor: not-allowed;
 }
 
+.mt-srp__selection-hint {
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
 .mt-srp__retry {
   margin-top: 12px;
   padding: 8px 14px;

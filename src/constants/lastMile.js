@@ -31,6 +31,18 @@ export const LAST_MILE_MODES = [
 
 export const LAST_MILE_MODE_DEFAULT = 'cab'
 
+/** Refex corporate cab — cab only. */
+export const REFEX_SUPPORTED_MODES = ['cab']
+
+export function providerSupportsMode(providerId, modeId) {
+  if (providerId === 'refex') return modeId === 'cab'
+  return true
+}
+
+export function isProviderDisabledForMode(providerId, modeId) {
+  return !providerSupportsMode(providerId, modeId)
+}
+
 /**
  * Vehicle options keyed by provider.
  * Icons: src/assets/vehicles/
@@ -164,6 +176,31 @@ export const LAST_MILE_VEHICLES = {
   refex: [],
 }
 
+export const CARD_MODE_ORDER = ['auto', 'cab', 'bike']
+
+function cheapestInMode(vehicles) {
+  if (!vehicles.length) return null
+  return vehicles.reduce((best, vehicle) => {
+    const fare = Number(vehicle.fareInr)
+    const bestFare = Number(best.fareInr)
+    if (!Number.isFinite(fare)) return best
+    if (!Number.isFinite(bestFare)) return vehicle
+    return fare < bestFare ? vehicle : best
+  })
+}
+
+/** Route card — one cheapest option per mode (auto, cab, bike). */
+export function getProviderCardSlots(providerId, refexVehicles = []) {
+  const list =
+    providerId === 'refex' ? refexVehicles : LAST_MILE_VEHICLES[providerId] ?? []
+  const modes = providerId === 'refex' ? ['cab'] : CARD_MODE_ORDER
+
+  return CARD_MODE_ORDER.map((mode) => {
+    if (!modes.includes(mode)) return null
+    return cheapestInMode(list.filter((vehicle) => vehicle.mode === mode))
+  })
+}
+
 export function getLastMileVehicles(providerId, modeId) {
   const list = LAST_MILE_VEHICLES[providerId] ?? []
   if (!modeId) return list
@@ -180,7 +217,17 @@ export function getLastMileProvider(providerId) {
   return LAST_MILE_PROVIDERS.find((provider) => provider.id === providerId)
 }
 
+export function getLastMileMode(modeId) {
+  return LAST_MILE_MODES.find((mode) => mode.id === modeId)
+}
+
+export function findLastMileVehicle(providerId, vehicleId) {
+  if (!providerId || !vehicleId) return null
+  return (LAST_MILE_VEHICLES[providerId] ?? []).find((vehicle) => vehicle.id === vehicleId) ?? null
+}
+
 export function formatFare(fareInr) {
+  if (fareInr == null || fareInr === '') return ''
   if (Number.isInteger(fareInr)) return `₹${fareInr}`
-  return `₹${fareInr.toFixed(2)}`
+  return `₹${Number(fareInr).toFixed(2)}`
 }

@@ -11,7 +11,7 @@ import { tripToSearch } from '../lib/tripQuery'
 import { bookingAtom, tripAtom } from '../store/journey'
 
 /**
- * /cab?id=1&service=pickup|drop
+ * /cab?id=1&service=pickup|drop&provider=&mode=&vehicle=
  * First / last mile booking using access / egress from the selected journey.
  */
 export function CabPage() {
@@ -22,6 +22,9 @@ export function CabPage() {
   const selectJourney = useSelectJourney()
   const id = params.get('id')
   const serviceId = params.get('service') === 'drop' ? 'drop' : 'pickup'
+  const initialProviderId = params.get('provider') || undefined
+  const initialModeId = params.get('mode') || undefined
+  const initialVehicleId = params.get('vehicle') || undefined
   const journey = useJourneyOptionById(id)
 
   useEffect(() => {
@@ -35,10 +38,18 @@ export function CabPage() {
 
   const mile = serviceId === 'drop' ? journey.egress : journey.access
 
-  function handleBook({ vehicle, providerId, modeId }) {
+  function detailPath() {
+    const next = new URLSearchParams({ id: String(journey.id) })
+    if (initialProviderId) next.set('provider', initialProviderId)
+    if (initialModeId) next.set('mode', initialModeId)
+    if (initialVehicleId) next.set('vehicle', initialVehicleId)
+    return `/journey-detail?${next.toString()}`
+  }
+
+  function handleBook({ vehicle, providerId, modeId, refexBlock }) {
     selectJourney(journey)
-    const booking = buildBooking({ journey, vehicle, serviceId, trip })
-    setBooking({ ...booking, providerId, modeId })
+    const booking = buildBooking({ journey, vehicle, serviceId, trip, refexBlock })
+    setBooking({ ...booking, providerId, modeId, refexBlock })
     navigate(`/success?id=${journey.id}`)
   }
 
@@ -48,9 +59,12 @@ export function CabPage() {
       serviceId={serviceId}
       mile={mile}
       trip={trip}
+      initialProviderId={initialProviderId}
+      initialModeId={initialModeId}
+      initialVehicleId={initialVehicleId}
       fromPlace={mile?.fromLabel || trip?.fromPlace || 'Pickup'}
       toPlace={mile?.toLabel || trip?.toPlace || 'Drop'}
-      onBack={() => navigate(`/journey-detail?id=${journey.id}`)}
+      onBack={() => navigate(detailPath())}
       onBook={handleBook}
     />
   )

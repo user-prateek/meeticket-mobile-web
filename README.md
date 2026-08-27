@@ -87,3 +87,4 @@ VITE_GOOGLE_MAPS_API_KEY=your_key_here npm run build
 To avoid typing it each release, put the same `export` in the deploy user’s `~/.bashrc` / `~/.profile` (or your CI secrets) so the shell that runs `npm run build` already has it.
 
 Enable **Maps JavaScript API** + **Directions API**, and restrict the key by HTTP referrer in Google Cloud.
+

@@ -14,9 +14,11 @@ export const CANCEL_REASONS = [
  * Tabs map to ticket panels for each mode in the multimodal trip.
  * Cab layout uses the "Share PIN first" variant from the design set.
  */
-export function buildBooking({ journey, vehicle, serviceId, trip }) {
+export function buildBooking({ journey, vehicle, serviceId, trip, refexBlock }) {
   const fare = vehicle?.fareInr ?? 55
   const vehicleLabel = vehicle?.label ?? 'OLA Bike'
+  const pin = refexBlock?.verificationCode || '6151'
+  const bookingRef = refexBlock?.referenceNumber || null
 
   const tabs = [
     { id: 'metro', label: 'Metro', mode: 'metro' },
@@ -29,18 +31,19 @@ export function buildBooking({ journey, vehicle, serviceId, trip }) {
   const busSeg = journey?.segments?.find((s) => s.mode === 'bus')
 
   return {
-    id: 'booking-demo-1',
+    id: bookingRef || 'booking-demo-1',
     journeyId: journey?.id,
     serviceId: serviceId ?? 'pickup',
     defaultTab: 'cab',
     tabs,
     payment: { method: journey?.payment?.method ?? 'Cash' },
+    refexBlock: refexBlock || null,
     tickets: {
       cab: {
         type: 'cab',
         title: vehicleLabel,
         fareInr: fare,
-        pin: '6151',
+        pin,
         datetime: '11-08-26, 16:40',
         pax: 1,
         durationMin: 15,
@@ -52,13 +55,14 @@ export function buildBooking({ journey, vehicle, serviceId, trip }) {
           name: 'Ashok',
           photoInitials: 'A',
           vehicleNo: 'GJ01XP3843',
-          vehicleModel: 'Black Suzuki Access 125',
+          vehicleModel: vehicle?.model ?? 'Black Suzuki Access 125',
           vehicleImage: vehicle?.icon ?? olaBike,
         },
-        qrPayload: 'MT-CAB-6151',
+        qrPayload: bookingRef ? `MT-REFEX-${bookingRef}` : 'MT-CAB-6151',
         tripDetails:
           'Meet at the pickup point for Off. Share the PIN with your driver to start the trip.',
         canCancel: true,
+        referenceNumber: bookingRef,
       },
       metro: {
         type: 'metro',
