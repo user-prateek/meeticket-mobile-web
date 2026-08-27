@@ -606,8 +606,7 @@ export function JourneyDetailPage() {
     if (isProviderDisabledForMode(nextProviderId, modeId)) return
     setProviderId(nextProviderId)
     setSelectedVehicleId(null)
-    // Stay on provider browse view so selection matches the design.
-    setShowProviders(true)
+    setShowProviders(false)
     syncSelection(nextProviderId, null, modeId)
   }
 
