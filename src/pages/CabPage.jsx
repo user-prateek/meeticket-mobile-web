@@ -8,23 +8,25 @@ import { useJourneyOptionById, useSelectJourney } from '../hooks/useJourneyOptio
 import { withAppContext } from '../lib/appContext'
 import { preloadGoogleMaps } from '../lib/googleMaps'
 import { tripToSearch } from '../lib/tripQuery'
-import { bookingAtom, tripAtom } from '../store/journey'
+import { bookingAtom, lastMileSelectionAtom, tripAtom } from '../store/journey'
 
 /**
  * /cab?id=1&service=pickup|drop&provider=&mode=&vehicle=
  * First / last mile booking using access / egress from the selected journey.
+ * Provider is locked from query params — no provider switcher on this page.
  */
 export function CabPage() {
-  const [params] = useSearchParams()
+  const [params, setParams] = useSearchParams()
   const navigate = useAppNavigate()
   const trip = useAtomValue(tripAtom)
   const setBooking = useSetAtom(bookingAtom)
+  const setLastMileSelection = useSetAtom(lastMileSelectionAtom)
   const selectJourney = useSelectJourney()
   const id = params.get('id')
   const serviceId = params.get('service') === 'drop' ? 'drop' : 'pickup'
-  const initialProviderId = params.get('provider') || undefined
-  const initialModeId = params.get('mode') || undefined
-  const initialVehicleId = params.get('vehicle') || undefined
+  const providerId = params.get('provider') || undefined
+  const modeId = params.get('mode') || undefined
+  const vehicleId = params.get('vehicle') || undefined
   const journey = useJourneyOptionById(id)
 
   useEffect(() => {
@@ -40,17 +42,41 @@ export function CabPage() {
 
   function detailPath() {
     const next = new URLSearchParams({ id: String(journey.id) })
-    if (initialProviderId) next.set('provider', initialProviderId)
-    if (initialModeId) next.set('mode', initialModeId)
-    if (initialVehicleId) next.set('vehicle', initialVehicleId)
+    if (providerId) next.set('provider', providerId)
+    if (modeId) next.set('mode', modeId)
+    if (vehicleId) next.set('vehicle', vehicleId)
     return `/journey-detail?${next.toString()}`
   }
 
-  function handleBook({ vehicle, providerId, modeId, refexBlock }) {
+  function handleSelectionChange({ providerId: nextProvider, modeId: nextMode, vehicleId: nextVehicle }) {
+    const next = new URLSearchParams({
+      id: String(journey.id),
+      service: serviceId,
+    })
+    if (nextProvider) next.set('provider', nextProvider)
+    if (nextMode) next.set('mode', nextMode)
+    if (nextVehicle) next.set('vehicle', nextVehicle)
+    setParams(next, { replace: true })
+  }
+
+  function handleBook({ vehicle, providerId: bookedProvider, modeId: bookedMode, refexBlock }) {
     selectJourney(journey)
     const booking = buildBooking({ journey, vehicle, serviceId, trip, refexBlock })
-    setBooking({ ...booking, providerId, modeId, refexBlock })
-    navigate(`/success?id=${journey.id}`)
+    setBooking({
+      ...booking,
+      providerId: bookedProvider,
+      modeId: bookedMode,
+      vehicleId: vehicle?.id || null,
+      refexBlock,
+    })
+    setLastMileSelection({
+      journeyId: journey.id,
+      providerId: bookedProvider || null,
+      modeId: bookedMode || null,
+      vehicleId: vehicle?.id || null,
+    })
+    // Replace cab in history so Success back / browser back skips re-booking.
+    navigate(`/success?id=${journey.id}`, { replace: true })
   }
 
   return (
@@ -59,12 +85,13 @@ export function CabPage() {
       serviceId={serviceId}
       mile={mile}
       trip={trip}
-      initialProviderId={initialProviderId}
-      initialModeId={initialModeId}
-      initialVehicleId={initialVehicleId}
+      initialProviderId={providerId}
+      initialModeId={modeId}
+      initialVehicleId={vehicleId}
       fromPlace={mile?.fromLabel || trip?.fromPlace || 'Pickup'}
       toPlace={mile?.toLabel || trip?.toPlace || 'Drop'}
       onBack={() => navigate(detailPath())}
+      onSelectionChange={handleSelectionChange}
       onBook={handleBook}
     />
   )

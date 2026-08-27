@@ -6,7 +6,7 @@ import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useJourneyOptionById } from '../hooks/useJourneyOptions'
 import { withAppContext } from '../lib/appContext'
 import { tripToSearch } from '../lib/tripQuery'
-import { bookingAtom, tripAtom } from '../store/journey'
+import { bookingAtom, lastMileSelectionAtom, tripAtom } from '../store/journey'
 
 /**
  * /success?id=1
@@ -17,6 +17,7 @@ export function SuccessPage() {
   const navigate = useAppNavigate()
   const trip = useAtomValue(tripAtom)
   const storedBooking = useAtomValue(bookingAtom)
+  const lastMile = useAtomValue(lastMileSelectionAtom)
   const id = params.get('id')
   const journey = useJourneyOptionById(id)
 
@@ -27,13 +28,24 @@ export function SuccessPage() {
 
   const booking = storedBooking ?? buildBooking({ journey, trip })
 
+  function detailPath() {
+    const next = new URLSearchParams({ id: String(journey.id) })
+    const providerId = storedBooking?.providerId || lastMile?.providerId
+    const modeId = storedBooking?.modeId || lastMile?.modeId
+    const vehicleId = storedBooking?.vehicleId || lastMile?.vehicleId
+    if (providerId) next.set('provider', providerId)
+    if (modeId) next.set('mode', modeId)
+    if (vehicleId) next.set('vehicle', vehicleId)
+    return `/journey-detail?${next.toString()}`
+  }
+
   return (
     <TicketsPage
       key={booking.id}
       booking={booking}
-      onBack={() => navigate(`/cab?id=${journey.id}&service=pickup`)}
+      onBack={() => navigate(detailPath(), { replace: true })}
       onCall={() => window.alert('Calling support…')}
-      onCancelled={() => navigate(trip ? `/journey${tripToSearch(trip)}` : '/journey')}
+      onCancelled={() => navigate(trip ? `/journey${tripToSearch(trip)}` : '/journey', { replace: true })}
     />
   )
 }

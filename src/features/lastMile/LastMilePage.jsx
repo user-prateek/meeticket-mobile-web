@@ -5,11 +5,9 @@ import {
   LAST_MILE_MODE_DEFAULT,
   LAST_MILE_MODES,
   LAST_MILE_PROVIDER_DEFAULT,
-  LAST_MILE_PROVIDERS,
   formatFare,
   getLastMileProvider,
   getLastMileVehicles,
-  isProviderDisabledForMode,
   providerSupportsMode,
 } from '../../constants/lastMile'
 import { blockRefexCab, searchRefexHardcodedTestCached } from '../../api/refex'
@@ -31,19 +29,18 @@ export function LastMilePage({
   trip,
   onBack,
   onBook,
+  onSelectionChange,
   initialProviderId,
   initialModeId,
   initialVehicleId,
   fromPlace = 'Ameerpet',
   toPlace = 'L.B. Nagar',
 }) {
-  const [providerId, setProviderId] = useState(
-    () => initialProviderId || LAST_MILE_PROVIDER_DEFAULT,
-  )
+  const providerId = initialProviderId || LAST_MILE_PROVIDER_DEFAULT
+
   const [modeId, setModeId] = useState(() => {
     const preferred = initialModeId || LAST_MILE_MODE_DEFAULT
-    const provider = initialProviderId || LAST_MILE_PROVIDER_DEFAULT
-    return providerSupportsMode(provider, preferred) ? preferred : LAST_MILE_MODE_DEFAULT
+    return providerSupportsMode(providerId, preferred) ? preferred : LAST_MILE_MODE_DEFAULT
   })
   const [selectedId, setSelectedId] = useState(() => initialVehicleId || '')
   const [refexVehicles, setRefexVehicles] = useState([])
@@ -53,8 +50,6 @@ export function LastMilePage({
   const [bookError, setBookError] = useState('')
 
   const provider = getLastMileProvider(providerId)
-
-  const availableModes = LAST_MILE_MODES
 
   const staticVehicles = useMemo(
     () => getLastMileVehicles(providerId, modeId),
@@ -78,33 +73,42 @@ export function LastMilePage({
     [serviceId, mile, trip, fromPlace, toPlace],
   )
 
+  function syncSelection(nextModeId, nextVehicleId) {
+    onSelectionChange?.({
+      providerId,
+      modeId: nextModeId,
+      vehicleId: nextVehicleId || null,
+    })
+  }
+
   function handleModeChange(nextModeId) {
     if (nextModeId === modeId) return
-    if (!providerSupportsMode(providerId, nextModeId)) {
-      setModeId(nextModeId)
-      setProviderId(LAST_MILE_PROVIDER_DEFAULT)
-      setSelectedId('')
-      setBookError('')
-      setBookingStatus('idle')
-      return
-    }
+    if (!providerSupportsMode(providerId, nextModeId)) return
     setModeId(nextModeId)
     setSelectedId('')
     setBookError('')
     setBookingStatus('idle')
+    syncSelection(nextModeId, null)
   }
 
-  function handleProviderChange(nextProviderId) {
-    if (isProviderDisabledForMode(nextProviderId, modeId)) return
-    setProviderId(nextProviderId)
-    setSelectedId('')
-    setBookError('')
-    setBookingStatus('idle')
+  function handleVehicleSelect(nextVehicleId) {
+    setSelectedId(nextVehicleId)
+    syncSelection(modeId, nextVehicleId)
   }
 
   useEffect(() => {
     preloadGoogleMaps()
   }, [])
+
+  // Keep local selection in sync when query params change (e.g. navigating from detail).
+  useEffect(() => {
+    const preferred = initialModeId || LAST_MILE_MODE_DEFAULT
+    const nextMode = providerSupportsMode(providerId, preferred) ? preferred : LAST_MILE_MODE_DEFAULT
+    setModeId(nextMode)
+    setSelectedId(initialVehicleId || '')
+    setBookError('')
+    setBookingStatus('idle')
+  }, [providerId, initialModeId, initialVehicleId])
 
   useEffect(() => {
     if (providerId !== 'refex' || modeId !== 'cab') {
@@ -194,15 +198,23 @@ export function LastMilePage({
 
       <div className="mt-lastmile-page__sheet">
         <div className="mt-lastmile-page__modes" role="tablist" aria-label="Vehicle type">
-          {availableModes.map((mode) => {
+          {LAST_MILE_MODES.map((mode) => {
             const active = modeId === mode.id
+            const disabled = !providerSupportsMode(providerId, mode.id)
             return (
               <button
                 key={mode.id}
                 type="button"
                 role="tab"
                 aria-selected={active}
-                className={`mt-lastmile-page__mode${active ? ' is-active' : ''}`}
+                aria-disabled={disabled || undefined}
+                disabled={disabled}
+                title={
+                  disabled
+                    ? `${provider?.name || 'This provider'} is available for cab only`
+                    : undefined
+                }
+                className={`mt-lastmile-page__mode${active ? ' is-active' : ''}${disabled ? ' is-disabled' : ''}`}
                 onClick={() => handleModeChange(mode.id)}
               >
                 <ModeIcon
@@ -212,34 +224,6 @@ export function LastMilePage({
                   className="mt-lastmile-page__mode-icon"
                 />
                 {mode.label}
-              </button>
-            )
-          })}
-        </div>
-
-        <div className="mt-lastmile-page__tabs" role="tablist" aria-label="Ride providers">
-          {LAST_MILE_PROVIDERS.map((item) => {
-            const active = providerId === item.id
-            const disabled = isProviderDisabledForMode(item.id, modeId)
-            return (
-              <button
-                key={item.id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                aria-disabled={disabled || undefined}
-                disabled={disabled}
-                title={disabled ? 'Refex is available for cab only' : undefined}
-                className={`mt-lastmile-page__tab mt-lastmile-page__tab--${item.id}${active ? ' is-active' : ''}${disabled ? ' is-disabled' : ''}`}
-                style={active ? { borderBottomColor: item.accent } : undefined}
-                onClick={() => handleProviderChange(item.id)}
-              >
-                <img
-                  className={`mt-lastmile-page__tab-logo mt-lastmile-page__tab-logo--${item.id}`}
-                  src={item.logo}
-                  alt={item.name}
-                  draggable={false}
-                />
               </button>
             )
           })}
@@ -258,7 +242,7 @@ export function LastMilePage({
                     <button
                       type="button"
                       className={`mt-lastmile-page__option${active ? ' is-selected' : ''}`}
-                      onClick={() => setSelectedId(vehicle.id)}
+                      onClick={() => handleVehicleSelect(vehicle.id)}
                     >
                       <img
                         className="mt-lastmile-page__vehicle"
@@ -305,7 +289,6 @@ export function LastMilePage({
               </button>
             </div>
             {bookError ? <p className="mt-lastmile-page__book-error">{bookError}</p> : null}
-            
           </div>
         ) : null}
 
