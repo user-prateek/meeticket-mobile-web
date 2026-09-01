@@ -1,3 +1,5 @@
+@import '../../styles/fare-classes.css';
+
 .mt-card {
   background: #fff;
   border: 1px solid #e2e5ea;
@@ -96,6 +98,57 @@
   color: var(--mt-bus);
 }
 
+.mt-capsule__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  width: max-content;
+  max-width: 148px;
+}
+
+.mt-capsule__meta.is-edge-start {
+  justify-content: flex-start;
+}
+
+.mt-capsule__meta.is-edge-end {
+  justify-content: flex-end;
+}
+
+.mt-capsule__meta-text {
+  min-width: 0;
+}
+
+.mt-walk-badge {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #e2e5ea;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+}
+
+.mt-walk-badge__icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.mt-walk__meta {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #111827;
+  white-space: nowrap;
+}
+
+.mt-transit-fare__panel {
+  margin: 0 2px 10px;
+}
+
 .mt-timeline {
   display: flex;
   align-items: flex-start;
@@ -107,10 +160,10 @@
   display: flex;
   align-items: flex-start;
   min-width: 0;
-  flex: 1;
+  flex: 0 0 auto;
 }
 
-.mt-timeline__item:first-child {
+.mt-timeline__item.is-layout-center {
   flex: 0 0 auto;
 }
 
@@ -125,9 +178,22 @@
 .mt-timeline__step {
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 6px;
   min-width: 0;
+}
+
+.mt-timeline__step.is-align-start {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.mt-timeline__step.is-align-end {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.mt-timeline__step.is-align-center {
+  align-items: center;
   text-align: center;
 }
 
@@ -508,6 +574,26 @@
 
 .mt-provider-options__fare {
   color: var(--mt-fare);
+}
+
+.mt-provider-options__label {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #111827;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.mt-provider-options__peak {
+  color: #b45309;
+  font-weight: 700;
+}
+
+.mt-provider-options__cell.is-unavailable {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .mt-metrics {

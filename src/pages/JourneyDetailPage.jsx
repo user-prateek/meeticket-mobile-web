@@ -1,28 +1,37 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
-import { useAtom, useAtomValue } from 'jotai'
+import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { Header } from '../components/Header'
-import { CashIcon, ChevronIcon, ClockIcon, ModeIcon, PinIcon } from '../components/icons'
+import { FareClassPanel } from '../components/FareClassPanel'
+import { ChevronIcon, ClockIcon, ModeIcon, OnlinePayIcon, PinIcon } from '../components/icons'
 import {
   CARD_MODE_ORDER,
   LAST_MILE_MODE_DEFAULT,
   LAST_MILE_MODES,
   LAST_MILE_PROVIDERS,
   findLastMileVehicle,
-  formatFare,
+  formatVehicleEta,
+  formatVehicleFare,
   getLastMileMode,
   getLastMileProvider,
   getProviderCardSlots,
   isProviderDisabledForMode,
 } from '../constants/lastMile'
 import { metroLineFromRouteId } from '../constants/metroLines'
-import { searchRefexHardcodedTestCached } from '../api/refex'
+import { getOlaRideEstimateForJourneyCached } from '../api/ola'
+import { searchRefexForJourney } from '../api/refex'
+import { buildOrderPayload, createOrderAndInitiatePg, hasFirstMileLeg } from '../api/orders'
 import { formatMetroStationName } from '../api/journey'
 import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useJourneyOptionById, useSelectJourney } from '../hooks/useJourneyOptions'
 import { withAppContext } from '../lib/appContext'
+import {
+  applyFareSelectionsToJourney,
+  buildInitialFareSelections,
+  cheapestFareOptionId,
+} from '../lib/fareClasses'
 import { tripToSearch } from '../lib/tripQuery'
-import { lastMileSelectionAtom, tripAtom } from '../store/journey'
+import { journeyOptionsAtom, lastMileSelectionAtom, orderAtom, tripAtom, userAtom } from '../store/journey'
 import olaLogo from '../assets/brands/ola.png'
 import rapidoLogo from '../assets/brands/rapido.png'
 import refexLogo from '../assets/brands/refex.png'
@@ -62,9 +71,9 @@ function VehicleCheckBadge() {
 }
 
 function vehicleMetaParts(vehicle) {
-  const eta = vehicle.etaMin != null ? `${vehicle.etaMin} Min` : null
-  const fare = vehicle.fareInr != null ? formatFare(vehicle.fareInr) : null
-  return { eta, fare }
+  const eta = formatVehicleEta(vehicle)
+  const fare = formatVehicleFare(vehicle) || null
+  return { eta, fare, peak: Boolean(vehicle.peak) }
 }
 
 function resolveLastMileSelection(params, stored) {
@@ -117,11 +126,25 @@ function buildLastMilePayload(journeyId, { providerId, vehicle }) {
     vehicleId: vehicle?.id || null,
     vehicleLabel: vehicle?.label || null,
     fareInr: vehicle?.fareInr ?? null,
+    fareDisplay: vehicle?.fareDisplay || null,
+    refexSearchId: vehicle?.searchId || null,
   }
 }
 
-function LegCard({ segment }) {
+function LegCard({
+  segment,
+  fareSelections,
+  fareExpanded,
+  onToggleFarePanel,
+  onSelectFare,
+}) {
   const title = segment.title || segment.detailTitle
+  const isBus = segment.mode === 'bus'
+  const hasFareOptions = isBus && segment.fareOptions?.length > 1
+  const selectedFareId =
+    fareSelections?.[segment.id] ||
+    cheapestFareOptionId(segment.fareOptions) ||
+    segment.fareOptions?.[0]?.id
   const line =
     segment.mode === 'metro'
       ? metroLineFromRouteId(segment.routeId || segment.routeShortName || title)
@@ -140,8 +163,35 @@ function LegCard({ segment }) {
       <div className="mt-leg__head">
         <ModeIcon mode={segment.mode} size={32} className="mt-leg__badge" />
         <strong>{title}</strong>
-        {segment.fareInr != null ? <span className="mt-leg__fare">₹{segment.fareInr}</span> : null}
+        <div className="mt-leg__fare-wrap">
+          {segment.fareInr != null ? (
+            <span className="mt-leg__fare">₹{segment.fareInr}</span>
+          ) : null}
+          {hasFareOptions ? (
+            <button
+              type="button"
+              className={`mt-fare-toggle is-bus${fareExpanded ? ' is-open' : ''}`}
+              aria-expanded={fareExpanded}
+              aria-label={fareExpanded ? 'Hide fare classes' : 'Show fare classes'}
+              onClick={() => onToggleFarePanel?.(segment.id)}
+            >
+              {fareExpanded ? '−' : '+'}
+            </button>
+          ) : null}
+        </div>
       </div>
+
+      {hasFareOptions && fareExpanded ? (
+        <FareClassPanel
+          className="mt-leg__fare-panel"
+          segmentId={segment.id}
+          options={segment.fareOptions}
+          selectedId={selectedFareId}
+          side="end"
+          ariaLabel={`${title} fare classes`}
+          onSelect={(optionId) => onSelectFare?.(segment.id, optionId)}
+        />
+      ) : null}
 
       <div className="mt-leg__body">
         <div className="mt-leg__duration">
@@ -351,7 +401,7 @@ function PickupServiceCard({
             }
 
             const active = selectedVehicleId === vehicle.id
-            const { eta, fare } = vehicleMetaParts(vehicle)
+            const { eta, fare, peak } = vehicleMetaParts(vehicle)
 
             return (
               <button
@@ -359,14 +409,16 @@ function PickupServiceCard({
                 type="button"
                 role="listitem"
                 aria-pressed={active}
-                className={`mt-provider-options__cell${active ? ' is-selected' : ''}`}
+                className={`mt-provider-options__cell${active ? ' is-selected' : ''}${vehicle.unavailable ? ' is-unavailable' : ''}`}
                 onClick={() => onSelectVehicle(vehicle)}
+                disabled={vehicle.unavailable || undefined}
               >
                 {active ? <VehicleCheckBadge /> : null}
                 <div className="mt-provider-options__row">
                   <BrandLogo id={providerId} name={providerId} />
                   <ModeIcon mode={vehicle.mode} size={16} className="mt-provider-options__mode-icon" />
                 </div>
+                <span className="mt-provider-options__label">{vehicle.label}</span>
                 <span className="mt-provider-options__meta">
                   {eta ? <span className="mt-provider-options__eta">{eta}</span> : null}
                   {eta && fare ? (
@@ -376,6 +428,7 @@ function PickupServiceCard({
                     </span>
                   ) : null}
                   {fare ? <span className="mt-provider-options__fare">{fare}</span> : null}
+                  {peak ? <span className="mt-provider-options__peak"> Peak</span> : null}
                 </span>
               </button>
             )
@@ -397,6 +450,12 @@ function JourneyDetailView({
   selectedVehicleId,
   showProviders,
   totalFareInr,
+  confirmLoading,
+  confirmError,
+  fareSelections,
+  collapsedFareSegments,
+  onToggleFarePanel,
+  onSelectFare,
   onBack,
   onConfirm,
   onCheckOthers,
@@ -424,7 +483,14 @@ function JourneyDetailView({
               distanceM={block.distanceM}
             />
           ) : (
-            <LegCard key={block.id} segment={block.segment} />
+            <LegCard
+              key={block.id}
+              segment={block.segment}
+              fareSelections={fareSelections}
+              fareExpanded={!collapsedFareSegments.has(block.segment.id)}
+              onToggleFarePanel={onToggleFarePanel}
+              onSelectFare={onSelectFare}
+            />
           ),
         )}
 
@@ -446,14 +512,20 @@ function JourneyDetailView({
 
       <div className="mt-details-page__panel">
         <button type="button" className="mt-pay">
-          <CashIcon size={28} />
-          <span>{journey.payment?.method || 'Cash'}</span>
+          <OnlinePayIcon size={28} />
+          <span>{journey.payment?.method || 'Online'}</span>
           <strong>₹{totalFareInr}</strong>
           <ChevronIcon size={18} className="mt-pay__chevron" />
         </button>
-        <button type="button" className="mt-details-page__cta" onClick={onConfirm}>
-          Confirm Multi Model
+        <button
+          type="button"
+          className="mt-details-page__cta"
+          onClick={onConfirm}
+          disabled={confirmLoading}
+        >
+          {confirmLoading ? 'Creating order…' : 'Confirm Multi Model'}
         </button>
+        {confirmError ? <p className="mt-details-page__confirm-error">{confirmError}</p> : null}
       </div>
     </section>
   )
@@ -466,7 +538,10 @@ export function JourneyDetailPage() {
   const [params, setParams] = useSearchParams()
   const navigate = useAppNavigate()
   const trip = useAtomValue(tripAtom)
+  const user = useAtomValue(userAtom)
   const [storedLastMile, setLastMileSelection] = useAtom(lastMileSelectionAtom)
+  const setOrder = useSetAtom(orderAtom)
+  const setJourneyOptions = useSetAtom(journeyOptionsAtom)
   const selectJourney = useSelectJourney()
   const id = params.get('id')
   const journey = useJourneyOptionById(id)
@@ -483,8 +558,24 @@ export function JourneyDetailPage() {
   )
   const [showProviders, setShowProviders] = useState(() => !initialLastMile.providerId)
   const [refexVehicles, setRefexVehicles] = useState([])
+  const [olaVehicles, setOlaVehicles] = useState([])
   const [slotStatus, setSlotStatus] = useState('idle')
   const [slotError, setSlotError] = useState('')
+  const [confirmLoading, setConfirmLoading] = useState(false)
+  const [confirmError, setConfirmError] = useState('')
+  const [fareSelections, setFareSelections] = useState({})
+  const [collapsedFareSegments, setCollapsedFareSegments] = useState(() => new Set())
+
+  useEffect(() => {
+    if (!journey) return
+    setFareSelections(journey.fareSelections ?? buildInitialFareSelections(journey.segments))
+    setCollapsedFareSegments(new Set())
+  }, [journey?.id])
+
+  const journeyWithFares = useMemo(
+    () => (journey ? applyFareSelectionsToJourney(journey, fareSelections) : null),
+    [fareSelections, journey],
+  )
 
   useEffect(() => {
     setProviderId(initialLastMile.providerId)
@@ -508,9 +599,6 @@ export function JourneyDetailPage() {
 
   useEffect(() => {
     if (providerId !== 'refex') {
-      setSlotStatus('idle')
-      setSlotError('')
-      setRefexVehicles([])
       return undefined
     }
 
@@ -518,7 +606,7 @@ export function JourneyDetailPage() {
     setSlotStatus('loading')
     setSlotError('')
 
-    searchRefexHardcodedTestCached({ signal: controller.signal })
+    searchRefexForJourney({ journey, trip, serviceId: 'pickup' }, { signal: controller.signal })
       .then((result) => {
         setRefexVehicles(result.vehicles)
         setSlotStatus('ready')
@@ -531,12 +619,47 @@ export function JourneyDetailPage() {
       })
 
     return () => controller.abort()
-  }, [providerId])
+  }, [providerId, journey, trip])
+
+  useEffect(() => {
+    if (providerId !== 'ola') {
+      return undefined
+    }
+
+    const controller = new AbortController()
+    setOlaVehicles([])
+    setSlotStatus('loading')
+    setSlotError('')
+
+    getOlaRideEstimateForJourneyCached({
+      journey,
+      trip,
+      serviceId: 'pickup',
+      signal: controller.signal,
+      refresh: true,
+    })
+      .then((result) => {
+        if (controller.signal.aborted) return
+        setOlaVehicles(result.vehicles)
+        setSlotStatus('ready')
+      })
+      .catch((error) => {
+        if (error.name === 'AbortError') return
+        setOlaVehicles([])
+        setSlotStatus('error')
+        setSlotError(error.message || 'Could not load Ola ride estimates.')
+      })
+
+    return () => controller.abort()
+  }, [providerId, journey, trip])
+
+  const liveVehicles =
+    providerId === 'refex' ? refexVehicles : providerId === 'ola' ? olaVehicles : undefined
 
   const slots = useMemo(() => {
     if (!providerId) return []
-    return getProviderCardSlots(providerId, refexVehicles)
-  }, [providerId, refexVehicles])
+    return getProviderCardSlots(providerId, liveVehicles)
+  }, [providerId, liveVehicles])
 
   const selectedVehicle = useMemo(
     () => slots.find((vehicle) => vehicle?.id === selectedVehicleId) || null,
@@ -549,12 +672,42 @@ export function JourneyDetailPage() {
   )
 
   const totalFareInr = useMemo(() => {
-    const transit = Number(journey?.payment?.amountInr) || Number(journey?.totalFareInr) || 0
+    const transit =
+      Number(journeyWithFares?.payment?.amountInr) ||
+      Number(journeyWithFares?.totalFareInr) ||
+      0
     const ride = selectedVehicle?.fareInr != null ? Number(selectedVehicle.fareInr) : 0
     return Math.round(transit + ride)
-  }, [journey, selectedVehicle])
+  }, [journeyWithFares, selectedVehicle])
 
-  if (!journey) {
+  function persistFareSelections(nextSelections) {
+    if (!journey) return
+    setFareSelections(nextSelections)
+    setJourneyOptions((prev) => {
+      const current = prev.find((item) => item.id === journey.id) || journey
+      const enriched = applyFareSelectionsToJourney(current, nextSelections)
+      selectJourney(enriched)
+      return prev.map((item) => (item.id === enriched.id ? enriched : item))
+    })
+  }
+
+  function handleSelectFare(segmentId, optionId) {
+    persistFareSelections({
+      ...fareSelections,
+      [segmentId]: optionId,
+    })
+  }
+
+  function handleToggleFarePanel(segmentId) {
+    setCollapsedFareSegments((prev) => {
+      const next = new Set(prev)
+      if (next.has(segmentId)) next.delete(segmentId)
+      else next.add(segmentId)
+      return next
+    })
+  }
+
+  if (!journey || !journeyWithFares) {
     const fallback = trip ? `/journey${tripToSearch(trip)}` : '/journey'
     return <Navigate to={withAppContext(fallback)} replace />
   }
@@ -621,10 +774,50 @@ export function JourneyDetailPage() {
     return `/cab?${next.toString()}`
   }
 
-  function openCab(serviceId = 'pickup') {
-    selectJourney(journey)
-    setLastMileSelection(lastMile)
-    navigate(cabPath(serviceId))
+  function paymentPath() {
+    const next = new URLSearchParams({ id: String(journey.id) })
+    if (hasFirstMileLeg({ lastMile, selectedVehicle })) {
+      next.set('next', 'cab')
+      if (lastMile.providerId) next.set('provider', lastMile.providerId)
+      if (lastMile.modeId || modeId) next.set('mode', lastMile.modeId || modeId)
+      if (lastMile.vehicleId) next.set('vehicle', lastMile.vehicleId)
+    } else {
+      next.set('next', 'success')
+    }
+    return `/payment?${next.toString()}`
+  }
+
+  async function handleConfirm() {
+    if (confirmLoading) return
+    setConfirmError('')
+    setConfirmLoading(true)
+
+    try {
+      const payload = buildOrderPayload({
+        journey: journeyWithFares,
+        trip,
+        lastMile,
+        selectedVehicle,
+        user,
+      })
+      const order = await createOrderAndInitiatePg(payload, { journeyId: journeyWithFares.id })
+      setOrder(order)
+      selectJourney(journeyWithFares)
+
+      if (hasFirstMileLeg({ lastMile, selectedVehicle })) {
+        setLastMileSelection(lastMile)
+      }
+
+      navigate(paymentPath())
+    } catch (error) {
+      if (error?.name === 'AbortError') return
+      if (import.meta.env.DEV && error?.body) {
+        console.error('[orders] create failed', error.status, error.body)
+      }
+      setConfirmError(error?.message || 'Could not create order or start payment')
+    } finally {
+      setConfirmLoading(false)
+    }
   }
 
   function backToJourney() {
@@ -634,7 +827,7 @@ export function JourneyDetailPage() {
 
   return (
     <JourneyDetailView
-      journey={journey}
+      journey={journeyWithFares}
       lastMile={lastMile}
       destinationLabel={destinationLabel}
       modeId={modeId}
@@ -644,8 +837,14 @@ export function JourneyDetailPage() {
       selectedVehicleId={selectedVehicleId}
       showProviders={showProviders}
       totalFareInr={totalFareInr}
+      confirmLoading={confirmLoading}
+      confirmError={confirmError}
+      fareSelections={fareSelections}
+      collapsedFareSegments={collapsedFareSegments}
+      onToggleFarePanel={handleToggleFarePanel}
+      onSelectFare={handleSelectFare}
       onBack={backToJourney}
-      onConfirm={() => openCab('pickup')}
+      onConfirm={handleConfirm}
       onCheckOthers={handleCheckOthers}
       onSelectMode={handleSelectMode}
       onSelectProvider={handleSelectProvider}

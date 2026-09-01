@@ -1,0 +1,75 @@
+import { useEffect } from 'react'
+import { CheckIcon, RefreshIcon } from '../../components/icons'
+import { useBookingQr } from '../../hooks/useBookingQr'
+import { QrCode } from './QrCode'
+
+export function TicketQrDisplay({
+  bookingReferenceNumber,
+  fallbackPayload,
+  size = 180,
+  className = 'mt-qr',
+  refreshable = false,
+  onValidUntil,
+}) {
+  const { status, qrImage, validUntil, error, refetch } = useBookingQr(bookingReferenceNumber)
+
+  useEffect(() => {
+    if (validUntil) onValidUntil?.(validUntil)
+  }, [validUntil, onValidUntil])
+
+  let qrNode
+
+  if (bookingReferenceNumber && status === 'loading' && !qrImage) {
+    qrNode = (
+      <div className="mt-qr mt-qr--loading" style={{ width: size, height: size }} role="status">
+        Loading QR…
+      </div>
+    )
+  } else if (bookingReferenceNumber && qrImage) {
+    qrNode = (
+      <img
+        src={qrImage}
+        alt="Ticket QR code"
+        className={`${className} mt-qr--image mt-qr--framed`}
+        width={size}
+        height={size}
+      />
+    )
+  } else if (bookingReferenceNumber && status === 'error') {
+    qrNode = (
+      <div className="mt-qr mt-qr--error">
+        <p>{error || 'Could not load QR code'}</p>
+        <button type="button" className="mt-bus-refresh mt-bus-refresh--outline" onClick={refetch}>
+          Try again
+        </button>
+      </div>
+    )
+  } else {
+    qrNode = <QrCode payload={fallbackPayload} size={size} className={`${className} mt-qr--framed`} />
+  }
+
+  if (!refreshable || !bookingReferenceNumber) {
+    return qrNode
+  }
+
+  return (
+    <>
+      {qrNode}
+      <div className="mt-bus-actions">
+        <span className="mt-bus-valid">
+          <CheckIcon size={20} />
+          Valid
+        </span>
+        <button
+          type="button"
+          className="mt-bus-refresh mt-bus-refresh--outline"
+          onClick={refetch}
+          disabled={status === 'loading'}
+        >
+          <RefreshIcon size={20} />
+          {status === 'loading' ? 'Refreshing…' : 'Refresh QR'}
+        </button>
+      </div>
+    </>
+  )
+}

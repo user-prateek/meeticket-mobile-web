@@ -1,0 +1,93 @@
+/* Shared bus fare-class panel (SRP RouteCard + Journey Detail). */
+
+.mt-fare-toggle {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.mt-fare-toggle.is-bus {
+  background: var(--mt-bus);
+}
+
+.mt-fare-classes {
+  position: relative;
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+
+.mt-fare-classes.is-bus {
+  background: #fff4eb;
+  border: 1.5px solid var(--mt-bus);
+}
+
+.mt-fare-classes.is-bus::before {
+  content: '';
+  position: absolute;
+  top: -7px;
+  width: 12px;
+  height: 12px;
+  background: #fff4eb;
+  transform: rotate(45deg);
+}
+
+.mt-fare-classes.is-side-end::before {
+  right: 46px;
+  left: auto;
+  border-left: 1.5px solid var(--mt-bus);
+  border-top: 1.5px solid var(--mt-bus);
+}
+
+.mt-fare-classes.is-side-start::before {
+  left: 46px;
+  right: auto;
+  border-left: 1.5px solid var(--mt-bus);
+  border-top: 1.5px solid var(--mt-bus);
+}
+
+.mt-fare-classes__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.mt-fare-classes__row.is-selected {
+  background: #ffe8d6;
+}
+
+.mt-fare-classes__row input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--mt-bus);
+}
+
+.mt-fare-classes__label {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.mt-fare-classes__fare {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.mt-fare-classes__row.is-selected .mt-fare-classes__label,
+.mt-fare-classes__row.is-selected .mt-fare-classes__fare {
+  color: var(--mt-bus);
+}

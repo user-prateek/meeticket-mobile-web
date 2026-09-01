@@ -36,13 +36,30 @@ export async function GetRequest(url, payload = {}, { signal, headers: extraHead
  * MeeTicket Integration API: HTTP status is the outcome. Failure body shape:
  *   { response: null, error: "<message>", code: null }
  */
-export async function PostRequest(url, payload = {}, { signal, headers: extraHeaders } = {}) {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: headers(extraHeaders),
-    body: JSON.stringify(payload),
-    signal,
-  })
+export async function PostRequest(
+  url,
+  payload = {},
+  { signal, headers: extraHeaders, noBody = false } = {},
+) {
+  let response
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: noBody
+        ? { Accept: 'application/json', ...extraHeaders }
+        : headers(extraHeaders),
+      body: noBody ? undefined : JSON.stringify(payload),
+      signal,
+    })
+  } catch (error) {
+    const err = new Error(
+      error?.message?.includes('Failed to fetch')
+        ? 'Network error — check CORS or API availability'
+        : error?.message || 'Network request failed',
+    )
+    err.cause = error
+    throw err
+  }
 
   const text = await response.text()
   let data = null
@@ -53,11 +70,19 @@ export async function PostRequest(url, payload = {}, { signal, headers: extraHea
   }
 
   if (!response.ok) {
+    const apiMessage =
+      data && typeof data === 'object'
+        ? data.error || data.errorMessage || data.message || data.detail
+        : null
+    const validation =
+      data && typeof data === 'object' && data.errors
+        ? ` — ${JSON.stringify(data.errors)}`
+        : ''
     const message =
-      (data && typeof data === 'object' && (data.error || data.errorMessage)) ||
+      apiMessage ||
       text?.slice(0, 200) ||
       `Request failed (${response.status})`
-    const err = new Error(String(message))
+    const err = new Error(`${message}${validation}`)
     err.status = response.status
     err.body = data
     throw err

@@ -1,0 +1,273 @@
+.mt-payment-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  background: var(--mt-bg, #f4f6fa);
+}
+
+.mt-payment-page__summary {
+  padding: 12px 16px 8px;
+  font-size: 14px;
+  color: var(--mt-text-muted, #5c6470);
+}
+
+.mt-payment-page__summary strong {
+  color: var(--mt-text, #111827);
+}
+
+.mt-payment-page__hint {
+  margin-top: 8px;
+  color: var(--mt-text-muted, #5c6470);
+}
+
+.mt-payment-page__error {
+  margin-top: 8px;
+  color: #c62828;
+}
+
+.mt-payment-page__summary--failed {
+  padding-top: 24px;
+}
+
+.mt-payment-page__failed-title {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.mt-payment-page__retry {
+  margin-top: 20px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 12px;
+  background: #060496;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mt-payment-page__retry:active {
+  opacity: 0.9;
+}
+
+.mt-payment-page__frame-wrap {
+  flex: 1;
+  min-height: 70vh;
+  margin: 0 12px 16px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+}
+
+.mt-payment-page__frame {
+  width: 100%;
+  height: 100%;
+  min-height: 70vh;
+  border: 0;
+}
+
+.mt-payment-checkout {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #fff;
+  text-align: center;
+}
+
+.mt-payment-checkout__msg {
+  margin: 0;
+  color: #5c6470;
+  font-size: 14px;
+}
+
+.mt-payment-checkout__error {
+  margin: 0;
+  color: #c62828;
+  font-size: 14px;
+}
+
+.mt-payment-page__retry--ghost {
+  margin-top: 10px;
+  background: #fff;
+  color: #060496;
+  border: 1px solid #060496;
+}
+
+.mt-pay-result {
+  padding: 12px 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mt-pay-result__card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px 16px;
+  text-align: center;
+  border: 1px solid #e2e8f0;
+}
+
+.mt-pay-result__card--warn {
+  border-color: #b8d4f0;
+}
+
+.mt-pay-result__card--fail {
+  border-color: #f5c2c7;
+}
+
+.mt-pay-result__card h2 {
+  margin: 12px 0 8px;
+  font-size: 18px;
+  color: #c62828;
+}
+
+.mt-pay-result__card p {
+  margin: 0;
+  color: #5c6470;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.mt-pay-result__sub {
+  margin-top: 8px !important;
+  font-size: 13px !important;
+}
+
+.mt-pay-result__icon {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 22px;
+}
+
+.mt-pay-result__icon--error {
+  background: #fdecea;
+  color: #c62828;
+}
+
+.mt-pay-result__icon--calendar {
+  background: #fdecea;
+  color: #c62828;
+  border-radius: 8px;
+}
+
+.mt-pay-result__option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  text-align: left;
+}
+
+.mt-pay-result__option strong {
+  display: block;
+  font-size: 14px;
+  color: #111827;
+}
+
+.mt-pay-result__option small {
+  display: block;
+  margin-top: 2px;
+  color: #5c6470;
+  font-size: 12px;
+}
+
+.mt-pay-result__option-icon {
+  width: 36px;
+  text-align: center;
+  font-size: 18px;
+}
+
+.mt-pay-result__help {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.mt-pay-result__help a {
+  color: #060496;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.mt-pay-result__ref {
+  margin: 0;
+  font-size: 12px;
+  color: #5c6470;
+  text-align: center;
+}
+
+.mt-pay-result__ref-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.mt-pay-result__ref-card small {
+  display: block;
+  color: #5c6470;
+  font-size: 11px;
+}
+
+.mt-pay-result__enquiry {
+  margin-left: auto;
+  padding: 8px 12px;
+  border: 1px solid #060496;
+  border-radius: 8px;
+  background: #fff;
+  color: #060496;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mt-pay-result__info {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  font-size: 12px;
+  color: #5c6470;
+  line-height: 1.45;
+}
+
+.mt-pay-result__info a {
+  color: #060496;
+}
+
+.mt-pay-result__info-icon {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #e8f0fe;
+  color: #060496;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+}

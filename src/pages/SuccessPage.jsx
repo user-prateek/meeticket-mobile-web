@@ -1,50 +1,101 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
 import { useAtomValue } from 'jotai'
-import { buildBooking } from '../constants/tickets'
+import { getOrderId } from '../api/orders'
+import { buildBookingFromPgStatus, normalizeBooking } from '../constants/tickets'
 import { TicketsPage } from '../features/tickets/TicketsPage'
 import { useAppNavigate } from '../hooks/useAppNavigate'
-import { useJourneyOptionById } from '../hooks/useJourneyOptions'
+import { PG_STATUS_POLL_MS, usePgStatusPolling } from '../hooks/usePgStatusPolling'
 import { withAppContext } from '../lib/appContext'
+import { buildSuccessPath } from '../lib/successUrl'
 import { tripToSearch } from '../lib/tripQuery'
-import { bookingAtom, lastMileSelectionAtom, tripAtom } from '../store/journey'
+import { orderAtom, tripAtom } from '../store/journey'
+import './SuccessPage.css'
 
 /**
- * /success?id=1
- * Booking confirmation / QR after cab book.
+ * /success?order=ORD-20260901-500526&src=android&versionName=4.7
+ * Loads ticket + QR data from pg/status using order id only.
  */
 export function SuccessPage() {
   const [params] = useSearchParams()
   const navigate = useAppNavigate()
   const trip = useAtomValue(tripAtom)
-  const storedBooking = useAtomValue(bookingAtom)
-  const lastMile = useAtomValue(lastMileSelectionAtom)
-  const id = params.get('id')
-  const journey = useJourneyOptionById(id)
+  const storedOrder = useAtomValue(orderAtom)
 
-  if (!journey) {
+  const urlOrderId = params.get('order') || params.get('order_id')
+  const orderId = urlOrderId || getOrderId(storedOrder)
+
+  const [pgStatus, setPgStatus] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState('')
+
+  useEffect(() => {
+    if (urlOrderId || !orderId) return
+    navigate(buildSuccessPath({ orderId }), { replace: true })
+  }, [navigate, orderId, urlOrderId])
+
+  const onPgUpdate = useCallback((status) => {
+    setPgStatus(status)
+    setLoading(false)
+    setFetchError('')
+  }, [])
+
+  const onPgError = useCallback((error) => {
+    setLoading(false)
+    setFetchError(error?.message || 'Could not load booking for this order.')
+  }, [])
+
+  const onBookingFailed = useCallback(() => {
+    navigate('/payment/booking-failed', { replace: true })
+  }, [navigate])
+
+  usePgStatusPolling(orderId, {
+    enabled: Boolean(orderId),
+    intervalMs: PG_STATUS_POLL_MS,
+    onUpdate: onPgUpdate,
+    onBookingFailed,
+    onError: onPgError,
+  })
+
+  const displayBooking = useMemo(() => {
+    if (!pgStatus || !orderId) return null
+    const order = { orderId, order_id: orderId, pgStatus }
+    return normalizeBooking(
+      buildBookingFromPgStatus({
+        trip,
+        order,
+        pgStatus,
+      }),
+    )
+  }, [orderId, pgStatus, trip])
+
+  if (!orderId) {
     const fallback = trip ? `/journey${tripToSearch(trip)}` : '/journey'
     return <Navigate to={withAppContext(fallback)} replace />
   }
 
-  const booking = storedBooking ?? buildBooking({ journey, trip })
+  if (loading && !displayBooking) {
+    return (
+      <div className="mt-success-loading" role="status">
+        <p>Loading your tickets…</p>
+      </div>
+    )
+  }
 
-  function detailPath() {
-    const next = new URLSearchParams({ id: String(journey.id) })
-    const providerId = storedBooking?.providerId || lastMile?.providerId
-    const modeId = storedBooking?.modeId || lastMile?.modeId
-    const vehicleId = storedBooking?.vehicleId || lastMile?.vehicleId
-    if (providerId) next.set('provider', providerId)
-    if (modeId) next.set('mode', modeId)
-    if (vehicleId) next.set('vehicle', vehicleId)
-    return `/journey-detail?${next.toString()}`
+  if (fetchError && !displayBooking) {
+    return (
+      <div className="mt-success-loading mt-success-loading--error" role="alert">
+        <p>{fetchError}</p>
+      </div>
+    )
   }
 
   return (
     <TicketsPage
-      key={booking.id}
-      booking={booking}
-      onBack={() => navigate(detailPath(), { replace: true })}
+      booking={displayBooking}
+      onBack={() => navigate(trip ? `/journey${tripToSearch(trip)}` : '/journey', { replace: true })}
       onCall={() => window.alert('Calling support…')}
+      onDropService={() => navigate('/gotohome', { replace: false })}
       onCancelled={() => navigate(trip ? `/journey${tripToSearch(trip)}` : '/journey', { replace: true })}
     />
   )

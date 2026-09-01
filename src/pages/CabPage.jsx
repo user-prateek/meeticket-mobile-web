@@ -1,14 +1,15 @@
 import { Navigate, useSearchParams } from 'react-router-dom'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { useEffect } from 'react'
-import { buildBooking } from '../constants/tickets'
+import { getOrderId } from '../api/orders'
 import { LastMilePage } from '../features/lastMile/LastMilePage'
 import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useJourneyOptionById, useSelectJourney } from '../hooks/useJourneyOptions'
+import { buildSuccessPath } from '../lib/successUrl'
 import { withAppContext } from '../lib/appContext'
 import { preloadGoogleMaps } from '../lib/googleMaps'
 import { tripToSearch } from '../lib/tripQuery'
-import { bookingAtom, lastMileSelectionAtom, tripAtom } from '../store/journey'
+import { lastMileSelectionAtom, orderAtom, tripAtom } from '../store/journey'
 
 /**
  * /cab?id=1&service=pickup|drop&provider=&mode=&vehicle=
@@ -19,7 +20,7 @@ export function CabPage() {
   const [params, setParams] = useSearchParams()
   const navigate = useAppNavigate()
   const trip = useAtomValue(tripAtom)
-  const setBooking = useSetAtom(bookingAtom)
+  const storedOrder = useAtomValue(orderAtom)
   const setLastMileSelection = useSetAtom(lastMileSelectionAtom)
   const selectJourney = useSelectJourney()
   const id = params.get('id')
@@ -59,24 +60,16 @@ export function CabPage() {
     setParams(next, { replace: true })
   }
 
-  function handleBook({ vehicle, providerId: bookedProvider, modeId: bookedMode, refexBlock }) {
+  function handleBook({ vehicle, providerId: bookedProvider, modeId: bookedMode }) {
     selectJourney(journey)
-    const booking = buildBooking({ journey, vehicle, serviceId, trip, refexBlock })
-    setBooking({
-      ...booking,
-      providerId: bookedProvider,
-      modeId: bookedMode,
-      vehicleId: vehicle?.id || null,
-      refexBlock,
-    })
     setLastMileSelection({
       journeyId: journey.id,
       providerId: bookedProvider || null,
       modeId: bookedMode || null,
       vehicleId: vehicle?.id || null,
+      refexSearchId: vehicle?.searchId || null,
     })
-    // Replace cab in history so Success back / browser back skips re-booking.
-    navigate(`/success?id=${journey.id}`, { replace: true })
+    navigate(buildSuccessPath({ orderId: getOrderId(storedOrder) }), { replace: true })
   }
 
   return (

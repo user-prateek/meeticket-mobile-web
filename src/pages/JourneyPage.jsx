@@ -13,8 +13,12 @@ import { RouteCard } from '../features/srp/RouteCard'
 import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useJourneyOptions, useSelectJourney } from '../hooks/useJourneyOptions'
 import { GOTO_HOME_PATH } from '../lib/appContext'
+import {
+  applyFareSelectionsToJourney,
+  buildInitialFareSelections,
+} from '../lib/fareClasses'
 import { hasRequiredTripParams, parseTripQuery } from '../lib/tripQuery'
-import { lastMileSelectionAtom } from '../store/journey'
+import { journeyOptionsAtom, lastMileSelectionAtom } from '../store/journey'
 import './JourneyPage.css'
 
 function sortOptionsList(options, sortBy) {
@@ -58,6 +62,8 @@ function buildLastMilePayload(optionId, change) {
     vehicleId: change.vehicleId || null,
     vehicleLabel: change.vehicle?.label || null,
     fareInr: change.vehicle?.fareInr ?? null,
+    fareDisplay: change.vehicle?.fareDisplay || null,
+    refexSearchId: change.vehicle?.searchId || null,
   }
 }
 
@@ -78,6 +84,7 @@ export function JourneyPage() {
   const navigate = useAppNavigate()
   const selectJourney = useSelectJourney()
   const setLastMileSelection = useSetAtom(lastMileSelectionAtom)
+  const setJourneyOptions = useSetAtom(journeyOptionsAtom)
 
   const paramsOk = hasRequiredTripParams(location.search)
   const trip = useMemo(
@@ -89,12 +96,21 @@ export function JourneyPage() {
   const [sortBy, setSortBy] = useState(SORT_DEFAULT)
   const [selectedId, setSelectedId] = useState(null)
   const [lastMileByOption, setLastMileByOption] = useState({})
+  const [fareSelectionsByOption, setFareSelectionsByOption] = useState({})
 
-  const list = useMemo(() => sortOptionsList(options, sortBy), [options, sortBy])
+  const list = useMemo(() => {
+    const withFares = options.map((option) => {
+      const selections =
+        fareSelectionsByOption[option.id] ?? buildInitialFareSelections(option.segments)
+      return applyFareSelectionsToJourney(option, selections)
+    })
+    return sortOptionsList(withFares, sortBy)
+  }, [fareSelectionsByOption, options, sortBy])
   const selected = list.find((option) => option.id === selectedId) ?? list[0] ?? null
   const count = list.length
-  const loading = status === 'loading'
-  const failed = status === 'error'
+  const loading = status === 'loading' && count === 0
+  const loadingMore = status === 'loading' && count > 0
+  const failed = status === 'error' && count === 0
 
   const handleLastMileChange = useCallback((change) => {
     if (!change?.journeyId) return
@@ -103,6 +119,27 @@ export function JourneyPage() {
       [change.journeyId]: buildLastMilePayload(change.journeyId, change),
     }))
   }, [])
+
+  const handleFareSelectionsChange = useCallback((journeyId, selections) => {
+    if (!journeyId) return
+    setFareSelectionsByOption((prev) => ({
+      ...prev,
+      [journeyId]: selections,
+    }))
+  }, [])
+
+  function journeyForNavigation(option) {
+    const selections =
+      fareSelectionsByOption[option.id] ?? buildInitialFareSelections(option.segments)
+    return applyFareSelectionsToJourney(option, selections)
+  }
+
+  function persistJourneyOption(enriched) {
+    setJourneyOptions((prev) =>
+      prev.map((item) => (item.id === enriched.id ? enriched : item)),
+    )
+    selectJourney(enriched)
+  }
 
   function goHome() {
     // Root of the WebView flow — signal native app to close and show home.
@@ -129,16 +166,18 @@ export function JourneyPage() {
 
   function openDetails(option) {
     const lastMile = lastMileByOption[option.id] || buildLastMilePayload(option.id, null)
-    selectJourney(option)
+    const enriched = journeyForNavigation(option)
+    persistJourneyOption(enriched)
     setLastMileSelection(lastMile)
-    navigate(buildDetailPath(option, lastMile))
+    navigate(buildDetailPath(enriched, lastMile))
   }
 
   function continueWith(option) {
     const lastMile = lastMileByOption[option.id] || buildLastMilePayload(option.id, null)
-    selectJourney(option)
+    const enriched = journeyForNavigation(option)
+    persistJourneyOption(enriched)
     setLastMileSelection(lastMile)
-    navigate(buildDetailPath(option, lastMile))
+    navigate(buildDetailPath(enriched, lastMile))
   }
 
   return (
@@ -177,16 +216,25 @@ export function JourneyPage() {
         ) : count === 0 ? (
           <p className="mt-srp__empty">No journey options found.</p>
         ) : (
-          list.map((option) => (
-            <RouteCard
-              key={option.id}
-              option={option}
-              selected={selected?.id === option.id}
-              onSelect={() => setSelectedId(option.id)}
-              onOpenDetails={() => openDetails(option)}
-              onLastMileChange={handleLastMileChange}
-            />
-          ))
+          <>
+            {list.map((option) => (
+              <RouteCard
+                key={`${option.source ?? 'journey'}-${option.id}`}
+                option={option}
+                selected={selected?.id === option.id}
+                fareSelections={fareSelectionsByOption[option.id]}
+                onFareSelectionsChange={(selections) =>
+                  handleFareSelectionsChange(option.id, selections)
+                }
+                onSelect={() => setSelectedId(option.id)}
+                onOpenDetails={() => openDetails(option)}
+                onLastMileChange={handleLastMileChange}
+              />
+            ))}
+            {loadingMore ? (
+              <p className="mt-srp__empty mt-srp__loading-more">Loading more options…</p>
+            ) : null}
+          </>
         )}
       </div>
 
@@ -205,7 +253,8 @@ export function JourneyPage() {
               const lm = lastMileByOption[selected.id]
               if (!lm?.providerId && !lm?.vehicleId) return 'Last mile: none selected'
               const parts = [lm.providerName, lm.modeLabel, lm.vehicleLabel].filter(Boolean)
-              const fare = lm.fareInr != null ? formatFare(lm.fareInr) : ''
+              const fare =
+                lm.fareDisplay || (lm.fareInr != null ? formatFare(lm.fareInr) : '')
               return `Last mile: ${parts.join(' · ')}${fare ? ` · ${fare}` : ''}`
             })()}
           </p>

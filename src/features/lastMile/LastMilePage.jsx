@@ -5,21 +5,19 @@ import {
   LAST_MILE_MODE_DEFAULT,
   LAST_MILE_MODES,
   LAST_MILE_PROVIDER_DEFAULT,
-  formatFare,
+  formatVehicleFare,
+  formatVehicleMeta,
   getLastMileProvider,
   getLastMileVehicles,
   providerSupportsMode,
 } from '../../constants/lastMile'
-import { blockRefexCab, searchRefexHardcodedTestCached } from '../../api/refex'
+import { getOlaRideEstimateForJourneyCached } from '../../api/ola'
+import { searchRefexForJourney } from '../../api/refex'
 import { preloadGoogleMaps, resolveCabMapPoints } from '../../lib/googleMaps'
 import './LastMilePage.css'
 
 function optionMeta(vehicle) {
-  if (vehicle.subtitle) return vehicle.subtitle
-  const parts = []
-  if (vehicle.dropTime) parts.push(vehicle.dropTime)
-  if (vehicle.etaMin != null) parts.push(`${vehicle.etaMin} min`)
-  return parts.join(' · ')
+  return formatVehicleMeta(vehicle)
 }
 
 export function LastMilePage({
@@ -44,22 +42,21 @@ export function LastMilePage({
   })
   const [selectedId, setSelectedId] = useState(() => initialVehicleId || '')
   const [refexVehicles, setRefexVehicles] = useState([])
-  const [refexStatus, setRefexStatus] = useState('idle')
-  const [refexError, setRefexError] = useState('')
+  const [olaVehicles, setOlaVehicles] = useState([])
+  const [liveStatus, setLiveStatus] = useState('idle')
+  const [liveError, setLiveError] = useState('')
   const [bookingStatus, setBookingStatus] = useState('idle')
   const [bookError, setBookError] = useState('')
 
   const provider = getLastMileProvider(providerId)
 
-  const staticVehicles = useMemo(
-    () => getLastMileVehicles(providerId, modeId),
-    [providerId, modeId],
-  )
+  const liveVehicles =
+    providerId === 'refex' ? refexVehicles : providerId === 'ola' ? olaVehicles : undefined
 
-  const vehicles = useMemo(() => {
-    if (providerId !== 'refex') return staticVehicles
-    return refexVehicles.filter((vehicle) => !modeId || vehicle.mode === modeId)
-  }, [providerId, staticVehicles, refexVehicles, modeId])
+  const vehicles = useMemo(
+    () => getLastMileVehicles(providerId, modeId, liveVehicles),
+    [providerId, modeId, liveVehicles],
+  )
 
   const mapPoints = useMemo(
     () =>
@@ -112,29 +109,59 @@ export function LastMilePage({
 
   useEffect(() => {
     if (providerId !== 'refex' || modeId !== 'cab') {
-      setRefexStatus('idle')
-      setRefexError('')
       return undefined
     }
 
     const controller = new AbortController()
-    setRefexStatus('loading')
-    setRefexError('')
+    setLiveStatus('loading')
+    setLiveError('')
 
-    searchRefexHardcodedTestCached({ signal: controller.signal })
+    searchRefexForJourney({ journey, trip, serviceId }, { signal: controller.signal })
       .then((result) => {
         setRefexVehicles(result.vehicles)
-        setRefexStatus('ready')
+        setLiveStatus('ready')
       })
       .catch((error) => {
         if (error.name === 'AbortError') return
         setRefexVehicles([])
-        setRefexStatus('error')
-        setRefexError(error.message || 'Refex search failed')
+        setLiveStatus('error')
+        setLiveError(error.message || 'Refex search failed')
       })
 
     return () => controller.abort()
-  }, [providerId, modeId])
+  }, [providerId, modeId, journey, trip, serviceId])
+
+  useEffect(() => {
+    if (providerId !== 'ola') {
+      return undefined
+    }
+
+    const controller = new AbortController()
+    setOlaVehicles([])
+    setLiveStatus('loading')
+    setLiveError('')
+
+    getOlaRideEstimateForJourneyCached({
+      journey,
+      trip,
+      serviceId,
+      signal: controller.signal,
+      refresh: true,
+    })
+      .then((result) => {
+        if (controller.signal.aborted) return
+        setOlaVehicles(result.vehicles)
+        setLiveStatus('ready')
+      })
+      .catch((error) => {
+        if (error.name === 'AbortError') return
+        setOlaVehicles([])
+        setLiveStatus('error')
+        setLiveError(error.message || 'Could not load Ola ride estimates.')
+      })
+
+    return () => controller.abort()
+  }, [providerId, journey, trip, serviceId])
 
   useEffect(() => {
     if (vehicles.length === 0) {
@@ -159,16 +186,7 @@ export function LastMilePage({
     setBookingStatus('loading')
 
     try {
-      let refexBlock = null
-      if (providerId === 'refex') {
-        refexBlock = await blockRefexCab({
-          searchId: selected.searchId,
-          vehicle: selected,
-          distanceKm: selected.distanceKm,
-        })
-      }
-
-      await onBook?.({ vehicle: selected, providerId, modeId, refexBlock })
+      await onBook?.({ vehicle: selected, providerId, modeId })
       setBookingStatus('ready')
     } catch (error) {
       if (error?.name === 'AbortError') return
@@ -179,9 +197,13 @@ export function LastMilePage({
 
   let emptyMessage = 'No vehicles available.'
   if (providerId === 'refex') {
-    if (refexStatus === 'loading') emptyMessage = 'Searching Refex…'
-    else if (refexStatus === 'error') emptyMessage = refexError || 'Refex search failed.'
+    if (liveStatus === 'loading') emptyMessage = 'Searching Refex…'
+    else if (liveStatus === 'error') emptyMessage = liveError || 'Refex search failed.'
     else emptyMessage = 'No Refex cars for this trip.'
+  } else if (providerId === 'ola') {
+    if (liveStatus === 'loading' || liveStatus === 'idle') emptyMessage = 'Getting Ola estimates…'
+    else if (liveStatus === 'error') emptyMessage = liveError || 'Could not load Ola estimates.'
+    else emptyMessage = 'No Ola rides available near this pickup.'
   }
 
   return (
@@ -256,10 +278,19 @@ export function LastMilePage({
                           {vehicle.faster ? (
                             <span className="mt-lastmile-page__faster">Faster</span>
                           ) : null}
+                          {vehicle.peak ? (
+                            <span className="mt-lastmile-page__peak">Peak</span>
+                          ) : null}
+                          {vehicle.isUpfront ? (
+                            <span className="mt-lastmile-page__upfront">Upfront</span>
+                          ) : null}
                         </div>
                         {meta ? <span className="mt-lastmile-page__meta">{meta}</span> : null}
+                        {vehicle.etaMin != null ? (
+                          <span className="mt-lastmile-page__eta">{vehicle.etaMin} min away</span>
+                        ) : null}
                       </div>
-                      <strong className="mt-lastmile-page__fare">{formatFare(vehicle.fareInr)}</strong>
+                      <strong className="mt-lastmile-page__fare">{formatVehicleFare(vehicle)}</strong>
                     </button>
                   </li>
                 )
@@ -285,7 +316,7 @@ export function LastMilePage({
                 disabled={isBooking}
                 onClick={handleBookClick}
               >
-                Book {selected.label} · {formatFare(selected.fareInr)}
+                Book {selected.label} · {formatVehicleFare(selected)}
               </button>
             </div>
             {bookError ? <p className="mt-lastmile-page__book-error">{bookError}</p> : null}

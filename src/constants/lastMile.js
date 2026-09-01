@@ -190,9 +190,14 @@ function cheapestInMode(vehicles) {
 }
 
 /** Route card — one cheapest option per mode (auto, cab, bike). */
-export function getProviderCardSlots(providerId, refexVehicles = []) {
+export function getProviderCardSlots(providerId, liveVehicles) {
+  // Ola / Refex always use live API results (never static mocks once selected).
   const list =
-    providerId === 'refex' ? refexVehicles : LAST_MILE_VEHICLES[providerId] ?? []
+    providerId === 'ola' || providerId === 'refex'
+      ? Array.isArray(liveVehicles)
+        ? liveVehicles
+        : []
+      : LAST_MILE_VEHICLES[providerId] ?? []
   const modes = providerId === 'refex' ? ['cab'] : CARD_MODE_ORDER
 
   return CARD_MODE_ORDER.map((mode) => {
@@ -201,8 +206,13 @@ export function getProviderCardSlots(providerId, refexVehicles = []) {
   })
 }
 
-export function getLastMileVehicles(providerId, modeId) {
-  const list = LAST_MILE_VEHICLES[providerId] ?? []
+export function getLastMileVehicles(providerId, modeId, liveVehicles) {
+  const list =
+    providerId === 'ola' || providerId === 'refex'
+      ? Array.isArray(liveVehicles)
+        ? liveVehicles
+        : []
+      : LAST_MILE_VEHICLES[providerId] ?? []
   if (!modeId) return list
   return list.filter((vehicle) => vehicle.mode === modeId)
 }
@@ -230,4 +240,29 @@ export function formatFare(fareInr) {
   if (fareInr == null || fareInr === '') return ''
   if (Number.isInteger(fareInr)) return `₹${fareInr}`
   return `₹${Number(fareInr).toFixed(2)}`
+}
+
+/** Prefer preformatted range/upfront label when present (Ola). */
+export function formatVehicleFare(vehicle) {
+  if (!vehicle) return ''
+  if (vehicle.fareDisplay) return vehicle.fareDisplay
+  return formatFare(vehicle.fareInr)
+}
+
+/** ETA label for provider slots — never shows negative ETA. */
+export function formatVehicleEta(vehicle) {
+  if (!vehicle) return null
+  if (vehicle.unavailable) return 'Unavailable'
+  if (vehicle.etaMin == null) return null
+  return `${vehicle.etaMin} Min`
+}
+
+/** Secondary line under vehicle name (trip time, peak, etc.). */
+export function formatVehicleMeta(vehicle) {
+  if (!vehicle) return ''
+  if (vehicle.subtitle) return vehicle.subtitle
+  const parts = []
+  if (vehicle.dropTime) parts.push(vehicle.dropTime)
+  if (vehicle.etaMin != null && !vehicle.unavailable) parts.push(`${vehicle.etaMin} min`)
+  return parts.join(' · ')
 }

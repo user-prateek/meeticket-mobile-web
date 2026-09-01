@@ -8,25 +8,28 @@ const persist = (key, initial) => atomWithStorage(key, initial, storage, { getOn
 /** Trip from `/journey` query params (coords + place names). */
 export const tripAtom = persist('mt:trip:v2', null)
 
-/** Last trip key used to fetch options. */
-export const journeyTripKeyAtom = persist('mt:trip-key:v2', '')
+/**
+ * User from WebView query params: user_id, mobile, name, email.
+ * Session-scoped — see lib/userContext.js.
+ */
+export const userAtom = persist('mt:user:v1', null)
 
-/** Mapped journey options list (ids: 1, 2, 3, …). */
-export const journeyOptionsAtom = persist('mt:options:v2', [])
+/** Mapped journey options — in-memory only; refetch on every /journey load. */
+export const journeyOptionsAtom = atom([])
 
 /** idle | loading | ready | error */
-export const journeyStatusAtom = persist('mt:status:v2', 'idle')
+export const journeyStatusAtom = atom('idle')
 
-export const journeyErrorAtom = persist('mt:error:v2', '')
+export const journeyErrorAtom = atom('')
 
 /** Selected option id (number). */
 export const selectedJourneyIdAtom = persist('mt:selected-id:v2', null)
 
-/** Raw API payload for last successful fetch. */
-export const journeyRawAtom = persist('mt:raw:v2', [])
+/** Raw API payload for the current in-memory fetch. */
+export const journeyRawAtom = atom([])
 
-/** Booking after cab confirm (success page). */
-export const bookingAtom = persist('mt:booking:v2', null)
+/** POST /api/orders response + session fields (`orderId`, `journeyId`, `createdAt`). */
+export const orderAtom = persist('mt:order:v1', null)
 
 /**
  * Last-mile choice from SRP card (provider + vehicle type).

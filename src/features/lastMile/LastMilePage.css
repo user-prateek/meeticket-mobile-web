@@ -271,12 +271,42 @@
   letter-spacing: 0.02em;
 }
 
+.mt-lastmile-page__peak,
+.mt-lastmile-page__upfront {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.mt-lastmile-page__peak {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.mt-lastmile-page__upfront {
+  background: #ecfdf5;
+  color: #047857;
+}
+
 .mt-lastmile-page__meta {
   display: block;
   margin-top: 2px;
   font-size: 12px;
   font-weight: 500;
   color: #6b7280;
+}
+
+.mt-lastmile-page__eta {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #4b5563;
 }
 
 .mt-lastmile-page__fare {

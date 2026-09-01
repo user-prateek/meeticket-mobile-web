@@ -6,7 +6,6 @@ import {
   journeyOptionsAtom,
   journeyRawAtom,
   journeyStatusAtom,
-  journeyTripKeyAtom,
   selectedJourneyAtom,
   selectedJourneyIdAtom,
   tripAtom,
@@ -14,7 +13,7 @@ import {
 
 /**
  * Loads journey options for a trip into Jotai.
- * Reuses stored options when the trip key matches.
+ * Always refetches when the trip changes or the page reloads (no session cache).
  */
 export function useJourneyOptions(trip) {
   const {
@@ -30,7 +29,6 @@ export function useJourneyOptions(trip) {
   } = trip || {}
 
   const key = trip ? tripCacheKey(trip) : ''
-  const [storedKey, setStoredKey] = useAtom(journeyTripKeyAtom)
   const [options, setOptions] = useAtom(journeyOptionsAtom)
   const [status, setStatus] = useAtom(journeyStatusAtom)
   const [error, setError] = useAtom(journeyErrorAtom)
@@ -38,20 +36,21 @@ export function useJourneyOptions(trip) {
   const setTrip = useSetAtom(tripAtom)
   const [nonce, setNonce] = useState(0)
 
-  const cacheHit = Boolean(trip) && nonce === 0 && storedKey === key && status === 'ready'
-
   useEffect(() => {
     if (!trip) {
       setStatus('idle')
+      setOptions([])
+      setRaw([])
+      setError('')
       return undefined
     }
-    if (cacheHit) return undefined
 
     const controller = new AbortController()
     setTrip(trip)
     setStatus('loading')
     setError('')
-    setStoredKey(key)
+    setOptions([])
+    setRaw([])
 
     fetchJourneyOptions(
       {
@@ -65,7 +64,17 @@ export function useJourneyOptions(trip) {
         fromPlace,
         toPlace,
       },
-      { signal: controller.signal },
+      {
+        signal: controller.signal,
+        onPartial: ({ data, options: next }) => {
+          setRaw(data)
+          setOptions(next)
+          if (next.length > 0) {
+            setStatus('ready')
+            setError('')
+          }
+        },
+      },
     )
       .then(({ data, options: next }) => {
         setRaw(data)
@@ -85,7 +94,6 @@ export function useJourneyOptions(trip) {
   }, [
     key,
     nonce,
-    cacheHit,
     trip,
     fromLat,
     fromLon,
@@ -100,7 +108,6 @@ export function useJourneyOptions(trip) {
     setOptions,
     setRaw,
     setStatus,
-    setStoredKey,
     setTrip,
   ])
 
@@ -112,12 +119,7 @@ export function useJourneyOptions(trip) {
     return { options: [], status: 'idle', error: '', reload }
   }
 
-  return {
-    options: storedKey === key ? options : [],
-    status: storedKey === key ? status : 'loading',
-    error: storedKey === key ? error : '',
-    reload,
-  }
+  return { options, status, error, reload }
 }
 
 export function useSelectedJourney() {

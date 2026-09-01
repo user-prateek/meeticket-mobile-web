@@ -1,0 +1,44 @@
+---
+description: MeeTicket booking platform — product flow, APIs, and refinement constraints
+alwaysApply: true
+---
+
+# MeeTicket — Project Context
+
+Multimodal booking platform: **Place A → Place B**. Most UI exists; work is **refinement and booking-flow polish**, not drastic redesigns.
+
+## User journey
+
+1. **Search** — user picks origin/destination; app calls **two journey APIs in parallel**: TGSRTC (bus) and metro.
+2. **SRP** — show all bus + metro options (direct or connecting). User may add **first-mile** cab/auto/bike to reach the station.
+3. **Journey detail** — review plan; allow last-minute changes (better bus fare class, different taxi/provider from same pickup).
+4. **Payment** — single checkout via own backend + Paytm.
+5. **Success** — all tickets in one place; user shows tickets for first-mile cab, metro, bus; can book **last-mile** from destination.
+
+## Domain nuances
+
+- **First mile**: providers offer cab, auto, bike; **Refex = cab only**.
+- **Bus (TGSRTC)**: multiple fare tiers (AC/non-AC, etc.) for same route — user picks tier; fare range on SRP.
+- **Metro**: simple flat fare; board and alight; no seat number, no tiered billing.
+- **Payment**: one combined payment; backend `order` holds full journey plan and total fare.
+
+## Backend / booking flow
+
+- Create **order** with journey plan → compute total fare → **initiate Paytm** payment.
+- After payment, poll own **`pg/status`** API for per-hop booking status.
+- **`ispolling`**: keep polling until all hops confirmed; then stop.
+- **Success page** is refreshable/shareable via **`?order=ORD-...`** — order id alone is enough to reload tickets + QR.
+
+## Implementation pointers
+
+- Journey search: `src/api/journey.js` (metro + TGSRTC merge).
+- Fare tiers: `src/lib/fareClasses.js`, bus `fare_options` on legs.
+- Last mile: Ola live API, Refex mock fallback when unconfigured, Rapido static catalog.
+- Payment: `PaymentPage`, `PaymentCallbackPage`, `usePgStatusPolling`, `src/api/orders.js`.
+- Tickets: `SuccessPage` → `TicketsPage` from `pg/status` bookings.
+
+## When making changes
+
+- Prefer small, focused diffs aligned with existing patterns.
+- Do not re-architect flows unless explicitly asked.
+- Preserve: single payment, order-based success URL, pg/status polling, per-leg booking states.

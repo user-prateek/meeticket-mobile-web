@@ -1,0 +1,125 @@
+/**
+ * MS-Mobile Figma — Ticket Success (node 5503-4989).
+ * Values extracted from Figma REST API (frame 360×1085).
+ */
+.mt-tickets {
+  --tk-screen-bg: #f1f1f1;
+  --tk-surface: #ffffff;
+  --tk-border: #e4e4e4;
+  --tk-primary: #060496;
+  --tk-bus-accent: #407afe;
+  --tk-cab-accent: #060496;
+  --tk-cab-pin-digit-bg: rgba(255, 255, 255, 0.18);
+  --tk-text: #1a1a1a;
+  --tk-muted: #666666;
+  --tk-meta: #666666;
+  --tk-tab-inactive: #444444;
+  --tk-success: #079454;
+  --tk-success-btn: #1a9d43;
+  --tk-info-bg: #ecf2ff;
+  --tk-info-text: #202020;
+  --tk-journey-track: #dee7fe;
+  --tk-journey-inactive: #444444;
+  --tk-terms-text: #444444;
+  --tk-rail: #d1d5db;
+
+  --tk-space-2: 2px;
+  --tk-space-4: 4px;
+  --tk-space-6: 6px;
+  --tk-space-8: 8px;
+  --tk-space-10: 10px;
+  --tk-space-12: 12px;
+  --tk-space-16: 16px;
+
+  --tk-radius-6: 6px;
+  --tk-radius-8: 8px;
+  --tk-radius-9: 9px;
+  --tk-radius-pill: 100px;
+
+  --tk-header-h: 70px;
+  --tk-header-pad-y: 6px;
+  --tk-header-pad-x: 16px;
+  --tk-header-pad-left: 12px;
+  --tk-back: 28px;
+  --tk-logo-w: 60px;
+  --tk-logo-h: 58px;
+  --tk-call: 24px;
+
+  --tk-tab-h: 46px;
+  --tk-tab-pad-y: 12px;
+  --tk-tab-pad-x: 10px;
+  --tk-tab-font: 14px;
+  --tk-tab-weight: 600;
+  --tk-tab-active-weight: 700;
+  --tk-tab-icon: 20px;
+  --tk-tab-gap: 4px;
+
+  --tk-journey-margin-x: 16px;
+  --tk-journey-margin-top: 0;
+  --tk-journey-pad: 2px;
+  --tk-journey-gap: 0;
+  --tk-journey-chip-h: 36px;
+  --tk-journey-chip-pad-x: 20px;
+  --tk-journey-chip-pad-y: 10px;
+  --tk-journey-font: 12px;
+  --tk-journey-tracking: 0.02em;
+
+  --tk-body-pad: 16px;
+  --tk-body-gap: 12px;
+
+  --tk-card-radius: 8px;
+  --tk-card-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+
+  --tk-banner-pad-y: 8px;
+  --tk-banner-pad-x: 12px;
+  --tk-banner-pnr: 16px;
+  --tk-banner-fare: 18px;
+
+  --tk-meta-pad: 8px 12px 8px 10px;
+  --tk-meta-label: 14px;
+  --tk-meta-value: 16px;
+  --tk-meta-gap: 4px;
+
+  --tk-route-pad: 0 12px 12px;
+  --tk-route-icon: 12px;
+  --tk-route-gap: 12px;
+  --tk-route-name: 16px;
+  --tk-route-role: 16px;
+  --tk-route-edit: 30px;
+
+  --tk-qr-card-pad: 8px 16px;
+  --tk-qr-card-gap: 16px;
+  --tk-validity-label: 14px;
+  --tk-countdown: 24px;
+  --tk-countdown-unit: 12px;
+  --tk-emblem: 64px;
+  --tk-qr-frame: 204px;
+  --tk-qr-size: 179px;
+  --tk-qr-border: 1.13px;
+  --tk-qr-pad: 11px;
+
+  --tk-action-h: 34px;
+  --tk-action-font: 12px;
+  --tk-action-gap: 10px;
+  --tk-action-pad-x: 12px;
+
+  --tk-drop-h: 48px;
+  --tk-drop-font: 16px;
+
+  --tk-info-font: 12px;
+  --tk-info-pad: 6px 8px;
+
+  --tk-terms-pad: 16px 12px;
+
+  --tk-cab-pin-pad: 12px 16px;
+  --tk-cab-pin-label: 12px;
+  --tk-cab-pin-digit-w: 34px;
+  --tk-cab-pin-digit-h: 40px;
+  --tk-cab-pin-digit: 20px;
+  --tk-cab-pin-fare: 22px;
+  --tk-cab-driver-avatar: 52px;
+  --tk-cab-driver-vehicle-w: 56px;
+  --tk-cab-driver-vehicle-h: 40px;
+  --tk-cab-section-title: 14px;
+  --tk-cab-details-body: 13px;
+}

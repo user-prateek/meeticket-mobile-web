@@ -5,6 +5,7 @@ import {
   LAST_MILE_PROVIDERS,
   JOURNEY_SERVICES,
 } from '../constants/journey'
+import { defaultFareOptionId, mapLegFareOptions } from '../lib/fareClasses'
 
 const SHARED = {
   lastMileProviders: LAST_MILE_PROVIDERS,
@@ -16,7 +17,18 @@ const DEFAULTS = {
   accessMode: 'walk',
   egressMode: 'walk',
   candidates: 2,
+  tgsrtcCandidates: 2,
 }
+
+/** Journey engines fetched in parallel; results merged in this order. */
+const JOURNEY_SOURCES = [
+  { id: 'metro', urlKey: 'journey', candidates: (trip) => trip.candidates ?? DEFAULTS.candidates },
+  {
+    id: 'tgsrtc',
+    urlKey: 'tgsrtcJourney',
+    candidates: (trip) => trip.tgsrtcCandidates ?? DEFAULTS.tgsrtcCandidates,
+  },
+]
 
 export function tripCacheKey(trip) {
   return [
@@ -95,8 +107,73 @@ function waitMinutes(arrival, depart) {
 function lineLabel(mode, leg) {
   const line = leg.route_id || leg.route_short_name || ''
   if (mode === 'metro') return line ? `Metro ${line}` : 'Metro'
-  if (mode === 'bus') return line ? `Bus ${line}` : 'Bus TGSRTC'
+  if (mode === 'bus') return line ? `Bus ${line}` : 'TGSRTC Bus'
   return line || mode
+}
+
+function buildCardSegments(metro, bus) {
+  const segments = []
+
+  if (metro.hops.length) segments.push(...metro.hops)
+
+  const hasMetroTransit = metro.hops.some((hop) => hop.mode === 'metro')
+  const hasBusTransit = bus.hops.some((hop) => hop.mode === 'bus')
+  if (hasMetroTransit && hasBusTransit) {
+    const lastMetroHop = [...metro.hops].reverse().find((hop) => hop.mode === 'metro')
+    const firstBusHop = bus.hops.find((hop) => hop.mode === 'bus')
+    segments.push({
+      id: `walk-${lastMetroHop?.id || 'metro'}-${firstBusHop?.id || 'bus'}`,
+      mode: 'walk',
+      durationMin: 5,
+      title: 'Walk',
+      subtitle: 'Walk',
+      from: lastMetroHop?.to,
+      to: firstBusHop?.from,
+    })
+  }
+
+  if (bus.hops.length) segments.push(...bus.hops)
+  return segments.length ? segments : [...bus.hops, ...metro.hops]
+}
+
+function readPositiveInr(...values) {
+  for (const value of values) {
+    const amount = Number(value)
+    if (Number.isFinite(amount) && amount > 0) return amount
+  }
+  return 0
+}
+
+function legFareFromOptions(leg) {
+  const options = mapLegFareOptions(leg)
+  if (!options.length) return 0
+  const optionId = defaultFareOptionId(leg?.route_id, options)
+  const selected = options.find((option) => option.id === optionId) || options[0]
+  return selected?.fareInr || 0
+}
+
+function legFareInr(leg) {
+  const amount = readPositiveInr(
+    leg?.fare,
+    leg?.fare_inr,
+    leg?.ticket_fare,
+    leg?.amount,
+    leg?.price,
+  )
+  if (amount > 0) return amount
+
+  const fromOptions = legFareFromOptions(leg)
+  return fromOptions > 0 ? fromOptions : undefined
+}
+
+function blockFareInr(block) {
+  return readPositiveInr(
+    block?.total_fare,
+    block?.fare,
+    block?.ticket_fare,
+    block?.amount,
+    block?.price,
+  )
 }
 
 function mapMileLeg(block, { fromLabel, toLabel, role }) {
@@ -146,23 +223,32 @@ function mapTransitHops(block, mode, prefix) {
       })
     }
 
-    const title = mode === 'metro' ? 'Metro' : 'Bus TGSRTC'
+    const title = mode === 'metro' ? 'Metro' : 'TGSRTC'
     const from = stationName(leg.from_station_name, mode)
     const to = stationName(leg.to_station_name, mode)
+
+    const fareOptions = mapLegFareOptions(leg)
+    const selectedFareOptionId = defaultFareOptionId(leg.route_id, fareOptions)
+    const selectedFareOption =
+      fareOptions.find((option) => option.id === selectedFareOptionId) || fareOptions[0]
 
     hops.push({
       id: `${prefix}-${index}`,
       mode,
       durationMin: Math.round(Number(leg.duration_minutes) || 0),
-      fareInr: leg.fare != null ? Number(leg.fare) : undefined,
+      fareInr: selectedFareOption?.fareInr ?? legFareInr(leg),
+      fareOptions,
+      selectedFareOptionId: selectedFareOption?.id || null,
       title,
       subtitle: title,
       detailTitle: lineLabel(mode, leg),
       from,
       to,
-      fromId: leg.from_station_id,
-      toId: leg.to_station_id,
-      routeId: leg.route_id,
+      fromId: leg.from_station_id || leg.from_stop_id,
+      toId: leg.to_station_id || leg.to_stop_id,
+      fromStationCode: leg.from_station_code || leg.source_station_code || null,
+      toStationCode: leg.to_station_code || leg.destination_station_code || null,
+      routeId: selectedFareOption?.routeId || leg.route_id,
       routeShortName: leg.route_short_name,
       departTime: leg.depart_time,
       arrivalTime: leg.arrival_time,
@@ -178,8 +264,8 @@ function mapTransitHops(block, mode, prefix) {
   })
 
   const fare =
-    Number(block.total_fare) ||
-    legs.reduce((sum, leg) => sum + (leg.fare != null ? Number(leg.fare) : 0), 0)
+    blockFareInr(block) ||
+    legs.reduce((sum, leg) => sum + readPositiveInr(legFareInr(leg)), 0)
   const durationMin =
     Number(block.total_duration_minutes) ||
     hops.filter((h) => h.mode !== 'interchange').reduce((sum, h) => sum + (h.durationMin || 0), 0)
@@ -210,7 +296,51 @@ function optionLabel(metro, bus) {
   return parts.join(' + ') || 'Journey'
 }
 
-export function mapJourneyOption(item, index, trip) {
+function normalizeJourneyList(data) {
+  return Array.isArray(data) ? data : data?.data ?? data?.journeys ?? []
+}
+
+/** TGSRTC engine returns top-level `legs` + `*_stop_*` fields; metro uses `bus`/`metro` blocks. */
+function normalizeJourneyItem(item, source) {
+  const hasTgsrtcShape =
+    source === 'tgsrtc' ||
+    (Array.isArray(item?.legs) && !item?.bus && !item?.metro)
+
+  if (!hasTgsrtcShape) return item
+
+  const legs = (item.legs || []).map((leg) => {
+    const normalized = {
+      ...leg,
+      from_station_name: leg.from_station_name || leg.from_stop_name,
+      to_station_name: leg.to_station_name || leg.to_stop_name,
+      from_station_id: leg.from_station_id || leg.from_stop_id,
+      to_station_id: leg.to_station_id || leg.to_stop_id,
+      route_short_name: leg.route_short_name || leg.route_name,
+    }
+    const fare = legFareInr(normalized)
+    return fare != null ? { ...normalized, fare } : normalized
+  })
+
+  const legFareSum = legs.reduce((sum, leg) => sum + readPositiveInr(legFareInr(leg)), 0)
+
+  return {
+    ...item,
+    origin_station_name: item.origin_station_name || item.origin_stop_name,
+    destination_station_name: item.destination_station_name || item.destination_stop_name,
+    bus: {
+      legs,
+      direct: item.direct,
+      transfer_station_name: item.transfer_stop_name || item.transfer_station_name,
+      transfer_station_id: item.transfer_stop_id || item.transfer_station_id,
+      total_duration_minutes: item.total_duration_minutes,
+      total_fare:
+        readPositiveInr(item.total_fare, item.fare, item.ticket_fare) || legFareSum || undefined,
+    },
+    metro: item.metro || { legs: [] },
+  }
+}
+
+export function mapJourneyOption(item, trip, { id = 1, source } = {}) {
   const metro = mapTransitHops(item.metro, 'metro', 'seg-metro')
   const bus = mapTransitHops(item.bus, 'bus', 'seg-bus')
 
@@ -224,7 +354,7 @@ export function mapJourneyOption(item, index, trip) {
     : destRaw
 
   const segments = [...bus.hops, ...metro.hops]
-  const cardSegments = segments
+  const cardSegments = buildCardSegments(metro, bus)
   const stops = [...bus.stops, ...metro.stops]
   const fare = (bus.fare || 0) + (metro.fare || 0)
   const walkM = roundMeters(item.access?.distance_m) + roundMeters(item.egress?.distance_m)
@@ -243,7 +373,8 @@ export function mapJourneyOption(item, index, trip) {
   const notSuggested = Boolean(item.not_suggested)
 
   return {
-    id: index + 1,
+    id,
+    source,
     label: optionLabel(metro, bus),
     raw: item,
     ...SHARED,
@@ -252,10 +383,15 @@ export function mapJourneyOption(item, index, trip) {
     stops,
     access,
     egress,
-    payment: { method: 'Cash', amountInr: fare },
+    payment: { method: 'Online', amountInr: fare },
     // totalDistanceKm: kmFromMeters(walkM),
     totalDistanceKm: '--',
-    totalTimeMin: Math.round(Number(item.metro.total_duration_minutes) || 0),
+    totalTimeMin: Math.round(
+      Number(item.metro?.total_duration_minutes) ||
+        Number(item.bus?.total_duration_minutes) ||
+        Number(item.total_duration_minutes) ||
+        0,
+    ),
     totalFareInr: fare,
     notSuggested,
     note:
@@ -266,7 +402,7 @@ export function mapJourneyOption(item, index, trip) {
   }
 }
 
-export function buildJourneyParams(trip) {
+export function buildJourneyParams(trip, { candidates } = {}) {
   return {
     from_lat: trip.fromLat,
     from_lon: trip.fromLon,
@@ -274,20 +410,79 @@ export function buildJourneyParams(trip) {
     to_lon: trip.toLon,
     access_mode: trip.accessMode ?? DEFAULTS.accessMode,
     egress_mode: trip.egressMode ?? DEFAULTS.egressMode,
-    candidates: trip.candidates ?? DEFAULTS.candidates,
+    candidates: candidates ?? trip.candidates ?? DEFAULTS.candidates,
   }
 }
 
-/** GET journey options — returns { data: raw[], options: mapped[] } */
-export async function fetchJourneyOptions(trip, { signal } = {}) {
+function mergeJourneyChunks(bySource) {
+  const data = []
+  const options = []
+  let id = 1
+
+  for (const source of JOURNEY_SOURCES) {
+    const chunk = bySource.get(source.id)
+    if (!chunk) continue
+    for (let index = 0; index < chunk.raw.length; index += 1) {
+      data.push(chunk.raw[index])
+      options.push(
+        mapJourneyOption(chunk.raw[index], chunk.trip, {
+          id: id++,
+          source: source.id,
+        }),
+      )
+    }
+  }
+
+  return { data, options }
+}
+
+async function fetchJourneySource(source, trip, { signal, bySource, onPartial } = {}) {
+  const url = urls[source.urlKey]
+  if (!url) {
+    console.warn(`[journey] ${source.id}: URL not configured (${source.urlKey})`)
+    return { source: source.id, ok: false }
+  }
+
+  const params = buildJourneyParams(trip, { candidates: source.candidates(trip) })
+  const payload = await GetRequest(url, params, { signal })
+  const list = normalizeJourneyList(payload).map((item) => normalizeJourneyItem(item, source.id))
+
+  bySource.set(source.id, { raw: list, trip })
+  const merged = mergeJourneyChunks(bySource)
+  onPartial?.(merged)
+  return { source: source.id, ok: true, count: list.length }
+}
+
+/**
+ * GET journey options from all engines in parallel.
+ * Calls `onPartial` each time a source responds so the UI can render early results.
+ * Returns { data: raw[], options: mapped[] }.
+ */
+export async function fetchJourneyOptions(trip, { signal, onPartial } = {}) {
   if (trip.fromLat == null || trip.fromLon == null || trip.toLat == null || trip.toLon == null) {
     throw new Error('from_lat, from_lon, to_lat and to_lon are required')
   }
 
-  const data = await GetRequest(urls.journey, buildJourneyParams(trip), { signal })
+  const bySource = new Map()
+  const errors = []
 
-  const list = Array.isArray(data) ? data : data?.data ?? data?.journeys ?? []
-  const options = list.map((item, index) => mapJourneyOption(item, index, trip))
+  await Promise.all(
+    JOURNEY_SOURCES.map(async (source) => {
+      try {
+        return await fetchJourneySource(source, trip, { signal, bySource, onPartial })
+      } catch (error) {
+        if (error?.name === 'AbortError') throw error
+        console.warn(`[journey] ${source.id} failed`, error)
+        errors.push({ source: source.id, error })
+        return { source: source.id, ok: false, error }
+      }
+    }),
+  )
 
-  return { data: list, options }
+  const merged = mergeJourneyChunks(bySource)
+  if (merged.options.length === 0) {
+    throw errors[0]?.error || new Error('Could not load journey options')
+  }
+
+  return merged
 }

@@ -1,10 +1,11 @@
 import olaGoAc from '../assets/vehicles/ola_go_ac.png'
-import { PostRequest } from './client'
+import { haversineKm } from '../lib/geocode'
 import {
   refexClientId,
   refexClientSecret,
   refexCorporateName,
   refexPartnerName,
+  refexUseSandboxCoordinates,
   refexVendorId,
   urls,
 } from './config'
@@ -139,18 +140,50 @@ export function buildRefexSearchMockResponse({ distance = '3.6', startTime } = {
   }
 }
 
-/** Static sample — prefer buildRefexSearchMockResponse() for request-aware mocks. */
-export const REFEX_SEARCH_MOCK = buildRefexSearchMockResponse({
-  distance: '22.4',
-  startTime: '2026-09-01 14:30:00',
-})
-
 /** Guide §3.1 — required on every Partner → Refex call. */
 export function refexAuthHeaders() {
   return {
     'client-id': refexClientId,
     'client-secret': refexClientSecret,
   }
+}
+
+/**
+ * Refex MeeTicket API uses HTTP status as the outcome (200 = cars, 404 = no availability).
+ * Do not treat 404 as a transport/proxy failure.
+ */
+async function postMeeticketRefex(url, body, { signal } = {}) {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      ...refexAuthHeaders(),
+    },
+    body: JSON.stringify(body),
+    signal,
+  })
+
+  const text = await response.text()
+  let data = null
+  try {
+    data = text ? JSON.parse(text) : null
+  } catch {
+    data = null
+  }
+
+  if (response.status === 200 || response.status === 404) {
+    return { status: response.status, data }
+  }
+
+  const message =
+    (data && typeof data === 'object' && (data.error || data.errorMessage)) ||
+    text?.slice(0, 200) ||
+    `Refex request failed (HTTP ${response.status})`
+  const err = new Error(String(message))
+  err.status = response.status
+  err.body = data
+  throw err
 }
 
 /** Guide §2.1 — yyyy-MM-dd HH:mm:ss in IST (UTC+05:30). */
@@ -193,6 +226,23 @@ export function createRefexSearchId(prefix = 'MT') {
 function upperCity(value, fallback = 'HYDERABAD') {
   const city = String(value || fallback).trim()
   return city ? city.toUpperCase() : fallback
+}
+
+/** Refex staging accepts short city-style strings (see working curl: "hyderabad"). */
+function shortRefexAddress(label, fallback = 'hyderabad') {
+  const text = String(label || '')
+    .trim()
+    .toLowerCase()
+  if (!text) return fallback
+  if (text.includes('hyderabad')) return 'hyderabad'
+  const first = text.split(',')[0].trim()
+  return first || fallback
+}
+
+function formatRefexDistanceKm(value, fallback = '40') {
+  const km = Number(value)
+  if (!Number.isFinite(km) || km <= 0) return fallback
+  return km.toFixed(1)
 }
 
 function typeToMode(type = '') {
@@ -257,6 +307,15 @@ export function mapRefexSearchResponse(payload, { searchId, httpOk = true } = {}
     payload.response === null &&
     typeof payload.error === 'string'
 
+  const isEmptyEnvelope =
+    payload &&
+    typeof payload === 'object' &&
+    payload.response === null &&
+    payload.error == null &&
+    payload.code == null &&
+    !Array.isArray(payload.car_types) &&
+    !payload?.responseData?.car_types
+
   const data = Array.isArray(payload?.car_types)
     ? payload
     : payload?.responseData && Array.isArray(payload.responseData.car_types)
@@ -271,13 +330,18 @@ export function mapRefexSearchResponse(payload, { searchId, httpOk = true } = {}
   const ok =
     httpOk &&
     !isErrorShape &&
+    !isEmptyEnvelope &&
     (Number(payload?.errorCode) === 200 ||
       (payload?.errorCode == null && carTypes.length >= 0 && data != null))
 
   return {
-    ok: Boolean(ok && !isErrorShape),
+    ok: Boolean(ok && !isErrorShape && !isEmptyEnvelope),
     errorCode: isErrorShape ? null : payload?.errorCode ?? null,
-    errorMessage: isErrorShape ? payload.error : payload?.errorMessage ?? null,
+    errorMessage: isErrorShape
+      ? payload.error
+      : isEmptyEnvelope
+        ? 'Refex search returned no availability for this trip'
+        : payload?.errorMessage ?? null,
     searchId: searchId || null,
     distanceKm,
     startTime: data?.start_time ?? null,
@@ -290,15 +354,14 @@ export function mapRefexSearchResponse(payload, { searchId, httpOk = true } = {}
   }
 }
 
-/** Staging-friendly defaults when journey params are incomplete. */
-const REFEX_SEARCH_DEFAULTS = {
-  tripMode: 'POINT TO POINT',
+/** Refex staging sandbox — only this route returns cabs (see working curl from Refex team). */
+const REFEX_SANDBOX_COORDINATES = {
   pickUplat: 17.240041,
   pickUplon: 78.429251,
   droplat: 17.390873,
   droplon: 78.469006,
-  pickUpAddress: 'hyderabad',
-  dropAddress: 'hyderabad',
+  pickUpAddress: 'Rajiv Gandhi International Airport',
+  dropAddress: 'ABIDS CENTRAL GST DIVISION',
   pickUpCity: 'HYDERABAD',
   dropCity: 'HYDERABAD',
   distance: '40',
@@ -306,38 +369,8 @@ const REFEX_SEARCH_DEFAULTS = {
   dropPlaceId: '1',
 }
 
-/**
- * Working staging curl — temporary until dynamic search.
- * POST …/thirdparty/v1/api/meeticket/search
- */
-export const REFEX_HARDCODED_CURL_SEARCH = {
-  PickUpPlaceId: '1',
-  PickUpAddress: 'hyderabad',
-  PickUplat: 17.240041,
-  PickUplon: 78.429251,
-  DropPlaceId: '1',
-  DropAddress: 'hyderabad',
-  Droplat: 17.390873,
-  Droplon: 78.469006,
-  TripMode: 'POINT TO POINT',
-  StartTime: '2026-08-27 23:00:00',
-  EndTime: '2026-08-27 23:50:00',
-  Distance: '40',
-  SearchId: 'Refex-test-1234asef2e5',
-  VendorId: '2583',
-  CorporateName: 'Mee Ticket',
-  PickUpCity: 'HYDERABAD',
-  DropCity: 'HYDERABAD',
-  Epass_Status: '1',
-}
-
-export const REFEX_HARDCODED_CURL_AUTH = {
-  'client-id': 'meeticket-refex-staging',
-  'client-secret': 'wkbive3jgwarj4b775771bg7rvhi1f7o',
-}
-
-/** @deprecated use REFEX_HARDCODED_CURL_SEARCH */
-export const REFEX_HARDCODED_TEST_TRIP = REFEX_HARDCODED_CURL_SEARCH
+/** @deprecated use REFEX_SANDBOX_COORDINATES */
+const REFEX_SEARCH_DEFAULTS = REFEX_SANDBOX_COORDINATES
 
 /**
  * Search request body — field names/casing match working Postman payload exactly:
@@ -347,7 +380,7 @@ export const REFEX_HARDCODED_TEST_TRIP = REFEX_HARDCODED_CURL_SEARCH
  */
 export function buildRefexSearchPayload({
   searchId,
-  tripMode = REFEX_SEARCH_DEFAULTS.tripMode,
+  tripMode = 'POINT TO POINT',
   startTime,
   endTime,
   pickUplat = REFEX_SEARCH_DEFAULTS.pickUplat,
@@ -390,6 +423,107 @@ export function buildRefexSearchPayload({
   }
 }
 
+/** Pickup StartTime — must be in the future (IST). */
+export function refexPickupStartTime(journey, { minAheadMinutes = 30 } = {}) {
+  const accessMin = Number(journey?.access?.durationMin) || 0
+  const minutesAhead = Math.max(minAheadMinutes, accessMin + 10)
+  return defaultRefexStartTime(minutesAhead)
+}
+
+/**
+ * Resolve Refex search endpoints from journey + trip.
+ * Pickup: user location → boarding station. Drop: alighting station → destination.
+ */
+export function resolveRefexTripEndpoints({ journey, trip, serviceId = 'pickup' } = {}) {
+  if (refexUseSandboxCoordinates) {
+    return {
+      ...REFEX_SANDBOX_COORDINATES,
+      hasCoords: true,
+      sandboxCoordinates: true,
+    }
+  }
+
+  const isDrop = serviceId === 'drop'
+  const mile = isDrop ? journey?.egress : journey?.access
+
+  const pickUplat = Number(isDrop ? mile?.fromLat : trip?.fromLat ?? mile?.fromLat)
+  const pickUplon = Number(isDrop ? mile?.fromLon : trip?.fromLon ?? mile?.fromLon)
+  const droplat = Number(isDrop ? trip?.toLat ?? mile?.toLat : mile?.toLat)
+  const droplon = Number(isDrop ? trip?.toLon ?? mile?.toLon : mile?.toLon)
+
+  const pickUpAddress = String(
+    isDrop ? mile?.fromLabel : trip?.fromPlace ?? mile?.fromLabel ?? '',
+  )
+  const dropAddress = String(
+    isDrop ? trip?.toPlace ?? mile?.toLabel : mile?.toLabel ?? journey?.originStation ?? '',
+  )
+
+  let distance = REFEX_SEARCH_DEFAULTS.distance
+  if (mile?.distanceM) {
+    distance = formatRefexDistanceKm(Number(mile.distanceM) / 1000)
+  } else if (
+    Number.isFinite(pickUplat) &&
+    Number.isFinite(pickUplon) &&
+    Number.isFinite(droplat) &&
+    Number.isFinite(droplon)
+  ) {
+    distance = formatRefexDistanceKm(haversineKm(pickUplat, pickUplon, droplat, droplon))
+  }
+
+  const hasCoords = [pickUplat, pickUplon, droplat, droplon].every((value) => Number.isFinite(value))
+
+  return {
+    pickUplat: hasCoords ? pickUplat : REFEX_SEARCH_DEFAULTS.pickUplat,
+    pickUplon: hasCoords ? pickUplon : REFEX_SEARCH_DEFAULTS.pickUplon,
+    droplat: hasCoords ? droplat : REFEX_SEARCH_DEFAULTS.droplat,
+    droplon: hasCoords ? droplon : REFEX_SEARCH_DEFAULTS.droplon,
+    pickUpAddress: shortRefexAddress(pickUpAddress),
+    dropAddress: shortRefexAddress(dropAddress),
+    pickUpPlaceId: REFEX_SEARCH_DEFAULTS.pickUpPlaceId,
+    dropPlaceId: REFEX_SEARCH_DEFAULTS.dropPlaceId,
+    pickUpCity: REFEX_SEARCH_DEFAULTS.pickUpCity,
+    dropCity: REFEX_SEARCH_DEFAULTS.dropCity,
+    distance,
+    hasCoords,
+  }
+}
+
+export async function searchRefexForJourney(
+  { journey, trip, serviceId = 'pickup' } = {},
+  { signal } = {},
+) {
+  const endpoints = resolveRefexTripEndpoints({ journey, trip, serviceId })
+  const startTime = '2026-09-01 23:00:00' // refexPickupStartTime(journey) //TODO  USE Actual time from journey
+  const endTime = '2026-09-01 23:00:00' // defaultRefexEndTime(startTime) //TODO USE Actual time from journey
+  const searchId = createRefexSearchId('Refex')
+
+  console.info('[refex] journey search', {
+    journeyId: journey?.id,
+    serviceId,
+    searchId,
+    sandboxCoordinates: refexUseSandboxCoordinates,
+    startTime,
+    endTime,
+    distance: endpoints.distance,
+    pickUplat: endpoints.pickUplat,
+    pickUplon: endpoints.pickUplon,
+    droplat: endpoints.droplat,
+    droplon: endpoints.droplon,
+    pickUpAddress: endpoints.pickUpAddress,
+    dropAddress: endpoints.dropAddress,
+  })
+
+  return searchRefex(
+    {
+      ...endpoints,
+      startTime,
+      endTime,
+      searchId,
+    },
+    { signal, useMock: false },
+  )
+}
+
 
 /**
  * POST …/thirdparty/v1/api/meeticket/search
@@ -417,14 +551,14 @@ export async function searchRefex(params = {}, { signal, useMock } = {}) {
   }
 
   const body = buildRefexSearchPayload({ ...params, searchId, startTime, endTime })
-  console.info('[refex] search request', body)
+  console.info('[refex] search request', { url: urls.refexSearch, body })
 
   let payload
+  let httpStatus = 200
   try {
-    payload = await PostRequest(urls.refexSearch, body, {
-      signal,
-      headers: refexAuthHeaders(),
-    })
+    const response = await postMeeticketRefex(urls.refexSearch, body, { signal })
+    payload = response.data
+    httpStatus = response.status
   } catch (error) {
     if (import.meta.env.DEV) {
       console.warn('[refex] search request failed — using mock response', error)
@@ -442,13 +576,15 @@ export async function searchRefex(params = {}, { signal, useMock } = {}) {
     throw error
   }
 
-  const mapped = mapRefexSearchResponse(payload, { searchId })
+  const mapped = mapRefexSearchResponse(payload, { searchId, httpOk: httpStatus === 200 })
   const noCars = mapped.ok && mapped.vehicles.length === 0
 
-  if (import.meta.env.DEV && (!mapped.ok || noCars)) {
-    console.warn('[refex] live search unavailable — using mock response', {
+  if (import.meta.env.DEV && (!mapped.ok || noCars) && !refexUseSandboxCoordinates) {
+    console.warn('[refex] live search unavailable', {
+      httpStatus,
       errorMessage: mapped.errorMessage,
       carCount: mapped.vehicles.length,
+      raw: payload,
     })
     const mockMapped = mapRefexSearchResponse(mockFromRequest(), { searchId })
     return {
@@ -457,13 +593,19 @@ export async function searchRefex(params = {}, { signal, useMock } = {}) {
       startTime,
       endTime,
       mock: true,
-      mockReason: !mapped.ok ? 'api_error' : 'empty_car_types',
+      mockReason:
+        httpStatus === 404 ? 'no_availability' : !mapped.ok ? 'api_error' : 'empty_car_types',
       liveErrorMessage: mapped.errorMessage,
+      liveHttpStatus: httpStatus,
     }
   }
 
   if (!mapped.ok) {
-    throw new Error(mapped.errorMessage || 'Refex search failed')
+    const suffix =
+      httpStatus === 404
+        ? ' (Refex HTTP 404 — no cabs for this route on staging, not a proxy URL error)'
+        : ''
+    throw new Error((mapped.errorMessage || 'Refex search failed') + suffix)
   }
 
   if (mapped.vehicles.length === 0) {
@@ -471,150 +613,6 @@ export async function searchRefex(params = {}, { signal, useMock } = {}) {
   }
 
   return { ...mapped, searchId, startTime, endTime, mock: false }
-}
-
-/**
- * Hardcoded staging search — exact working curl payload (no geocode, no mock).
- */
-export async function searchRefexHardcodedTest({ signal } = {}) {
-  if (!urls.refexSearch) {
-    throw new Error('VITE_REFEX_BASE_URL not set')
-  }
-
-  const body = { ...REFEX_HARDCODED_CURL_SEARCH }
-  const searchId = body.SearchId
-
-  console.info('[refex] hardcoded curl search', body)
-
-  const payload = await PostRequest(urls.refexSearch, body, {
-    signal,
-    headers: REFEX_HARDCODED_CURL_AUTH,
-  })
-
-  const mapped = mapRefexSearchResponse(payload, { searchId })
-  if (!mapped.ok) {
-    throw new Error(mapped.errorMessage || 'Refex search failed')
-  }
-  if (mapped.vehicles.length === 0) {
-    throw new Error('Refex search returned no vehicles')
-  }
-
-  return {
-    ...mapped,
-    searchId,
-    startTime: body.StartTime,
-    endTime: body.EndTime,
-    mock: false,
-  }
-}
-
-let hardcodedSearchCache = null
-let hardcodedSearchInflight = null
-
-/** Shared cache for hardcoded search — avoids duplicate calls across RouteCards. */
-export function searchRefexHardcodedTestCached({ signal, refresh = false } = {}) {
-  if (!refresh && hardcodedSearchCache) {
-    return Promise.resolve(hardcodedSearchCache)
-  }
-  if (!refresh && hardcodedSearchInflight) {
-    return hardcodedSearchInflight
-  }
-
-  hardcodedSearchInflight = searchRefexHardcodedTest({ signal })
-    .then((result) => {
-      hardcodedSearchCache = result
-      return result
-    })
-    .finally(() => {
-      hardcodedSearchInflight = null
-    })
-
-  return hardcodedSearchInflight
-}
-
-/**
- * MeeTicket Integration API — Block Cab.
- * POST …/thirdparty/v1/api/meeticket/block-cab
- * Echo search_id + vehicle_type + combustion_type + fares from Search exactly.
- */
-export function buildRefexBlockCabPayload({
-  searchId,
-  vehicle,
-  distanceKm,
-  vendorId = REFEX_HARDCODED_CURL_SEARCH.VendorId || refexVendorId,
-  partnerName = REFEX_HARDCODED_CURL_SEARCH.CorporateName || refexPartnerName,
-  verificationCode,
-} = {}) {
-  const car = vehicle?.raw || vehicle
-  const fare = car?.fare_details || vehicle?.fareDetails || {}
-  const extras = fare.extra_charges || {}
-  return {
-    distance: Number(distanceKm ?? vehicle?.distanceKm ?? REFEX_HARDCODED_CURL_SEARCH.Distance) || 0,
-    base_fare: Number(fare.base_fare ?? vehicle?.baseFareInr) || 0,
-    state_tax: String(extras.state_tax?.amount ?? 0),
-    toll_charges: Number(extras.toll_charges?.amount) || 0,
-    total_fare: Number(fare.total_fare ?? vehicle?.fareInr) || 0,
-    search_id: searchId || vehicle?.searchId || REFEX_HARDCODED_CURL_SEARCH.SearchId,
-    vehicle_type: car?.type || vehicle?.vehicleType,
-    model: car?.model || vehicle?.model,
-    combustion_type: car?.combustion_type || vehicle?.combustionType,
-    vendor_id: Number(vendorId) || vendorId,
-    partner_name: partnerName || 'Mee Ticket',
-    verification_code: verificationCode || String(Math.floor(1000 + Math.random() * 9000)),
-  }
-}
-
-export async function blockRefexCab(params, { signal, useMock } = {}) {
-  if (!urls.refexBlockCab && !useMock) {
-    throw new Error('VITE_REFEX_BASE_URL not set')
-  }
-
-  const shouldMock = useMock === true || (!urls.refexBlockCab && useMock !== false)
-  const body = buildRefexBlockCabPayload(params)
-
-  console.info('[refex] block-cab', body)
-
-  if (shouldMock) {
-    return {
-      ok: true,
-      referenceNumber: '830BF643-A5AA-478F-B38C-AC8EDCBA14E7',
-      verificationCode: body.verification_code,
-      mock: true,
-      raw: {
-        response: {
-          success: true,
-          reference_number: '830BF643-A5AA-478F-B38C-AC8EDCBA14E7',
-          verification_code: body.verification_code,
-        },
-        error: null,
-        code: null,
-      },
-    }
-  }
-
-  const payload = await PostRequest(urls.refexBlockCab, body, {
-    signal,
-    headers: REFEX_HARDCODED_CURL_AUTH,
-  })
-
-  // Success: { response: { success, reference_number, verification_code }, error: null }
-  // Failure: { response: null, error: "<message>", code: null }
-  if (payload?.response === null && typeof payload?.error === 'string') {
-    throw new Error(payload.error || 'Refex block-cab failed')
-  }
-
-  const response = payload?.response
-  if (!response?.success || !response?.reference_number) {
-    throw new Error(payload?.error || 'Refex block-cab failed')
-  }
-
-  return {
-    ok: true,
-    referenceNumber: response.reference_number,
-    verificationCode: response.verification_code ?? body.verification_code,
-    mock: false,
-    raw: payload,
-  }
 }
 
 /**
@@ -667,13 +665,10 @@ export async function confirmRefexPayment(params, { signal, useMock } = {}) {
     }
   }
 
-  const payload = await PostRequest(urls.refexPayment, body, {
-    signal,
-    headers: refexAuthHeaders(),
-  })
+  const { status, data: payload } = await postMeeticketRefex(urls.refexPayment, body, { signal })
 
   const response = payload?.response
-  if (!response?.success || !response?.job_no) {
+  if (status !== 200 || !response?.success || !response?.job_no) {
     throw new Error(payload?.error || 'Refex payment failed')
   }
 

@@ -3,41 +3,55 @@
   flex-direction: column;
   min-height: 100%;
   flex: 1;
-  background: #f3f4f6;
+  background: var(--tk-screen-bg);
 }
 
 .mt-tickets__header {
   display: grid;
-  grid-template-columns: 40px 1fr 40px;
+  grid-template-columns: var(--tk-back) 1fr var(--tk-call);
   align-items: center;
-  gap: 8px;
-  padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
-  background: #fff;
-  border-bottom: 1px solid #ececec;
+  gap: var(--tk-space-8);
+  min-height: var(--tk-header-h);
+  padding: calc(var(--tk-header-pad-y) + env(safe-area-inset-top)) var(--tk-header-pad-x)
+    var(--tk-header-pad-y) var(--tk-header-pad-left);
+  background: var(--tk-surface);
 }
 
 .mt-tickets__icon-btn {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: var(--tk-back);
+  height: var(--tk-back);
   padding: 0;
   border: 0;
-  border-radius: 999px;
   background: transparent;
-  color: var(--mt-primary);
+  color: var(--tk-primary);
+}
+
+.mt-tickets__call-btn {
+  display: grid;
+  place-items: center;
+  justify-self: end;
+  width: var(--tk-call);
+  height: var(--tk-call);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--tk-primary);
 }
 
 .mt-tickets__logo {
   justify-self: center;
+  width: var(--tk-logo-w);
+  height: var(--tk-logo-h);
+  object-fit: contain;
 }
 
 .mt-tickets__tabs {
   display: flex;
-  gap: 4px;
-  padding: 0 8px;
-  background: #fff;
-  border-bottom: 1px solid #ececec;
+  min-height: var(--tk-tab-h);
+  background: var(--tk-surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -51,48 +65,108 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--tk-tab-gap);
   min-width: 72px;
-  padding: 12px 10px 10px;
+  padding: var(--tk-tab-pad-y) var(--tk-tab-pad-x);
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
-  color: #8a8a8a;
-  font-size: 13px;
-  font-weight: 600;
+  color: var(--tk-tab-inactive);
+  font-size: var(--tk-tab-font);
+  font-weight: var(--tk-tab-weight);
+  line-height: 20px;
 }
 
 .mt-tickets__tab.is-active {
-  color: var(--mt-primary);
-  border-bottom-color: var(--mt-primary);
+  font-weight: var(--tk-tab-active-weight);
+}
+
+.mt-tickets__tab[data-tab='metro'].is-active {
+  color: var(--tk-primary);
+  border-bottom-color: var(--tk-primary);
+}
+
+.mt-tickets__tab[data-tab='bus'].is-active {
+  color: var(--tk-bus-accent);
+  border-bottom-color: var(--tk-bus-accent);
+}
+
+.mt-tickets__tab[data-tab='cab'].is-active {
+  color: var(--tk-cab-accent);
+  border-bottom-color: var(--tk-cab-accent);
+}
+
+.mt-tickets__tab[data-tab='other'].is-active {
+  color: var(--tk-primary);
+  border-bottom-color: var(--tk-primary);
+}
+
+.mt-tickets__tab.is-disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
 }
 
 .mt-tickets__tab-icon {
   flex-shrink: 0;
-  opacity: 0.7;
+  width: var(--tk-tab-icon);
+  height: var(--tk-tab-icon);
+  opacity: 0.85;
 }
 
 .mt-tickets__tab.is-active .mt-tickets__tab-icon {
   opacity: 1;
 }
 
-.mt-tickets__tab-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: currentColor;
+.mt-tickets__tab.is-disabled .mt-tickets__tab-icon {
+  opacity: 0.45;
+}
+
+.mt-journey-tabs {
+  display: flex;
+  gap: var(--tk-journey-gap);
+  margin: var(--tk-journey-margin-top) var(--tk-journey-margin-x) 0;
+  padding: var(--tk-journey-pad);
+  border-radius: var(--tk-radius-pill);
+  background: var(--tk-journey-track);
+}
+
+.mt-journey-tabs__chip {
+  flex: 1;
+  min-height: var(--tk-journey-chip-h);
+  padding: var(--tk-journey-chip-pad-y) var(--tk-journey-chip-pad-x);
+  border: 0;
+  border-radius: var(--tk-radius-pill);
+  background: transparent;
+  color: var(--tk-journey-inactive);
+  font-size: var(--tk-journey-font);
+  font-weight: 600;
+  letter-spacing: var(--tk-journey-tracking);
+  text-transform: uppercase;
+  line-height: 16px;
+}
+
+.mt-journey-tabs__chip.is-active {
+  background: var(--tk-surface);
+  color: var(--tk-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .mt-tickets__body {
   flex: 1;
   overflow: auto;
-  padding: 12px 12px calc(16px + env(safe-area-inset-bottom));
+  padding: var(--tk-body-pad) var(--tk-body-pad) calc(var(--tk-body-pad) + env(safe-area-inset-bottom));
 }
 
 .mt-ticket {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--tk-body-gap);
+}
+
+.mt-ticket--empty {
+  min-height: 180px;
+  align-items: center;
+  justify-content: center;
 }
 
 .mt-ticket-empty {
@@ -100,6 +174,23 @@
   text-align: center;
   color: var(--mt-muted);
   font-size: 14px;
+}
+
+.mt-tickets__polling {
+  margin: 0;
+  padding: 10px 16px;
+  background: #e8f0fe;
+  color: #060496;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.mt-ticket--pending,
+.mt-ticket--failed {
+  min-height: 200px;
+  align-items: center;
+  justify-content: center;
 }
 
 .mt-share-pin {
@@ -263,8 +354,19 @@
 .mt-ticket-route__copy {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 14px;
   min-width: 0;
+}
+
+.mt-ticket-route__stop-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mt-ticket-route__edit {
+  color: var(--mt-primary);
+  flex-shrink: 0;
 }
 
 .mt-ticket-route__copy strong {
@@ -342,6 +444,43 @@
   border: 1px solid #eee;
 }
 
+.mt-qr--image {
+  display: block;
+  object-fit: contain;
+  background: #fff;
+}
+
+.mt-qr--loading {
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 1px dashed #d1d5db;
+  background: #f9fafb;
+  color: var(--mt-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mt-qr--error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  text-align: center;
+}
+
+.mt-qr--error p {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .mt-qr-hint {
   margin: 12px 0 0;
   color: var(--mt-fare);
@@ -400,109 +539,6 @@
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
-}
-
-.mt-bus-stops {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-top: 4px;
-  font-size: 14px;
-}
-
-.mt-bus-stops__from {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.mt-bus-stops__edit {
-  color: var(--mt-primary);
-  flex-shrink: 0;
-}
-
-.mt-bus-stops__arrow {
-  color: var(--mt-muted);
-  flex-shrink: 0;
-}
-
-.mt-countdown {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-  color: var(--mt-fare);
-}
-
-.mt-countdown strong {
-  display: block;
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  font-variant-numeric: tabular-nums;
-}
-
-.mt-countdown small {
-  display: block;
-  margin-top: 2px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--mt-muted);
-}
-
-.mt-countdown > span {
-  font-size: 22px;
-  font-weight: 700;
-  margin-bottom: 14px;
-}
-
-.mt-bus-actions {
-  display: flex;
-  gap: 10px;
-  width: 100%;
-  margin-top: 14px;
-}
-
-.mt-bus-valid,
-.mt-bus-refresh {
-  flex: 1;
-  display: grid;
-  place-items: center;
-  padding: 10px 12px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.mt-bus-valid {
-  background: #e8f8ee;
-  color: var(--mt-fare);
-}
-
-.mt-bus-refresh {
-  border: 0;
-  background: var(--mt-primary);
-  color: #fff;
-}
-
-.mt-bus-info {
-  padding: 12px 14px;
-  border-radius: 10px;
-  background: #eef0ff;
-  color: var(--mt-primary);
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.mt-bus-terms {
-  padding: 12px 14px;
-  border-radius: 10px;
-  background: #ececec;
-  color: #555;
-  font-size: 11px;
-  line-height: 1.45;
 }
 
 .mt-cancel-modal {

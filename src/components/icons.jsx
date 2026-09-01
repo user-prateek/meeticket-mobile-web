@@ -1,44 +1,78 @@
 import metroPng from '../assets/icons/metro.png'
 import busPng from '../assets/icons/bus.png'
 import walkPng from '../assets/icons/walk.png'
+import meeticketLogo from '../assets/brands/meeticket.png'
 
-export function BackIcon({ size = 22, className }) {
+function SvgIcon({
+  size = 20,
+  color = '#666666',
+  className,
+  style,
+  viewBox = '0 0 20 20',
+  children,
+  ...rest
+}) {
   return (
     <svg
       className={className}
       width={size}
       height={size}
-      viewBox="0 0 24 24"
+      viewBox={viewBox}
       fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style={color === 'currentColor' ? style : { color, ...style }}
       aria-hidden="true"
+      focusable="false"
+      {...rest}
     >
-      <path
-        d="M15.5 5.5 8.5 12l7 6.5"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      {children}
     </svg>
   )
+}
+
+const CHEVRON_PATH = 'M9 5.5 16 12l-7 6.5'
+
+const CHEVRON_STROKE = {
+  stroke: 'currentColor',
+  strokeWidth: 2.2,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+}
+
+/** Chevron — `direction` mirrors a single path instead of duplicating SVG. */
+export function ChevronIcon({ size = 16, direction = 'right', className, style, ...rest }) {
+  const flip = direction === 'left'
+  return (
+    <SvgIcon
+      size={size}
+      color="currentColor"
+      className={className}
+      viewBox="0 0 24 24"
+      style={flip ? { transform: 'scaleX(-1)', ...style } : style}
+      {...rest}
+    >
+      <path d={CHEVRON_PATH} {...CHEVRON_STROKE} />
+    </SvgIcon>
+  )
+}
+
+export function BackIcon(props) {
+  return <ChevronIcon direction="left" size={props.size ?? 22} {...props} />
 }
 
 /** Three descending lines — Sort By control. */
 export function SortIcon({ size = 16, color = 'currentColor', className, style, ...rest }) {
   return (
-    <svg
+    <SvgIcon
+      size={size}
+      color={color}
       className={className}
-      width={size}
-      height={size}
+      style={style}
       viewBox="0 0 24 24"
-      fill="none"
-      style={{ color, ...style }}
-      aria-hidden="true"
-      focusable="false"
       {...rest}
     >
       <path d="M4 7h16M4 12h11M4 17h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
+    </SvgIcon>
   )
 }
 
@@ -94,33 +128,6 @@ function ModePng({ mode, size = 36, className }) {
   )
 }
 
-function SvgIcon({
-  size = 20,
-  color = '#666666',
-  className,
-  style,
-  viewBox = '0 0 20 20',
-  children,
-  ...rest
-}) {
-  return (
-    <svg
-      className={className}
-      width={size}
-      height={size}
-      viewBox={viewBox}
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      style={color === 'currentColor' ? style : { color, ...style }}
-      aria-hidden="true"
-      focusable="false"
-      {...rest}
-    >
-      {children}
-    </svg>
-  )
-}
-
 /** Cab / taxi — Figma export (20×20). */
 export function CabIcon({ size = 20, color = '#666666', className, style, ...rest }) {
   return (
@@ -164,41 +171,101 @@ const MODE_ICONS = {
   cab: CabIcon,
   auto: AutoIcon,
   bike: BikeIcon,
+  other: OtherIcon,
 }
 
 const MODE_PNG_KEYS = new Set(['metro', 'bus', 'walk'])
 
 export function PhoneIcon({ size = 22, className }) {
   return (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <SvgIcon size={size} color="currentColor" className={className} viewBox="0 0 24 24">
       <path
         d="M7.2 3.8h3.2l1.2 3.2-1.8 1.2a12.5 12.5 0 0 0 6 6l1.2-1.8 3.2 1.2v3.2c0 .9-.7 1.7-1.6 1.8C9.8 19.4 4.6 14.2 3.4 5.4c-.1-.9.7-1.6 1.6-1.6Z"
         stroke="currentColor"
         strokeWidth="1.7"
         strokeLinejoin="round"
       />
-    </svg>
+    </SvgIcon>
   )
 }
 
-export function CashIcon({ size = 22, className }) {
+export function OnlinePayIcon({ size = 22, className }) {
   return (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+    <SvgIcon size={size} className={className} viewBox="0 0 24 24" aria-hidden="true">
       <rect width="24" height="24" rx="6" fill="#0fa146" />
-      <rect x="5" y="8" width="14" height="8" rx="1.4" fill="none" stroke="#fff" strokeWidth="1.6" />
-      <circle cx="12" cy="12" r="1.5" fill="#fff" />
-    </svg>
+      <rect x="5" y="7" width="14" height="10" rx="1.4" fill="none" stroke="#fff" strokeWidth="1.6" />
+      <path d="M5 10h14" stroke="#fff" strokeWidth="1.6" />
+    </SvgIcon>
   )
 }
 
-export function AppLogo({ size = 36, className }) {
+export function AppLogo({ size, width, height, className }) {
+  const w = width ?? size ?? 36
+  const h = height ?? size ?? 36
   return (
-    <svg className={className} width={size} height={size} viewBox="0 0 36 36" aria-hidden="true">
-      <circle cx="18" cy="18" r="18" fill="#060496" />
-      <circle cx="14" cy="16" r="7" fill="#0fa146" />
-      <circle cx="22" cy="16" r="7" fill="#3d5bff" />
-      <path d="M18 11.5v14" stroke="#fff" strokeWidth="1.6" />
-    </svg>
+    <img
+      className={className}
+      src={meeticketLogo}
+      alt="Mee Ticket"
+      width={w}
+      height={h}
+      draggable={false}
+    />
+  )
+}
+
+export function InfoIcon({ size = 18, className }) {
+  return (
+    <SvgIcon size={size} color="currentColor" className={className} viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M12 11v6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="12" cy="8" r="1" fill="currentColor" />
+    </SvgIcon>
+  )
+}
+
+export function CheckIcon({ size = 16, className }) {
+  return (
+    <SvgIcon size={size} color="currentColor" className={className} viewBox="0 0 24 24">
+      <path
+        d="M6 12.5 10 16.5 18 8"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </SvgIcon>
+  )
+}
+
+export function RefreshIcon({ size = 16, className }) {
+  return (
+    <SvgIcon size={size} color="currentColor" className={className} viewBox="0 0 24 24">
+      <path
+        d="M20 12a8 8 0 1 1-2.3-5.7"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path d="M20 4v6h-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </SvgIcon>
+  )
+}
+
+/** Other tab — speech bubble with dots. */
+export function OtherIcon({ size = 20, color = 'currentColor', className, style, ...rest }) {
+  return (
+    <SvgIcon size={size} color={color} className={className} style={style} {...rest}>
+      <path
+        d="M5 4h10a3 3 0 0 1 3 3v5a3 3 0 0 1-3 3H9l-3 3v-3H5a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <circle cx="8" cy="9.5" r="1" fill="currentColor" />
+      <circle cx="12" cy="9.5" r="1" fill="currentColor" />
+      <circle cx="16" cy="9.5" r="1" fill="currentColor" />
+    </SvgIcon>
   )
 }
 
@@ -215,50 +282,56 @@ export function PinIcon({ size = 16, color = 'currentColor', className, style, .
 
 export function ClockIcon({ size = 16, className }) {
   return (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <SvgIcon size={size} color="currentColor" className={className} viewBox="0 0 24 24">
       <circle cx="12" cy="12" r="8.25" stroke="currentColor" strokeWidth="1.8" />
       <path d="M12 8v4.2l2.8 1.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    </SvgIcon>
   )
 }
 
-export function ChevronIcon({ size = 16, className }) {
+export function CalendarIcon({ size = 18, className }) {
   return (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M9 5.5 16 12l-7 6.5"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <SvgIcon size={size} color="currentColor" className={className} viewBox="0 0 24 24">
+      <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M3 9h18" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </SvgIcon>
+  )
+}
+
+export function CashBillIcon({ size = 20, className }) {
+  return (
+    <SvgIcon size={size} className={className} viewBox="0 0 24 24">
+      <rect x="2" y="6" width="20" height="12" rx="2" stroke="#079454" strokeWidth="1.6" />
+      <circle cx="12" cy="12" r="2.5" stroke="#079454" strokeWidth="1.4" />
+      <path d="M6 10h.01M18 14h.01" stroke="#079454" strokeWidth="2" strokeLinecap="round" />
+    </SvgIcon>
   )
 }
 
 export function CloseIcon({ size = 20, className }) {
   return (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <SvgIcon size={size} color="currentColor" className={className} viewBox="0 0 24 24">
       <path
         d="M7 7l10 10M17 7 7 17"
         stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"
       />
-    </svg>
+    </SvgIcon>
   )
 }
 
 export function PencilIcon({ size = 14, className }) {
   return (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <SvgIcon size={size} color="currentColor" className={className} viewBox="0 0 24 24">
       <path
         d="M14.2 5.2 18.8 9.8M4 20l4.2-.7L19.5 8 15 3.5 3.7 14.8 3 19.1 4 20Z"
         stroke="currentColor"
         strokeWidth="1.7"
         strokeLinejoin="round"
       />
-    </svg>
+    </SvgIcon>
   )
 }
 
