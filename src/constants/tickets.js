@@ -55,6 +55,23 @@ export function readCabVerificationCode(leg, details) {
   return String(code || '').trim()
 }
 
+function readLegLocName(leg, role) {
+  if (role === 'from') {
+    return String(leg?.FromLocName || leg?.from_loc_name || leg?.fromLocName || '').trim()
+  }
+  return String(leg?.ToLocName || leg?.to_loc_name || leg?.toLocName || '').trim()
+}
+
+function readCabDriverInfo(leg, details) {
+  const info = leg?.driver_info || leg?.driverInfo || details?.driver_info || details?.driverInfo
+  return info && typeof info === 'object' ? info : null
+}
+
+function readCabVehicleInfo(leg, details) {
+  const info = leg?.vehicle_info || leg?.vehicleInfo || details?.vehicle_info || details?.vehicleInfo
+  return info && typeof info === 'object' ? info : null
+}
+
 function formatCabProviderTitle(providerId, aggregatorLabel) {
   const label = String(aggregatorLabel || '').trim()
   if (label) return label
@@ -316,10 +333,10 @@ function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
       id: `metro-${leg.leg_id}`,
       bookingState: 'confirmed',
       fareInr: fareInr ?? defaults.fareInr,
-      from: details?.from_stop_name || details?.source_station_name || defaults.from,
-      to: details?.to_stop_name || details?.destination_station_name || defaults.to,
+      from: readLegLocName(leg, 'from') || details?.from_stop_name || details?.source_station_name || defaults.from,
+      to: readLegLocName(leg, 'to') || details?.to_stop_name || details?.destination_station_name || defaults.to,
       datetime: issuedOnFromLeg(leg, details, defaults.datetime),
-      pax: details?.adult_count ?? defaults.pax,
+      pax: leg.adult_count ?? details?.adult_count ?? defaults.pax,
       refId: ref,
       bookingReferenceNumber: bookingRef,
       qrPayload: bookingRef ? `MT-METRO-${bookingRef}` : `MT-METRO-${ref}`,
@@ -338,11 +355,11 @@ function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
       pnr: bookingRef || defaults.pnr,
       fareInr: fareInr ?? defaults.fareInr,
       issuedOn: issuedOnFromLeg(leg, details, defaults.issuedOn),
-      from: details?.from_stop_name || defaults.from,
-      to: details?.to_stop_name || defaults.to,
+      from: readLegLocName(leg, 'from') || details?.from_stop_name || defaults.from,
+      to: readLegLocName(leg, 'to') || details?.to_stop_name || defaults.to,
       passengers: {
-        adult: details?.adult_count ?? defaults.passengers.adult,
-        child: details?.child_count ?? defaults.passengers.child,
+        adult: leg.adult_count ?? details?.adult_count ?? defaults.passengers.adult,
+        child: leg.child_count ?? details?.child_count ?? defaults.passengers.child,
       },
       routeName: details?.route_name || null,
       journeyDate: details?.journey_date || null,
@@ -358,11 +375,35 @@ function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
     const providerId = resolveCabProviderId(leg, details) || defaults.providerId
     const aggregatorLabel = leg.cab_aggregator || leg.cabAggregator || details?.cab_aggregator
     const verificationCode = readCabVerificationCode(leg, details)
-    const driverName = details?.driver_name || details?.driverName || defaults.driver.name
+    const driverInfo = readCabDriverInfo(leg, details)
+    const vehicleInfo = readCabVehicleInfo(leg, details)
+    const driverName =
+      driverInfo?.name ||
+      driverInfo?.driver_name ||
+      driverInfo?.driverName ||
+      details?.driver_name ||
+      details?.driverName ||
+      defaults.driver.name
     const driverInitials = driverName.trim().charAt(0).toUpperCase() || defaults.driver.photoInitials
     const paymentMode = String(
       leg.payment_mode || leg.paymentMode || details?.payment_mode || pgStatus?.payment_mode || '',
     ).toUpperCase()
+    const vehicleNo =
+      vehicleInfo?.vehicle_number ||
+      vehicleInfo?.vehicle_no ||
+      vehicleInfo?.number ||
+      vehicleInfo?.registration_number ||
+      details?.vehicle_number ||
+      details?.vehicle_no ||
+      defaults.driver.vehicleNo
+    const vehicleModel =
+      vehicleInfo?.vehicle_model ||
+      vehicleInfo?.model ||
+      vehicleInfo?.vehicle_name ||
+      vehicleInfo?.name ||
+      details?.vehicle_model ||
+      details?.vehicle_name ||
+      defaults.driver.vehicleModel
     return {
       ...defaults,
       ...base,
@@ -371,11 +412,26 @@ function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
       fareInr: fareInr ?? defaults.fareInr,
       datetime: issuedOnFromLeg(leg, details, defaults.datetime),
       pin: verificationCode || defaults.pin,
-      from: details?.from_stop_name || details?.pickup_address || defaults.from,
-      to: details?.to_stop_name || details?.drop_address || defaults.to,
-      durationMin: details?.duration_min ?? details?.eta_min ?? defaults.durationMin,
+      from:
+        readLegLocName(leg, 'from') ||
+        details?.pickup_address ||
+        details?.from_stop_name ||
+        defaults.from,
+      to:
+        readLegLocName(leg, 'to') ||
+        details?.drop_address ||
+        details?.to_stop_name ||
+        defaults.to,
+      durationMin:
+        vehicleInfo?.duration_min ??
+        driverInfo?.duration_min ??
+        details?.duration_min ??
+        details?.eta_min ??
+        defaults.durationMin,
       providerId,
       title:
+        vehicleInfo?.vehicle_type ||
+        vehicleInfo?.type ||
         details?.vehicle_type ||
         details?.service_name ||
         formatCabProviderTitle(providerId, aggregatorLabel),
@@ -390,9 +446,10 @@ function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
         ...defaults.driver,
         name: driverName,
         photoInitials: driverInitials,
-        rating: details?.driver_rating || defaults.driver.rating,
-        vehicleNo: details?.vehicle_number || details?.vehicle_no || defaults.driver.vehicleNo,
-        vehicleModel: details?.vehicle_model || details?.vehicle_name || defaults.driver.vehicleModel,
+        rating: driverInfo?.rating || driverInfo?.driver_rating || details?.driver_rating || defaults.driver.rating,
+        vehicleNo,
+        vehicleModel,
+        vehicleImage: vehicleInfo?.image || vehicleInfo?.image_url || defaults.driver.vehicleImage,
       },
     }
   }

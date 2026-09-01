@@ -793,7 +793,7 @@ export function JourneyDetailPage() {
     setConfirmLoading(true)
 
     try {
-      const payload = buildOrderPayload({
+      const payload = await buildOrderPayload({
         journey: journeyWithFares,
         trip,
         lastMile,

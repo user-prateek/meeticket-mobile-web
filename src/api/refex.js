@@ -473,10 +473,10 @@ export function resolveRefexTripEndpoints({ journey, trip, serviceId = 'pickup' 
   const hasCoords = [pickUplat, pickUplon, droplat, droplon].every((value) => Number.isFinite(value))
 
   return {
-    pickUplat: hasCoords ? pickUplat : REFEX_SEARCH_DEFAULTS.pickUplat,
-    pickUplon: hasCoords ? pickUplon : REFEX_SEARCH_DEFAULTS.pickUplon,
-    droplat: hasCoords ? droplat : REFEX_SEARCH_DEFAULTS.droplat,
-    droplon: hasCoords ? droplon : REFEX_SEARCH_DEFAULTS.droplon,
+    pickUplat: REFEX_SEARCH_DEFAULTS.pickUplat, //hasCoords ? pickUplat : REFEX_SEARCH_DEFAULTS.pickUplat,
+    pickUplon: REFEX_SEARCH_DEFAULTS.pickUplon, //hasCoords ? pickUplon : REFEX_SEARCH_DEFAULTS.pickUplon,
+    droplat: REFEX_SEARCH_DEFAULTS.droplat, //hasCoords ? droplat : REFEX_SEARCH_DEFAULTS.droplat,
+    droplon: REFEX_SEARCH_DEFAULTS.droplon, //hasCoords ? droplon : REFEX_SEARCH_DEFAULTS.droplon,
     pickUpAddress: shortRefexAddress(pickUpAddress),
     dropAddress: shortRefexAddress(dropAddress),
     pickUpPlaceId: REFEX_SEARCH_DEFAULTS.pickUpPlaceId,

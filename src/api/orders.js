@@ -2,6 +2,7 @@ import { PostRequest } from './client'
 import { ordersApiKey, ordersBaseUrl, urls } from './config'
 import { getUserContext } from '../lib/userContext'
 import { dedupeInFlight } from '../lib/dedupeRequest'
+import { fetchDrivingEtaMinutes } from '../lib/drivingEta'
 
 const LEG_TYPE = {
   metro: 'METRO',
@@ -64,6 +65,89 @@ function travelDate({ segment, trip } = {}) {
     return String(depart).slice(0, 10)
   }
   return new Date().toISOString().slice(0, 10)
+}
+
+function formatOrderDateTime(date) {
+  const d = date instanceof Date ? date : new Date(date)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+function parseOrderDateTime(value) {
+  if (!value) return null
+  const d = new Date(String(value).replace(' ', 'T'))
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+function segmentDateTime(segment, trip, timeValue) {
+  if (timeValue == null || timeValue === '') return null
+  const raw = String(timeValue).trim()
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
+    const parsed = parseOrderDateTime(raw)
+    return parsed ? formatOrderDateTime(parsed) : null
+  }
+  const date = travelDate({ segment, trip })
+  const time = /^\d{1,2}:\d{2}$/.test(raw) ? `${raw}:00` : raw
+  return `${date} ${time}`
+}
+
+function resolveTransitLegTimes(segment, trip, chainStartDate) {
+  const startFromApi = segmentDateTime(segment, trip, segment.departTime)
+  const endFromApi = segmentDateTime(segment, trip, segment.arrivalTime)
+  if (startFromApi && endFromApi) {
+    return {
+      ExpectedStartTime: startFromApi,
+      ExpectedEndTime: endFromApi,
+    }
+  }
+
+  const startDate =
+    chainStartDate || parseOrderDateTime(startFromApi) || new Date()
+  const durationMin = Math.max(Number(segment.durationMin) || 0, 1)
+  const endDate = new Date(startDate.getTime() + durationMin * 60 * 1000)
+
+  return {
+    ExpectedStartTime: formatOrderDateTime(startDate),
+    ExpectedEndTime: formatOrderDateTime(endDate),
+  }
+}
+
+async function resolveCabLegTimes({ journey, trip, lastMile, selectedVehicle }) {
+  const legInfo = buildCabLegInfo({ journey, trip, lastMile })
+  const start = new Date()
+  let durationMin =
+    Number(selectedVehicle?.etaMin) ||
+    Number(journey?.access?.durationMin) ||
+    null
+
+  const hasCoords = [legInfo.pickup_lat, legInfo.pickup_lng, legInfo.drop_lat, legInfo.drop_lng].every(
+    (value) => value != null,
+  )
+
+  if (hasCoords) {
+    try {
+      const eta = await fetchDrivingEtaMinutes({
+        fromLat: legInfo.pickup_lat,
+        fromLng: legInfo.pickup_lng,
+        toLat: legInfo.drop_lat,
+        toLng: legInfo.drop_lng,
+      })
+      if (eta > 0) durationMin = eta
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn('[orders] Google driving ETA failed — using fallback duration', error)
+      }
+    }
+  }
+
+  if (!durationMin || durationMin <= 0) durationMin = 15
+
+  const end = new Date(start.getTime() + durationMin * 60 * 1000)
+  return {
+    ExpectedStartTime: formatOrderDateTime(start),
+    ExpectedEndTime: formatOrderDateTime(end),
+  }
 }
 
 function buildMetroLegInfo(segment, trip) {
@@ -285,35 +369,48 @@ function buildTransitLegInfo(segment, trip) {
  * Bus / metro hops in journey order — each hop is one orders API leg.
  * First mile is handled separately and prepended.
  */
-function buildTransitLegs(journey, trip) {
+function buildTransitLegs(journey, trip, { chainStart } = {}) {
   const fareBySegmentId = resolveTransitFareMap(journey)
+  const legs = []
+  let nextChainStart = chainStart ? parseOrderDateTime(chainStart) : null
 
-  return transitSegments(journey)
-    .map((segment) => {
-      const amount_paise = inrToPaise(fareBySegmentId.get(segment.id))
-      if (amount_paise <= 0) return null
+  for (const segment of transitSegments(journey)) {
+    const amount_paise = inrToPaise(fareBySegmentId.get(segment.id))
+    if (amount_paise <= 0) continue
 
-      const leg_info = buildTransitLegInfo(segment, trip)
-      if (!leg_info) return null
+    const leg_info = buildTransitLegInfo(segment, trip)
+    if (!leg_info) continue
 
-      return {
-        leg_type: LEG_TYPE[segment.mode] || String(segment.mode || '').toUpperCase(),
-        leg_info,
-        amount_paise,
-        payment_mode: PAYMENT_MODE,
-      }
+    const times = resolveTransitLegTimes(segment, trip, nextChainStart)
+    Object.assign(leg_info, times)
+    nextChainStart = parseOrderDateTime(times.ExpectedEndTime)
+
+    legs.push({
+      leg_type: LEG_TYPE[segment.mode] || String(segment.mode || '').toUpperCase(),
+      leg_info,
+      amount_paise,
+      payment_mode: PAYMENT_MODE,
     })
-    .filter(Boolean)
+  }
+
+  return legs
 }
 
-export function buildOrderPayload({ journey, trip, lastMile, selectedVehicle, user }) {
+export async function buildOrderPayload({ journey, trip, lastMile, selectedVehicle, user }) {
   const profile = user || getUserContext() || {}
   const legs = []
 
   const firstMileLeg = buildFirstMileLeg({ journey, trip, lastMile, selectedVehicle })
-  if (firstMileLeg) legs.push(firstMileLeg)
+  let chainStart = null
 
-  legs.push(...buildTransitLegs(journey, trip))
+  if (firstMileLeg) {
+    const cabTimes = await resolveCabLegTimes({ journey, trip, lastMile, selectedVehicle })
+    Object.assign(firstMileLeg.leg_info, cabTimes)
+    chainStart = cabTimes.ExpectedEndTime
+    legs.push(firstMileLeg)
+  }
+
+  legs.push(...buildTransitLegs(journey, trip, { chainStart }))
 
   if (!legs.length) {
     const hasTransit = transitSegments(journey).length > 0

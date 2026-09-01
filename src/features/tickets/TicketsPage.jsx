@@ -130,6 +130,12 @@ function CabTicket({ ticket, onCancel }) {
   const pin = String(ticket.pin || '').trim()
   const providerLogo = getCabProviderLogo(ticket.providerId)
   const showFare = ticket.fareInr != null && Number(ticket.fareInr) > 0
+  const showDriver = Boolean(
+    ticket.driver?.name ||
+      ticket.driver?.vehicleNo ||
+      ticket.driver?.vehicleModel ||
+      ticket.driver?.rating,
+  )
 
   return (
     <div className="mt-ticket mt-ticket--cab">
@@ -163,27 +169,33 @@ function CabTicket({ ticket, onCancel }) {
 
         <div className="mt-cab-trip-card__divider" role="presentation" />
 
-        <div className="mt-cab-trip-card__driver">
-          <div className="mt-cab-trip-card__driver-visual">
-            <div className="mt-cab-trip-card__avatar-wrap">
-              <span className="mt-cab-trip-card__avatar">{ticket.driver.photoInitials}</span>
-              {ticket.driver.rating ? (
-                <span className="mt-cab-trip-card__rating">{ticket.driver.rating}</span>
-              ) : null}
+        {showDriver ? (
+          <>
+            <div className="mt-cab-trip-card__driver">
+              <div className="mt-cab-trip-card__driver-visual">
+                <div className="mt-cab-trip-card__avatar-wrap">
+                  <span className="mt-cab-trip-card__avatar">{ticket.driver.photoInitials}</span>
+                  {ticket.driver.rating ? (
+                    <span className="mt-cab-trip-card__rating">{ticket.driver.rating}</span>
+                  ) : null}
+                </div>
+                <img
+                  className="mt-cab-trip-card__vehicle"
+                  src={ticket.driver.vehicleImage}
+                  alt=""
+                  draggable={false}
+                />
+              </div>
+              <div className="mt-cab-trip-card__driver-copy">
+                <strong>{ticket.driver.vehicleNo}</strong>
+                <span>{ticket.driver.vehicleModel}</span>
+                <span className="mt-cab-trip-card__driver-name">{ticket.driver.name}</span>
+              </div>
             </div>
-            <img
-              className="mt-cab-trip-card__vehicle"
-              src={ticket.driver.vehicleImage}
-              alt=""
-              draggable={false}
-            />
-          </div>
-          <div className="mt-cab-trip-card__driver-copy">
-            <strong>{ticket.driver.vehicleNo}</strong>
-            <span>{ticket.driver.vehicleModel}</span>
-            <span className="mt-cab-trip-card__driver-name">{ticket.driver.name}</span>
-          </div>
-        </div>
+
+            <div className="mt-cab-trip-card__divider" role="presentation" />
+          </>
+        ) : null}
 
         <button type="button" className="mt-cab-trip-card__track">
           <PinIcon size={18} color="currentColor" />
