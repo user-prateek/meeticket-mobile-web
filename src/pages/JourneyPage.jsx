@@ -247,18 +247,7 @@ export function JourneyPage() {
         >
           Continue with selected
         </button>
-        {selected ? (
-          <p className="mt-srp__selection-hint">
-            {(() => {
-              const lm = lastMileByOption[selected.id]
-              if (!lm?.providerId && !lm?.vehicleId) return 'Last mile: none selected'
-              const parts = [lm.providerName, lm.modeLabel, lm.vehicleLabel].filter(Boolean)
-              const fare =
-                lm.fareDisplay || (lm.fareInr != null ? formatFare(lm.fareInr) : '')
-              return `Last mile: ${parts.join(' · ')}${fare ? ` · ${fare}` : ''}`
-            })()}
-          </p>
-        ) : null}
+      
       </div>
     </section>
   )
