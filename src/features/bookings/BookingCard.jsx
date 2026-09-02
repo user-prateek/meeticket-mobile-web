@@ -1,5 +1,5 @@
 import { formatMetroStationName } from '../../api/journey'
-import { BusGlyph, MetroGlyph, ModeIcon, PinIcon } from '../../components/icons'
+import { BusGlyph, MetroGlyph, ModeIcon, PinIcon, ViewDetailsIcon } from '../../components/icons'
 import { LAST_MILE_MODES } from '../../constants/lastMile'
 import { resolveCabProviderId } from '../../constants/tickets'
 import olaLogo from '../../assets/brands/ola.png'
@@ -192,16 +192,17 @@ function BookingTimeline({ segments }) {
   )
 }
 
+function busFareStripSide(segments) {
+  const busSegment = segments.find((segment) => segment.mode === 'bus')
+  if (!busSegment) return 'start'
+  return getTransitEdge(segments, busSegment.id) === 'end' ? 'end' : 'start'
+}
+
 function BusRouteStrip({ stops, segments }) {
   const busStop = stops?.find((stop) => stop.mode === 'bus' && stop.routeName)
   if (!busStop) return null
 
-  const busIndex = segments.findIndex((segment) => segment.mode === 'bus')
-  const lastTransitIndex = segments.reduce(
-    (last, segment, index) => (segment.mode !== 'walk' ? index : last),
-    -1,
-  )
-  const side = busIndex >= 0 && busIndex === lastTransitIndex ? 'end' : 'start'
+  const side = busFareStripSide(segments)
 
   return (
     <div
@@ -291,19 +292,6 @@ function FirstMileSection({ booking }) {
         </div>
       </div>
     </div>
-  )
-}
-
-function ViewDetailsIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M7 4h10a2 2 0 0 1 2 2v14l-4-3-4 3-4-3-4 3V6a2 2 0 0 1 2-2Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-    </svg>
   )
 }
 

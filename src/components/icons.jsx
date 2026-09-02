@@ -280,11 +280,11 @@ export function PinIcon({ size = 16, color = 'currentColor', className, style, .
   )
 }
 
-export function ClockIcon({ size = 16, className }) {
+export function ClockIcon({ size = 20, className }) {
   return (
     <SvgIcon size={size} color="currentColor" className={className} viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="8.25" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M12 8v4.2l2.8 1.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="12" r="8.25" stroke="currentColor" strokeWidth="2" />
+      <path d="M12 8v4.2l2.8 1.6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </SvgIcon>
   )
 }
@@ -349,7 +349,30 @@ export function PencilIcon({ size = 14, className }) {
   )
 }
 
-/** Metro train change / interchange (not a walk). */
+/** Ticket / view-details — bookings card CTA. */
+export function ViewDetailsIcon({ size = 16, className, style, ...rest }) {
+  const height = Math.round((size * 17) / 16)
+  return (
+    <svg
+      className={className}
+      width={size}
+      height={height}
+      viewBox="0 0 16 17"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style={style}
+      aria-hidden="true"
+      focusable="false"
+      {...rest}
+    >
+      <path
+        d="M11.25 15H12.0833V11.6667H11.25V15ZM11.6667 10.8333C11.7778 10.8333 11.875 10.7917 11.9583 10.7083C12.0417 10.625 12.0833 10.5278 12.0833 10.4167C12.0833 10.3056 12.0417 10.2083 11.9583 10.125C11.875 10.0417 11.7778 10 11.6667 10C11.5556 10 11.4583 10.0417 11.375 10.125C11.2917 10.2083 11.25 10.3056 11.25 10.4167C11.25 10.5278 11.2917 10.625 11.375 10.7083C11.4583 10.7917 11.5556 10.8333 11.6667 10.8333ZM8.71875 15.4479C7.90625 14.6354 7.5 13.6528 7.5 12.5C7.5 11.3472 7.90625 10.3646 8.71875 9.55208C9.53125 8.73958 10.5139 8.33333 11.6667 8.33333C12.8194 8.33333 13.8021 8.73958 14.6146 9.55208C15.4271 10.3646 15.8333 11.3472 15.8333 12.5C15.8333 13.6528 15.4271 14.6354 14.6146 15.4479C13.8021 16.2604 12.8194 16.6667 11.6667 16.6667C10.5139 16.6667 9.53125 16.2604 8.71875 15.4479ZM7.5 5.83333H11.6667L7.5 1.66667V5.83333ZM1.66667 16.6667C1.20833 16.6667 0.815972 16.5035 0.489583 16.1771C0.163194 15.8507 0 15.4583 0 15V1.66667C0 1.20833 0.163194 0.815972 0.489583 0.489583C0.815972 0.163194 1.20833 0 1.66667 0H8.33333L13.3333 5V6.91667C13.0556 6.83333 12.7778 6.77083 12.5 6.72917C12.2222 6.6875 11.9444 6.66667 11.6667 6.66667C10.875 6.66667 10.1285 6.81597 9.42708 7.11458C8.72569 7.41319 8.11111 7.81944 7.58333 8.33333H3.33333V10H6.39583C6.27083 10.2639 6.16667 10.5347 6.08333 10.8125C6 11.0903 5.9375 11.375 5.89583 11.6667H3.33333V13.3333H5.89583C5.99306 13.9583 6.1875 14.559 6.47917 15.1354C6.77083 15.7118 7.14583 16.2222 7.60417 16.6667H1.66667Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
 export function InterchangeIcon({ size = 36, className, style, ...rest }) {
   return (
     <svg

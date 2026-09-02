@@ -7,8 +7,7 @@ import { TicketsPage } from '../features/tickets/TicketsPage'
 import { useAppNavigate } from '../hooks/useAppNavigate'
 import { PG_STATUS_POLL_MS, usePgStatusPolling } from '../hooks/usePgStatusPolling'
 import { withAppContext } from '../lib/appContext'
-import { buildSuccessPath } from '../lib/successUrl'
-import { tripToSearch } from '../lib/tripQuery'
+import { buildSuccessPath, useSuccessBackNavigation } from '../lib/successUrl'
 import { orderAtom, tripAtom } from '../store/journey'
 import './SuccessPage.css'
 
@@ -21,6 +20,7 @@ export function SuccessPage() {
   const navigate = useAppNavigate()
   const trip = useAtomValue(tripAtom)
   const storedOrder = useAtomValue(orderAtom)
+  const goBack = useSuccessBackNavigation(trip)
 
   const urlOrderId = params.get('order') || params.get('order_id')
   const orderId = urlOrderId || getOrderId(storedOrder)
@@ -31,8 +31,15 @@ export function SuccessPage() {
 
   useEffect(() => {
     if (urlOrderId || !orderId) return
-    navigate(buildSuccessPath({ orderId }), { replace: true })
-  }, [navigate, orderId, urlOrderId])
+    navigate(
+      buildSuccessPath({
+        orderId,
+        returnTo: params.get('returnTo'),
+        fromCheckout: params.get('from') === 'checkout',
+      }),
+      { replace: true },
+    )
+  }, [navigate, orderId, params, urlOrderId])
 
   const onPgUpdate = useCallback((status) => {
     setPgStatus(status)
@@ -68,8 +75,7 @@ export function SuccessPage() {
   }, [orderId, pgStatus, trip])
 
   if (!orderId) {
-    const fallback = trip ? `/journey${tripToSearch(trip)}` : '/journey'
-    return <Navigate to={withAppContext(fallback)} replace />
+    return <Navigate to={withAppContext('/journey')} replace />
   }
 
   if (loading && !displayBooking) {
@@ -91,10 +97,10 @@ export function SuccessPage() {
   return (
     <TicketsPage
       booking={displayBooking}
-      onBack={() => navigate(trip ? `/journey${tripToSearch(trip)}` : '/journey', { replace: true })}
+      onBack={goBack}
       onCall={() => window.alert('Calling support…')}
       onDropService={() => navigate('/gotohome', { replace: false })}
-      onCancelled={() => navigate(trip ? `/journey${tripToSearch(trip)}` : '/journey', { replace: true })}
+      onCancelled={goBack}
     />
   )
 }

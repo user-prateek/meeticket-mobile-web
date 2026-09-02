@@ -57,7 +57,7 @@ export function BookingsPage() {
 
   const openBooking = useCallback(
     (orderId) => {
-      navigate(buildSuccessPath({ orderId }))
+      navigate(buildSuccessPath({ orderId, returnTo: '/bookings' }))
     },
     [navigate],
   )

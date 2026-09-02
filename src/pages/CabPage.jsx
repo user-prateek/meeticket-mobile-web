@@ -69,7 +69,13 @@ export function CabPage() {
       vehicleId: vehicle?.id || null,
       refexSearchId: vehicle?.searchId || null,
     })
-    navigate(buildSuccessPath({ orderId: getOrderId(storedOrder) }), { replace: true })
+    navigate(
+      buildSuccessPath({
+        orderId: getOrderId(storedOrder),
+        returnTo: detailPath(),
+      }),
+      { replace: true },
+    )
   }
 
   return (

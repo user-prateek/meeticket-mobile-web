@@ -493,8 +493,8 @@ export async function searchRefexForJourney(
   { signal } = {},
 ) {
   const endpoints = resolveRefexTripEndpoints({ journey, trip, serviceId })
-  const startTime = '2026-09-02 23:00:00' // refexPickupStartTime(journey) //TODO  USE Actual time from journey
-  const endTime = '2026-09-02 23:00:00' // defaultRefexEndTime(startTime) //TODO USE Actual time from journey
+  const startTime = `2026-09-0${new Date().getDate()} 23:00:00` // refexPickupStartTime(journey) //TODO  USE Actual time from journey
+  const endTime = `2026-09-0${new Date().getDate()} 23:00:00` // defaultRefexEndTime(startTime) //TODO USE Actual time from journey
   const searchId = createRefexSearchId('Refex')
 
   console.info('[refex] journey search', {

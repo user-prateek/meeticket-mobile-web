@@ -195,23 +195,27 @@ function LegCard({
 
       <div className="mt-leg__body">
         <div className="mt-leg__duration">
-          <ClockIcon size={14} />
+          <ClockIcon className="mt-leg__clock" />
           <span>{segment.durationMin} Min</span>
         </div>
 
         {segment.from && segment.to ? (
           <div className="mt-leg__stops">
-            <div className="mt-leg__rail" aria-hidden="true">
-              <span className="mt-stop__dot" style={markerStyle} />
-              <span className="mt-stop__line" style={railStyle} />
-              <span className="mt-stop__sq" style={markerStyle} />
-            </div>
-            <div className="mt-leg__copy">
-              <div>
+            <div className="mt-leg__stop mt-leg__stop--from">
+              <div className="mt-leg__icon-col" aria-hidden="true">
+                <span className="mt-stop__dot" style={markerStyle} />
+                <span className="mt-stop__line" style={railStyle} />
+              </div>
+              <div className="mt-leg__stop-text">
                 <span>{displayStationName(segment.from, segment.mode)}</span>
                 <small>Boarding</small>
               </div>
-              <div>
+            </div>
+            <div className="mt-leg__stop mt-leg__stop--to">
+              <div className="mt-leg__icon-col" aria-hidden="true">
+                <span className="mt-stop__sq" style={markerStyle} />
+              </div>
+              <div className="mt-leg__stop-text">
                 <span>{displayStationName(segment.to, segment.mode)}</span>
                 <small>Alighting</small>
               </div>
@@ -808,7 +812,7 @@ export function JourneyDetailPage() {
         setLastMileSelection(lastMile)
       }
 
-      navigate(paymentPath())
+      navigate(paymentPath(), { replace: true })
     } catch (error) {
       if (error?.name === 'AbortError') return
       if (import.meta.env.DEV && error?.body) {

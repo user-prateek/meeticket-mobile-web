@@ -8,7 +8,7 @@ import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useJourneyOptionById } from '../hooks/useJourneyOptions'
 import { PG_STATUS_POLL_MS, usePgStatusPolling } from '../hooks/usePgStatusPolling'
 import { buildPaymentCallbackUrl } from '../lib/paymentCallback'
-import { buildSuccessPath } from '../lib/successUrl'
+import { buildSuccessPath, journeyReturnPath } from '../lib/successUrl'
 import { withAppContext } from '../lib/appContext'
 import {
   isPaytmParentMessage,
@@ -64,9 +64,16 @@ export function PaymentPage() {
       setPollingActive(false)
 
       const resolvedOrderId = getOrderId(storedOrder) ?? pgStatus?.order_id
-      navigate(buildSuccessPath({ orderId: resolvedOrderId }), { replace: true })
+      navigate(
+        buildSuccessPath({
+          orderId: resolvedOrderId,
+          returnTo: journeyReturnPath(trip),
+          fromCheckout: true,
+        }),
+        { replace: true },
+      )
     },
-    [journey, journeyId, navigate, storedOrder],
+    [navigate, storedOrder, trip],
   )
 
   const goToFailed = useCallback(

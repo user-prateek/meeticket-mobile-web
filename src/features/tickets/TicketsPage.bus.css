@@ -103,8 +103,8 @@
   gap: var(--tk-route-gap);
 }
 
-.mt-bus-route__stop + .mt-bus-route__stop {
-  margin-top: var(--tk-space-10);
+.mt-bus-route__stop--from .mt-bus-route__text {
+  padding-bottom: var(--tk-space-8);
 }
 
 .mt-bus-route__icon-col {
@@ -113,12 +113,16 @@
   align-items: center;
   width: var(--tk-route-icon);
   flex-shrink: 0;
-  padding-top: var(--tk-space-4);
+}
+
+.mt-bus-route__stop--from .mt-bus-route__icon-col {
+  align-self: stretch;
 }
 
 .mt-bus-route__dot,
 .mt-bus-route__sq {
   flex-shrink: 0;
+  margin-top: 6px;
   background: var(--tk-bus-accent);
 }
 
@@ -137,8 +141,7 @@
 .mt-bus-route__line {
   width: 2px;
   flex: 1;
-  min-height: 36px;
-  margin: var(--tk-space-2) 0;
+  min-height: 4px;
   background: var(--tk-rail);
 }
 

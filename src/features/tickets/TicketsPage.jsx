@@ -103,22 +103,28 @@ function CabRouteTimeline({ from, to, fromRole, toRole, durationMin }) {
   return (
     <div className="mt-cab-route">
       <div className="mt-cab-route__duration">
-        <ClockIcon size={18} className="mt-cab-route__clock" />
+        <ClockIcon className="mt-cab-route__clock" />
         <span>{durationLabel}</span>
       </div>
       <div className="mt-cab-route__content">
-        <div className="mt-cab-route__rail" aria-hidden="true">
-          <span className="mt-cab-route__dot" />
-          <span className="mt-cab-route__line" />
-          <span className="mt-cab-route__sq" />
-        </div>
         <div className="mt-cab-route__stop mt-cab-route__stop--from">
-          <strong className="mt-cab-route__name">{from}</strong>
-          {fromRole ? <span className="mt-cab-route__label">{fromRole}</span> : null}
+          <div className="mt-cab-route__icon-col" aria-hidden="true">
+            <span className="mt-cab-route__dot" />
+            <span className="mt-cab-route__line" />
+          </div>
+          <div className="mt-cab-route__text">
+            <strong className="mt-cab-route__name">{from}</strong>
+            {fromRole ? <span className="mt-cab-route__label">{fromRole}</span> : null}
+          </div>
         </div>
         <div className="mt-cab-route__stop mt-cab-route__stop--to">
-          <strong className="mt-cab-route__name">{to}</strong>
-          {toRole ? <span className="mt-cab-route__label">{toRole}</span> : null}
+          <div className="mt-cab-route__icon-col" aria-hidden="true">
+            <span className="mt-cab-route__sq" />
+          </div>
+          <div className="mt-cab-route__text">
+            <strong className="mt-cab-route__name">{to}</strong>
+            {toRole ? <span className="mt-cab-route__label">{toRole}</span> : null}
+          </div>
         </div>
       </div>
     </div>
@@ -243,7 +249,7 @@ function CabTicket({ ticket, onCancel, qrFlipDirection }) {
 function BusRouteTimeline({ from, to, fromEditable = false }) {
   return (
     <div className="mt-bus-route">
-      <div className="mt-bus-route__stop">
+      <div className="mt-bus-route__stop mt-bus-route__stop--from">
         <div className="mt-bus-route__icon-col" aria-hidden="true">
           <span className="mt-bus-route__dot" />
           <span className="mt-bus-route__line" />
@@ -260,7 +266,7 @@ function BusRouteTimeline({ from, to, fromEditable = false }) {
           <span className="mt-bus-route__label">Boarding</span>
         </div>
       </div>
-      <div className="mt-bus-route__stop">
+      <div className="mt-bus-route__stop mt-bus-route__stop--to">
         <div className="mt-bus-route__icon-col" aria-hidden="true">
           <span className="mt-bus-route__sq" />
         </div>
@@ -301,22 +307,28 @@ function MetroRouteTimeline({ from, to, fromRole, toRole, durationMin }) {
   return (
     <div className="mt-metro-route">
       <div className="mt-metro-route__duration">
-        <ClockIcon size={18} className="mt-metro-route__clock" />
+        <ClockIcon className="mt-metro-route__clock" />
         <span>{durationLabel}</span>
       </div>
       <div className="mt-metro-route__content">
-        <div className="mt-metro-route__rail" aria-hidden="true">
-          <span className="mt-metro-route__dot" />
-          <span className="mt-metro-route__line" />
-          <span className="mt-metro-route__sq" />
-        </div>
         <div className="mt-metro-route__stop mt-metro-route__stop--from">
-          <strong className="mt-metro-route__name">{from}</strong>
-          {fromRole ? <span className="mt-metro-route__label">{fromRole}</span> : null}
+          <div className="mt-metro-route__icon-col" aria-hidden="true">
+            <span className="mt-metro-route__dot" />
+            <span className="mt-metro-route__line" />
+          </div>
+          <div className="mt-metro-route__text">
+            <strong className="mt-metro-route__name">{from}</strong>
+            {fromRole ? <span className="mt-metro-route__label">{fromRole}</span> : null}
+          </div>
         </div>
         <div className="mt-metro-route__stop mt-metro-route__stop--to">
-          <strong className="mt-metro-route__name">{to}</strong>
-          {toRole ? <span className="mt-metro-route__label">{toRole}</span> : null}
+          <div className="mt-metro-route__icon-col" aria-hidden="true">
+            <span className="mt-metro-route__sq" />
+          </div>
+          <div className="mt-metro-route__text">
+            <strong className="mt-metro-route__name">{to}</strong>
+            {toRole ? <span className="mt-metro-route__label">{toRole}</span> : null}
+          </div>
         </div>
       </div>
     </div>
