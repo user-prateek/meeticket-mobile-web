@@ -10,6 +10,8 @@ export function TicketQrDisplay({
   className = 'mt-qr',
   refreshable = false,
   onValidUntil,
+  /** Wrap only the QR graphic (e.g. TicketQrFlip). Actions stay outside the wrapper. */
+  wrapQr,
 }) {
   const { status, qrImage, validUntil, error, refetch } = useBookingQr(bookingReferenceNumber)
 
@@ -48,13 +50,8 @@ export function TicketQrDisplay({
     qrNode = <QrCode payload={fallbackPayload} size={size} className={`${className} mt-qr--framed`} />
   }
 
-  if (!refreshable || !bookingReferenceNumber) {
-    return qrNode
-  }
-
-  return (
-    <>
-      {qrNode}
+  const actionsEl =
+    refreshable && bookingReferenceNumber ? (
       <div className="mt-bus-actions">
         <span className="mt-bus-valid">
           <CheckIcon size={20} />
@@ -70,6 +67,25 @@ export function TicketQrDisplay({
           {status === 'loading' ? 'Refreshing…' : 'Refresh QR'}
         </button>
       </div>
+    ) : null
+
+  if (wrapQr) {
+    return (
+      <>
+        {wrapQr(qrNode)}
+        {actionsEl}
+      </>
+    )
+  }
+
+  if (!refreshable || !bookingReferenceNumber) {
+    return qrNode
+  }
+
+  return (
+    <>
+      {qrNode}
+      {actionsEl}
     </>
   )
 }

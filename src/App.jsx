@@ -6,6 +6,7 @@ import { captureAppContextFromSearch, withAppContext } from './lib/appContext'
 import { captureUserFromSearch } from './lib/userContext'
 import { demoJourneyPath } from './lib/tripQuery'
 import { userAtom } from './store/journey'
+import { BookingsPage } from './pages/BookingsPage'
 import { CabPage } from './pages/CabPage'
 import { GoToHomePage } from './pages/GoToHomePage'
 import { JourneyDetailPage } from './pages/JourneyDetailPage'
@@ -50,6 +51,7 @@ export default function App() {
                 <Route path="/payment/failed" element={<PaymentFailedPage />} />
                 <Route path="/payment/booking-failed" element={<PaymentBookingFailedPage />} />
                 <Route path="/cab" element={<CabPage />} />
+                <Route path="/bookings" element={<BookingsPage />} />
                 <Route path="/success" element={<SuccessPage />} />
                 <Route path="/gotohome" element={<GoToHomePage />} />
                 <Route path="/" element={<Navigate to={withAppContext(demoJourneyPath())} replace />} />

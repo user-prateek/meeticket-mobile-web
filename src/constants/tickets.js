@@ -363,7 +363,7 @@ function formatMetroValidTill(value) {
 
 function readMetroRefId(leg) {
   return String(
-    leg.block_reference_number ||
+    leg.ticket_id ||
       leg.booking_reference_number ||
       leg.ticket_id ||
       leg.leg_id ||
@@ -475,7 +475,7 @@ function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
       id: `metro-${leg.leg_id}`,
       bookingState: 'confirmed',
       fareInr: resolveMetroFareInr(leg, fareInr ?? defaults.fareInr),
-      refId,
+      refId:leg.ticket_id || refId,
       from: leg.from_station_name || defaults.from,
       to: leg.to_station_name || defaults.to,
       fromRole: 'Boarding',
@@ -495,7 +495,7 @@ function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
         ) || defaults.validTill,
       ticketQr,
       bookingReferenceNumber: bookingRef || ticketId || null,
-      qrPayload: ticketQr || (ticketId ? String(ticketId) : refId ? `MT-METRO-${refId}` : defaults.qrPayload),
+      qrPayload: ticketQr,
     }
   }
 

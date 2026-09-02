@@ -1,0 +1,44 @@
+.mt-bookings {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  flex: 1;
+  background: var(--mt-page);
+}
+
+.mt-bookings__body {
+  flex: 1;
+  overflow: auto;
+  padding: 12px 12px calc(16px + env(safe-area-inset-bottom));
+  -webkit-overflow-scrolling: touch;
+}
+
+.mt-bookings__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mt-bookings__message {
+  margin: 32px 8px 0;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: #6b7280;
+}
+
+.mt-bookings__message code {
+  font-size: 12px;
+}
+
+.mt-bookings__retry {
+  margin-top: 12px;
+  padding: 8px 14px;
+  border: 1px solid var(--mt-button);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--mt-button);
+  font-size: 13px;
+  font-weight: 700;
+}

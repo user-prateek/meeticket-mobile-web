@@ -810,3 +810,16 @@ export async function createOrderAndInitiatePg(payload, { signal, journeyId } = 
   const pgInitiate = await initiateOrderPg(getOrderId(order), { signal })
   return { ...order, pgInitiate }
 }
+
+export function userBookingsUrl(userId) {
+  const id = resolveUserId({ userId })
+  if (!ordersBaseUrl || id == null || id === '') return ''
+  return `${ordersBaseUrl}/api/users/${encodeURIComponent(id)}/bookings`
+}
+
+/** GET /api/users/{user_id}/bookings — past orders for the signed-in user. */
+export async function fetchUserBookings(userId, { signal } = {}) {
+  const url = userBookingsUrl(userId)
+  if (!url) throw new Error('Orders API URL is not configured')
+  return ordersGet(url, { signal })
+}

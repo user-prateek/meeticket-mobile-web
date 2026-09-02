@@ -525,27 +525,28 @@ function BusTicket({ ticket, onDropService, qrFlipDirection }) {
         </div>
 
         <div className="mt-bus-qr-card__code">
-          <TicketQrFlip flipDirection={qrFlipDirection}>
-            {hasLiveQr ? (
-              <TicketQrDisplay
-                bookingReferenceNumber={ticket.bookingReferenceNumber}
-                fallbackPayload={ticket.qrPayload}
-                size={179}
-                refreshable
-                onValidUntil={handleValidUntil}
-              />
-            ) : (
-              <QrCode payload={`${ticket.qrPayload}-${qrKey}`} size={179} className="mt-qr mt-qr--framed" />
-            )}
-          </TicketQrFlip>
-          {!hasLiveQr ? (
-            <div className="mt-bus-actions">
-              <span className="mt-bus-valid">{ticket.status}</span>
-              <button type="button" className="mt-bus-refresh mt-bus-refresh--outline" onClick={() => setQrKey((n) => n + 1)}>
-                Refresh QR
-              </button>
-            </div>
-          ) : null}
+          {hasLiveQr ? (
+            <TicketQrDisplay
+              bookingReferenceNumber={ticket.bookingReferenceNumber}
+              fallbackPayload={ticket.qrPayload}
+              size={179}
+              refreshable
+              onValidUntil={handleValidUntil}
+              wrapQr={(qr) => <TicketQrFlip flipDirection={qrFlipDirection}>{qr}</TicketQrFlip>}
+            />
+          ) : (
+            <>
+              <TicketQrFlip flipDirection={qrFlipDirection}>
+                <QrCode payload={`${ticket.qrPayload}-${qrKey}`} size={179} className="mt-qr mt-qr--framed" />
+              </TicketQrFlip>
+              <div className="mt-bus-actions">
+                <span className="mt-bus-valid">{ticket.status}</span>
+                <button type="button" className="mt-bus-refresh mt-bus-refresh--outline" onClick={() => setQrKey((n) => n + 1)}>
+                  Refresh QR
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="mt-bus-info">
