@@ -1,27 +1,21 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useAtomValue } from 'jotai'
 import { fetchUserBookings } from '../api/orders'
 import { Header } from '../components/Header'
 import { BookingCard } from '../features/bookings/BookingCard'
 import { useAppNavigate } from '../hooks/useAppNavigate'
+import { useAppSession } from '../hooks/useAppSession'
+import { GOTO_HOME_PATH } from '../lib/appContext'
 import { normalizeUserBookingsResponse } from '../lib/userBookings'
-import { getUserContext } from '../lib/userContext'
 import { buildSuccessPath } from '../lib/successUrl'
-import { userAtom } from '../store/journey'
 import './BookingsPage.css'
 
 function resolveBookingsUserId(user) {
-  return (
-    user?.userId ||
-    getUserContext()?.userId ||
-    import.meta.env.VITE_ORDER_USER_ID ||
-    ''
-  )
+  return user?.userId || import.meta.env.VITE_ORDER_USER_ID || ''
 }
 
 export function BookingsPage() {
   const navigate = useAppNavigate()
-  const user = useAtomValue(userAtom)
+  const { user } = useAppSession()
   const userId = resolveBookingsUserId(user)
 
   const [bookings, setBookings] = useState([])
@@ -62,9 +56,13 @@ export function BookingsPage() {
     [navigate],
   )
 
+  const goHome = useCallback(() => {
+    navigate(GOTO_HOME_PATH, { replace: true })
+  }, [navigate])
+
   return (
     <div className="mt-bookings">
-      <Header title="Multi Model Bookings" onBack={() => navigate(-1)} />
+      <Header title="Multi Model Bookings" onBack={goHome} />
 
       <div className="mt-bookings__body">
         {status === 'loading' ? (

@@ -1,28 +1,33 @@
 const SRC_KEY = 'mt:app-src'
 const VERSION_KEY = 'mt:app-version'
+const APP_CONTEXT_KEY = 'mt:app-context:v1'
 
 /**
  * WebView bridge params from the host app:
  *   src=android|ios
- *   versionName=1.2.3
+ *   versionName=1.2.3  (also appversion / appVersion)
  *
- * Captured once from the entry URL and appended on every in-app navigation
- * so the server / native URL tracker always sees platform + app version.
+ * Captured once from the entry URL into session storage.
+ * Not re-appended on in-app navigation — read via getAppContext() / useAppSession().
  */
 
-export function captureAppContextFromSearch(search = '') {
-  if (typeof sessionStorage === 'undefined') return
-  const raw = String(search || '')
-  const params = new URLSearchParams(raw.startsWith('?') ? raw.slice(1) : raw)
-  const src = params.get('src')
-  const versionName = params.get('versionName')
-  if (src) sessionStorage.setItem(SRC_KEY, src)
-  if (versionName) sessionStorage.setItem(VERSION_KEY, versionName)
+function firstParam(params, keys) {
+  for (const key of keys) {
+    const value = params.get(key)
+    if (value != null && value !== '') return value
+  }
+  return null
 }
 
-export function getAppContext() {
+function loadAppContextFromStorage() {
   if (typeof sessionStorage === 'undefined') {
     return { src: '', versionName: '' }
+  }
+  try {
+    const raw = sessionStorage.getItem(APP_CONTEXT_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch {
+    /* fall through */
   }
   return {
     src: sessionStorage.getItem(SRC_KEY) || '',
@@ -30,25 +35,39 @@ export function getAppContext() {
   }
 }
 
-/** Append src + versionName to a path like `/cab?id=1` or `/journey?...`. */
+function saveAppContext(ctx) {
+  if (typeof sessionStorage === 'undefined') return
+  sessionStorage.setItem(APP_CONTEXT_KEY, JSON.stringify(ctx))
+  if (ctx.src) sessionStorage.setItem(SRC_KEY, ctx.src)
+  if (ctx.versionName) sessionStorage.setItem(VERSION_KEY, ctx.versionName)
+}
+
+export function captureAppContextFromSearch(search = '') {
+  if (typeof sessionStorage === 'undefined') return loadAppContextFromStorage()
+
+  const raw = String(search || '')
+  const params = new URLSearchParams(raw.startsWith('?') ? raw.slice(1) : raw)
+  const src = firstParam(params, ['src'])
+  const versionName = firstParam(params, ['versionName', 'versionname', 'appversion', 'appVersion'])
+
+  if (!src && !versionName) return loadAppContextFromStorage()
+
+  const prev = loadAppContextFromStorage()
+  const next = {
+    src: src || prev.src || '',
+    versionName: versionName || prev.versionName || '',
+  }
+  saveAppContext(next)
+  return next
+}
+
+export function getAppContext() {
+  return loadAppContextFromStorage()
+}
+
+/** Pass-through — session params are no longer appended to URLs. */
 export function withAppContext(to) {
-  const ctx = getAppContext()
-  if (!ctx.src && !ctx.versionName) return String(to)
-
-  const full = String(to)
-  const hashIndex = full.indexOf('#')
-  const hash = hashIndex >= 0 ? full.slice(hashIndex) : ''
-  const withoutHash = hashIndex >= 0 ? full.slice(0, hashIndex) : full
-  const qIndex = withoutHash.indexOf('?')
-  const pathname = qIndex >= 0 ? withoutHash.slice(0, qIndex) : withoutHash
-  const query = qIndex >= 0 ? withoutHash.slice(qIndex + 1) : ''
-  const params = new URLSearchParams(query)
-
-  if (ctx.src) params.set('src', ctx.src)
-  if (ctx.versionName) params.set('versionName', ctx.versionName)
-
-  const q = params.toString()
-  return `${pathname}${q ? `?${q}` : ''}${hash}`
+  return String(to)
 }
 
 /** Native close signal — empty page; app intercepts and ends the WebView. */

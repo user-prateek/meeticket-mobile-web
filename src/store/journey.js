@@ -14,6 +14,9 @@ export const tripAtom = persist('mt:trip:v2', null)
  */
 export const userAtom = persist('mt:user:v1', null)
 
+/** Platform + app version from WebView query params (src, versionName, appversion). */
+export const appContextAtom = persist('mt:app-context:v1', { src: '', versionName: '' })
+
 /** Mapped journey options — in-memory only; refetch on every /journey load. */
 export const journeyOptionsAtom = atom([])
 

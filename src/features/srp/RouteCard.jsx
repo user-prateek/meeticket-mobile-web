@@ -541,8 +541,8 @@ export function RouteCard({
       onDoubleClick={() => onOpenDetails?.(option)}
       aria-pressed={selected}
     >
-      {option.notSuggested ? (
-        <p className="mt-card__hint">Not suggested — short enough to walk instead of metro.</p>
+      {option.notSuggested && option.note ? (
+        <p className="mt-card__hint">{option.note}</p>
       ) : null}
 
       {compact && !singleHasFareOptions ? (

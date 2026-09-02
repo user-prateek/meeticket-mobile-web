@@ -285,6 +285,22 @@ function optionLabel(metro, bus) {
   return parts.join(' + ') || 'Journey'
 }
 
+function notSuggestedHint(metro, bus) {
+  const hasBus = bus.stops.length > 0 || bus.hops.length > 0
+  const hasMetro = metro.stops.length > 0 || metro.hops.length > 0
+
+  if (hasBus && !hasMetro) {
+    return 'Not suggested — short enough to walk instead of bus.'
+  }
+  if (hasMetro && !hasBus) {
+    return 'Not suggested — short enough to walk instead of metro.'
+  }
+  if (hasMetro && hasBus) {
+    return 'Not suggested — short enough to walk instead of public transit.'
+  }
+  return 'Not suggested — this trip may be short enough to walk.'
+}
+
 function normalizeJourneyList(data) {
   return Array.isArray(data) ? data : data?.data ?? data?.journeys ?? []
 }
@@ -383,9 +399,7 @@ export function mapJourneyOption(item, trip, { id = 1, source } = {}) {
     ),
     totalFareInr: fare,
     notSuggested,
-    note:
-      item.note ||
-      (notSuggested ? 'Metro not suggested — this trip may be short enough to walk.' : null),
+    note: item.note || (notSuggested ? notSuggestedHint(metro, bus) : null),
     originStation: origin,
     destinationStation: dest,
   }

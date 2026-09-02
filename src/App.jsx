@@ -1,11 +1,12 @@
 import { useEffect } from 'react'
 import { useSetAtom } from 'jotai'
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { MobileShell } from './components/MobileShell'
-import { captureAppContextFromSearch, withAppContext } from './lib/appContext'
+import { captureAppContextFromSearch } from './lib/appContext'
 import { captureUserFromSearch } from './lib/userContext'
+import { sessionStrippedSearch } from './lib/sessionParams'
 import { demoJourneyPath } from './lib/tripQuery'
-import { userAtom } from './store/journey'
+import { appContextAtom, userAtom } from './store/journey'
 import { BookingsPage } from './pages/BookingsPage'
 import { CabPage } from './pages/CabPage'
 import { GoToHomePage } from './pages/GoToHomePage'
@@ -18,16 +19,29 @@ import { PaymentFailedPage } from './pages/PaymentFailedPage'
 import { PaymentPage } from './pages/PaymentPage'
 import { SuccessPage } from './pages/SuccessPage'
 
-/** Keep src / versionName + user profile from the entry (or any) URL in sessionStorage. */
+/** Capture WebView credentials from URL into session state; strip them from the address bar. */
 function AppContextSync() {
   const location = useLocation()
+  const navigate = useNavigate()
   const setUser = useSetAtom(userAtom)
+  const setAppContext = useSetAtom(appContextAtom)
 
   useEffect(() => {
-    captureAppContextFromSearch(location.search)
-    const stored = captureUserFromSearch(location.search)
-    if (stored) setUser(stored)
-  }, [location.search, setUser])
+    const appContext = captureAppContextFromSearch(location.search)
+    setAppContext(appContext)
+
+    const storedUser = captureUserFromSearch(location.search)
+    if (storedUser) setUser(storedUser)
+
+    const cleanedSearch = sessionStrippedSearch(location.search)
+    const currentSearch = location.search.startsWith('?')
+      ? location.search.slice(1)
+      : location.search
+
+    if (cleanedSearch !== currentSearch) {
+      navigate({ pathname: location.pathname, search: cleanedSearch }, { replace: true })
+    }
+  }, [location.pathname, location.search, navigate, setAppContext, setUser])
 
   return null
 }
@@ -54,8 +68,8 @@ export default function App() {
                 <Route path="/bookings" element={<BookingsPage />} />
                 <Route path="/success" element={<SuccessPage />} />
                 <Route path="/gotohome" element={<GoToHomePage />} />
-                <Route path="/" element={<Navigate to={withAppContext(demoJourneyPath())} replace />} />
-                <Route path="*" element={<Navigate to={withAppContext(demoJourneyPath())} replace />} />
+                <Route path="/" element={<Navigate to={demoJourneyPath()} replace />} />
+                <Route path="*" element={<Navigate to={demoJourneyPath()} replace />} />
               </Routes>
             </MobileShell>
           }
