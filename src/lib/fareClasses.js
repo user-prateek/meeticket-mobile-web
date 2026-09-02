@@ -25,22 +25,31 @@ export function formatFareClassLabel(option) {
   return fare ? `₹${fare}` : 'Fare option'
 }
 
+function pickRouteForLeg(routes, legRouteId) {
+  if (!routes?.length) return null
+  return (
+    routes.find((route) => route.chalo_route_id === legRouteId || route.route_id === legRouteId) ||
+    routes[0]
+  )
+}
+
+/** One UI fare option per `fare_options` array entry from TGSRTC. */
 export function mapLegFareOptions(leg) {
   const options = Array.isArray(leg?.fare_options) ? leg.fare_options : []
+  const legRouteId = leg?.route_id
+
   return options
     .map((option, index) => {
       const fareInr = readPositiveInr(option?.fare)
       if (!fareInr) return null
       const routes = Array.isArray(option.routes) ? option.routes : []
-      const matchedRoute =
-        routes.find(
-          (route) => route.chalo_route_id === leg?.route_id || route.route_id === leg?.route_id,
-        ) || routes[0]
+      const matchedRoute = pickRouteForLeg(routes, legRouteId)
+
       return {
-        id: `${leg?.route_id || 'leg'}-fare-${index}`,
+        id: `${legRouteId || 'leg'}-fare-${index}`,
         label: formatFareClassLabel(option),
         fareInr,
-        routeId: matchedRoute?.chalo_route_id || matchedRoute?.route_id || null,
+        routeId: matchedRoute?.chalo_route_id || matchedRoute?.route_id || legRouteId || null,
       }
     })
     .filter(Boolean)
@@ -55,8 +64,11 @@ export function cheapestFareOptionId(options = []) {
   )?.id
 }
 
-/** Default bus tier for SRP/detail — always cheapest; user can change in fare picker. */
-export function defaultFareOptionId(_routeId, options = []) {
+/** Default bus tier — match booked route when possible, else cheapest. */
+export function defaultFareOptionId(routeId, options = []) {
+  if (!options.length) return null
+  const matched = options.find((option) => option.routeId && option.routeId === routeId)
+  if (matched) return matched.id
   return cheapestFareOptionId(options)
 }
 
@@ -78,7 +90,7 @@ export function buildInitialFareSelections(segments = []) {
   const selections = {}
   for (const segment of segments) {
     if (!segment?.fareOptions?.length) continue
-    selections[segment.id] = cheapestFareOptionId(segment.fareOptions)
+    selections[segment.id] = defaultFareOptionId(segment.routeId, segment.fareOptions)
   }
   return selections
 }
@@ -88,7 +100,7 @@ export function applyFareSelections(segments = [], selections = {}) {
     if (!segment?.fareOptions?.length) return segment
     const optionId =
       selections[segment.id] ||
-      cheapestFareOptionId(segment.fareOptions)
+      defaultFareOptionId(segment.routeId, segment.fareOptions)
     const option =
       segment.fareOptions.find((item) => item.id === optionId) ||
       segment.fareOptions.reduce(

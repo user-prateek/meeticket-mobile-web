@@ -3,18 +3,29 @@
 .mt-details-page {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
   background: var(--mt-page);
 }
 
-.mt-details-page__body {
+.mt-details-page__scroll {
   flex: 1;
-  overflow: auto;
-  padding: 12px 16px 8px;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.mt-details-page__body {
+  padding: 12px 16px 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.mt-details-page__body > * {
+  flex-shrink: 0;
 }
 
 .mt-details-page__note {
@@ -563,6 +574,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-top: 10px;
   padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
   background: #fff;
   border-top: 1px solid #e6e6e6;

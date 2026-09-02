@@ -472,64 +472,66 @@ function JourneyDetailView({
   return (
     <section className="mt-details-page">
       <Header title="Journey Detail" onBack={onBack} />
-      <div className="mt-details-page__body">
-        {journey.notSuggested && journey.note ? (
-          <p className="mt-details-page__hint">{journey.note}</p>
-        ) : null}
+      <div className="mt-details-page__scroll">
+        <div className="mt-details-page__body">
+          {journey.notSuggested && journey.note ? (
+            <p className="mt-details-page__hint">{journey.note}</p>
+          ) : null}
 
-        {blocks.map((block) =>
-          block.type === 'walk' ? (
-            <WalkCard
-              key={block.id}
-              from={block.from}
-              to={block.to}
-              durationMin={block.durationMin}
-              distanceM={block.distanceM}
-            />
-          ) : (
-            <LegCard
-              key={block.id}
-              segment={block.segment}
-              fareSelections={fareSelections}
-              fareExpanded={!collapsedFareSegments.has(block.segment.id)}
-              onToggleFarePanel={onToggleFarePanel}
-              onSelectFare={onSelectFare}
-            />
-          ),
-        )}
+          {blocks.map((block) =>
+            block.type === 'walk' ? (
+              <WalkCard
+                key={block.id}
+                from={block.from}
+                to={block.to}
+                durationMin={block.durationMin}
+                distanceM={block.distanceM}
+              />
+            ) : (
+              <LegCard
+                key={block.id}
+                segment={block.segment}
+                fareSelections={fareSelections}
+                fareExpanded={!collapsedFareSegments.has(block.segment.id)}
+                onToggleFarePanel={onToggleFarePanel}
+                onSelectFare={onSelectFare}
+              />
+            ),
+          )}
 
-        <PickupServiceCard
-          destinationLabel={destinationLabel}
-          modeId={modeId}
-          providerId={lastMile.providerId}
-          selectedVehicleId={selectedVehicleId}
-          slots={slots}
-          status={slotStatus}
-          error={slotError}
-          showProviders={showProviders}
-          onSelectMode={onSelectMode}
-          onSelectVehicle={onSelectVehicle}
-          onSelectProvider={onSelectProvider}
-          onCheckOthers={onCheckOthers}
-        />
-      </div>
+          <PickupServiceCard
+            destinationLabel={destinationLabel}
+            modeId={modeId}
+            providerId={lastMile.providerId}
+            selectedVehicleId={selectedVehicleId}
+            slots={slots}
+            status={slotStatus}
+            error={slotError}
+            showProviders={showProviders}
+            onSelectMode={onSelectMode}
+            onSelectVehicle={onSelectVehicle}
+            onSelectProvider={onSelectProvider}
+            onCheckOthers={onCheckOthers}
+          />
+        </div>
 
-      <div className="mt-details-page__panel">
-        <button type="button" className="mt-pay">
-          <OnlinePayIcon size={28} />
-          <span>{journey.payment?.method || 'Online'}</span>
-          <strong>₹{totalFareInr}</strong>
-          <ChevronIcon size={18} className="mt-pay__chevron" />
-        </button>
-        <button
-          type="button"
-          className="mt-details-page__cta"
-          onClick={onConfirm}
-          disabled={confirmLoading}
-        >
-          {confirmLoading ? 'Creating order…' : 'Confirm Multi Model'}
-        </button>
-        {confirmError ? <p className="mt-details-page__confirm-error">{confirmError}</p> : null}
+        <div className="mt-details-page__panel">
+          <button type="button" className="mt-pay">
+            <OnlinePayIcon size={28} />
+            <span>{journey.payment?.method || 'Online'}</span>
+            <strong>₹{totalFareInr}</strong>
+            <ChevronIcon size={18} className="mt-pay__chevron" />
+          </button>
+          <button
+            type="button"
+            className="mt-details-page__cta"
+            onClick={onConfirm}
+            disabled={confirmLoading}
+          >
+            {confirmLoading ? 'Creating order…' : 'Confirm Multi Model'}
+          </button>
+          {confirmError ? <p className="mt-details-page__confirm-error">{confirmError}</p> : null}
+        </div>
       </div>
     </section>
   )
