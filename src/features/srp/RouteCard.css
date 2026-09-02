@@ -418,11 +418,11 @@
 }
 
 .mt-mile__mode.is-selected {
-  color: var(--mt-navy);
+  color: var(--mt-primary);
 }
 
 .mt-mile__mode.is-selected .mt-mile__mode-icon {
-  color: var(--mt-navy);
+  color: var(--mt-primary);
 }
 
 .mt-providers {

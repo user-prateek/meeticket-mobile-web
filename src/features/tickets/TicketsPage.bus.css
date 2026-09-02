@@ -233,7 +233,7 @@
   padding: 12px 10px;
   border: 0;
   border-radius: var(--tk-radius-8);
-  background: var(--tk-primary);
+  background: var(--tk-button);
   color: #fff;
   font-size: var(--tk-drop-font);
   font-weight: 600;
@@ -286,8 +286,13 @@
 
 .mt-countdown__row {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--tk-space-6);
+}
+.mt-countdown__row-item{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .mt-countdown__row strong {
@@ -308,7 +313,8 @@
   font-weight: 500;
   line-height: 16px;
   letter-spacing: 0.02em;
-  text-align: center;
+  text-align: left;
+  padding-left: 2px;
   text-transform: lowercase;
 }
 
@@ -317,8 +323,9 @@
   flex-direction: column;
   gap: var(--tk-space-4);
   width: 4px;
-  height: 12px;
+  height: 20px;
   justify-content: center;
+  margin-top: 3px;
 }
 
 .mt-countdown__dots span {
@@ -364,6 +371,6 @@
 
 .mt-bus-refresh:not(.mt-bus-refresh--outline) {
   border: 0;
-  background: var(--tk-primary);
+  background: var(--tk-button);
   color: #fff;
 }

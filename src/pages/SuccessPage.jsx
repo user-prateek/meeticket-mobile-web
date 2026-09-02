@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
 import { useAtomValue } from 'jotai'
 import { getOrderId } from '../api/orders'
-import { buildBookingFromPgStatus, normalizeBooking } from '../constants/tickets'
+import { buildBookingFromPgStatus } from '../constants/tickets'
 import { TicketsPage } from '../features/tickets/TicketsPage'
 import { useAppNavigate } from '../hooks/useAppNavigate'
 import { PG_STATUS_POLL_MS, usePgStatusPolling } from '../hooks/usePgStatusPolling'
@@ -60,13 +60,11 @@ export function SuccessPage() {
   const displayBooking = useMemo(() => {
     if (!pgStatus || !orderId) return null
     const order = { orderId, order_id: orderId, pgStatus }
-    return normalizeBooking(
-      buildBookingFromPgStatus({
-        trip,
-        order,
-        pgStatus,
-      }),
-    )
+    return buildBookingFromPgStatus({
+      trip,
+      order,
+      pgStatus,
+    })
   }, [orderId, pgStatus, trip])
 
   if (!orderId) {

@@ -50,21 +50,10 @@ function kmFromMeters(n) {
   return Math.round((Number(n) || 0) / 100) / 10
 }
 
-/**
- * Ensure metro station display names include "Metro Station".
- * e.g. "Ameerpet" → "Ameerpet Metro Station"
- */
+/** Return metro station label as provided by API (no suffix normalization). */
 export function formatMetroStationName(name) {
   if (name == null) return name
-  const trimmed = String(name).trim()
-  if (!trimmed) return trimmed
-  if (/metro\s*station/i.test(trimmed)) {
-    return trimmed.replace(/metro\s*station/i, 'Metro Station')
-  }
-  if (/\bmetro$/i.test(trimmed)) {
-    return trimmed.replace(/\s*metro$/i, ' Metro Station')
-  }
-  return `${trimmed} Metro Station`
+  return String(name).trim()
 }
 
 function stationName(name, mode) {

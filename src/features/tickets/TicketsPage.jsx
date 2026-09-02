@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import tgsrtcLogo from '../../assets/brands/tgsrtc.png'
+import hyderabadMetroLogo from '../../assets/brands/hyderabad-metro.png'
+import metroTabIcon from '../../assets/icons/metro.png'
 import {
   AppLogo,
   BackIcon,
@@ -10,12 +12,11 @@ import {
   InfoIcon,
   ModeIcon,
   PencilIcon,
+  PersonIcon,
   PhoneIcon,
-  PinIcon,
 } from '../../components/icons'
 import {
   CANCEL_REASONS,
-  firstEnabledTabId,
   getCabProviderLogo,
   getTabJourneys,
   isTabEnabled,
@@ -24,12 +25,15 @@ import {
   secondsUntilValidUntil,
 } from '../../constants/tickets'
 import { TicketQrDisplay } from './TicketQrDisplay'
+import { TicketQrFlip } from './TicketQrFlip'
 import { OtpQrCode } from './OtpQrCode'
 import { QrCode } from './QrCode'
 import './tickets.tokens.css'
 import './TicketsPage.css'
 import './TicketsPage.bus.css'
 import './TicketsPage.cab.css'
+import './TicketsPage.metro.css'
+import './TicketsPage.qr-flip.css'
 
 function TicketsHeader({ onBack, onCall }) {
   return (
@@ -95,38 +99,33 @@ function JourneyTabs({ journeys, activeIndex, onChange }) {
 }
 
 function CabRouteTimeline({ from, to, fromRole, toRole, durationMin }) {
+  const durationLabel = durationMin != null && durationMin > 0 ? `${durationMin} Min` : '—'
   return (
     <div className="mt-cab-route">
       <div className="mt-cab-route__duration">
         <ClockIcon size={18} className="mt-cab-route__clock" />
-        <span>{durationMin} Min</span>
+        <span>{durationLabel}</span>
       </div>
-      <div className="mt-cab-route__stops">
-        <div className="mt-cab-route__stop">
-          <div className="mt-cab-route__icon-col" aria-hidden="true">
-            <span className="mt-cab-route__dot" />
-            <span className="mt-cab-route__line" />
-          </div>
-          <div className="mt-cab-route__text">
-            <strong className="mt-cab-route__name">{from}</strong>
-            {fromRole ? <span className="mt-cab-route__label">{fromRole}</span> : null}
-          </div>
+      <div className="mt-cab-route__content">
+        <div className="mt-cab-route__rail" aria-hidden="true">
+          <span className="mt-cab-route__dot" />
+          <span className="mt-cab-route__line" />
+          <span className="mt-cab-route__sq" />
         </div>
-        <div className="mt-cab-route__stop">
-          <div className="mt-cab-route__icon-col" aria-hidden="true">
-            <span className="mt-cab-route__sq" />
-          </div>
-          <div className="mt-cab-route__text">
-            <strong className="mt-cab-route__name">{to}</strong>
-            {toRole ? <span className="mt-cab-route__label">{toRole}</span> : null}
-          </div>
+        <div className="mt-cab-route__stop mt-cab-route__stop--from">
+          <strong className="mt-cab-route__name">{from}</strong>
+          {fromRole ? <span className="mt-cab-route__label">{fromRole}</span> : null}
+        </div>
+        <div className="mt-cab-route__stop mt-cab-route__stop--to">
+          <strong className="mt-cab-route__name">{to}</strong>
+          {toRole ? <span className="mt-cab-route__label">{toRole}</span> : null}
         </div>
       </div>
     </div>
   )
 }
 
-function CabTicket({ ticket, onCancel }) {
+function CabTicket({ ticket, onCancel, qrFlipDirection }) {
   const pin = String(ticket.pin || '').trim()
   const providerLogo = getCabProviderLogo(ticket.providerId)
   const showFare = ticket.fareInr != null && Number(ticket.fareInr) > 0
@@ -152,9 +151,15 @@ function CabTicket({ ticket, onCancel }) {
 
         <div className="mt-cab-trip-card__divider" role="presentation" />
 
-        <div className="mt-cab-trip-card__datetime">
-          <CalendarIcon size={18} />
-          <span>{ticket.datetime}</span>
+        <div className="mt-cab-trip-card__meta">
+          <span className="mt-cab-trip-card__meta-left">
+            <CalendarIcon size={18} />
+            <span>{ticket.datetime || '—'}</span>
+          </span>
+          <span className="mt-cab-trip-card__meta-right">
+            <PersonIcon size={18} />
+            <span>Pax: {ticket.pax ?? 1}</span>
+          </span>
         </div>
 
         <div className="mt-cab-trip-card__divider" role="presentation" />
@@ -192,15 +197,8 @@ function CabTicket({ ticket, onCancel }) {
                 <span className="mt-cab-trip-card__driver-name">{ticket.driver.name}</span>
               </div>
             </div>
-
-            <div className="mt-cab-trip-card__divider" role="presentation" />
           </>
         ) : null}
-
-        <button type="button" className="mt-cab-trip-card__track">
-          <PinIcon size={18} color="currentColor" />
-          Live Tracking
-        </button>
       </article>
 
       {pin ? (
@@ -216,7 +214,9 @@ function CabTicket({ ticket, onCancel }) {
             </div>
           </div>
           <div className="mt-cab-otp-card__body">
-            <OtpQrCode value={pin} size={200} className="mt-qr mt-qr--cab-framed" />
+            <TicketQrFlip flipDirection={qrFlipDirection}>
+              <OtpQrCode value={pin} size={200} className="mt-qr mt-qr--cab-framed" />
+            </TicketQrFlip>
           </div>
         </article>
       ) : null}
@@ -296,45 +296,126 @@ function RouteRail({ from, to, fromRole, toRole, durationMin }) {
   )
 }
 
-function MetroTicket({ ticket }) {
+function MetroRouteTimeline({ from, to, fromRole, toRole, durationMin }) {
+  const durationLabel = durationMin != null && durationMin > 0 ? `${durationMin} Min` : '—'
+  return (
+    <div className="mt-metro-route">
+      <div className="mt-metro-route__duration">
+        <ClockIcon size={18} className="mt-metro-route__clock" />
+        <span>{durationLabel}</span>
+      </div>
+      <div className="mt-metro-route__content">
+        <div className="mt-metro-route__rail" aria-hidden="true">
+          <span className="mt-metro-route__dot" />
+          <span className="mt-metro-route__line" />
+          <span className="mt-metro-route__sq" />
+        </div>
+        <div className="mt-metro-route__stop mt-metro-route__stop--from">
+          <strong className="mt-metro-route__name">{from}</strong>
+          {fromRole ? <span className="mt-metro-route__label">{fromRole}</span> : null}
+        </div>
+        <div className="mt-metro-route__stop mt-metro-route__stop--to">
+          <strong className="mt-metro-route__name">{to}</strong>
+          {toRole ? <span className="mt-metro-route__label">{toRole}</span> : null}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MetroQrPanel({ ticket, flipDirection }) {
+  const ticketQr = String(ticket.ticketQr || '').trim()
+  const isImageQr = ticketQr.startsWith('data:image')
+
+  let qrNode
+  if (isImageQr) {
+    qrNode = (
+      <img
+        src={ticketQr}
+        alt="Metro ticket QR code"
+        className="mt-qr mt-qr--metro-framed mt-qr--image"
+        width={179}
+        height={179}
+      />
+    )
+  } else if (ticketQr) {
+    qrNode = <OtpQrCode value={ticketQr} size={179} className="mt-qr mt-qr--metro-framed" />
+  } else if (ticket.qrPayload) {
+    qrNode = <QrCode payload={ticket.qrPayload} size={179} className="mt-qr mt-qr--metro-framed" />
+  } else {
+    qrNode = <div className="mt-metro-qr-card__placeholder">QR will appear once confirmed</div>
+  }
+
+  return (
+    <article className="mt-metro-qr-card">
+      <div className="mt-metro-qr-card__top">
+        <div className="mt-metro-validity">
+          <span className="mt-metro-validity__label">Valid till</span>
+          <strong className="mt-metro-validity__value">{ticket.validTill || '—'}</strong>
+        </div>
+        <img className="mt-metro-qr-card__emblem" src={hyderabadMetroLogo} alt="Hyderabad Metro Rail" draggable={false} />
+      </div>
+
+      <div className="mt-metro-qr-card__divider" role="presentation" />
+
+      <TicketQrFlip flipDirection={flipDirection}>{qrNode}</TicketQrFlip>
+
+      <div className="mt-metro-info">
+        <InfoIcon size={24} className="mt-metro-info__icon" />
+        <p>{ticket.qrHint}</p>
+      </div>
+    </article>
+  )
+}
+
+function MetroTicket({ ticket, onDropService, qrFlipDirection }) {
+  const showFare = ticket.fareInr != null && Number(ticket.fareInr) > 0
+  const platformLabel =
+    ticket.platformNo != null && ticket.platformNo !== '' ? ticket.platformNo : '—'
+
   return (
     <div className="mt-ticket mt-ticket--metro">
-      <div className="mt-ticket-card">
-        <div className="mt-ticket-card__head">
-          <div>
-            <span className="mt-ticket-card__muted">Ref ID: {ticket.refId}</span>
-            <div className="mt-ticket-card__meta">
-              <span>{ticket.datetime}</span>
-              <span>Pax: {ticket.pax}</span>
-            </div>
+      <article className="mt-metro-card">
+        <header className="mt-metro-card__banner">
+          <span className="mt-metro-card__ref">Ref ID: {ticket.refId}</span>
+          {showFare ? <strong className="mt-metro-card__fare">₹{ticket.fareInr}</strong> : null}
+        </header>
+
+        <div className="mt-metro-card__body">
+          <div className="mt-metro-meta">
+            <span className="mt-metro-meta__left">
+              <CalendarIcon size={18} />
+              <span>{ticket.datetime || '—'}</span>
+            </span>
+            <span className="mt-metro-meta__right">
+              <PersonIcon size={18} />
+              <span>Pax: {ticket.pax ?? 1}</span>
+            </span>
           </div>
-          <strong className="mt-ticket-card__fare">₹{ticket.fareInr}</strong>
+
+          <div className="mt-metro-platform">
+            <span className="mt-metro-platform__label">
+              <img className="mt-metro-platform__icon" src={metroTabIcon} alt="" draggable={false} />
+              Platform No: {platformLabel}
+            </span>
+            {ticket.tripType ? <span className="mt-metro-oneway">{ticket.tripType}</span> : null}
+          </div>
+
+          <MetroRouteTimeline
+            from={ticket.from}
+            to={ticket.to}
+            fromRole={ticket.fromRole}
+            toRole={ticket.toRole}
+            durationMin={ticket.durationMin}
+          />
         </div>
+      </article>
 
-        <div className="mt-metro-badge-row">
-          <span className="mt-metro-platform">Platform No: {ticket.platformNo}</span>
-          <span className="mt-metro-oneway">{ticket.tripType}</span>
-        </div>
+      <MetroQrPanel ticket={ticket} flipDirection={qrFlipDirection} />
 
-        <RouteRail from={ticket.from} to={ticket.to} />
-      </div>
-
-      <div className="mt-ticket-card mt-ticket-card--valid">
-        <div>
-          <span className="mt-ticket-card__muted">Valid till</span>
-          <strong>{ticket.validTill}</strong>
-        </div>
-        <AppLogo size={36} />
-      </div>
-
-      <div className="mt-ticket-card mt-ticket-card--qr">
-        <TicketQrDisplay
-          bookingReferenceNumber={ticket.bookingReferenceNumber}
-          fallbackPayload={ticket.qrPayload}
-          size={180}
-        />
-        <p className="mt-qr-hint">{ticket.qrHint}</p>
-      </div>
+      <button type="button" className="mt-bus-drop" onClick={onDropService}>
+        Drop Service
+      </button>
     </div>
   )
 }
@@ -373,24 +454,26 @@ function BusCountdown({ clock }) {
       aria-label={`${clock.hrs} hours ${clock.mns} minutes ${clock.secs} seconds`}
     >
       <div className="mt-countdown__row">
-        <strong>{clock.hrs}</strong>
+        <div className="mt-countdown__row-item">
+          <strong>{clock.hrs}</strong>
+          <small>HRS</small>
+        </div>
         <CountdownDotSep />
-        <strong>{clock.mns}</strong>
+        <div className="mt-countdown__row-item">
+          <strong>{clock.mns}</strong>
+          <small>MNS</small>
+        </div>
         <CountdownDotSep />
-        <strong>{clock.secs}</strong>
-      </div>
-      <div className="mt-countdown__row mt-countdown__row--labels">
-        <small>HRS</small>
-        <CountdownDotSep />
-        <small>MNS</small>
-        <CountdownDotSep />
-        <small>secs</small>
+        <div className="mt-countdown__row-item">
+          <strong>{clock.secs}</strong>
+          <small>SECS</small>
+        </div>
       </div>
     </div>
   )
 }
 
-function BusTicket({ ticket, onDropService }) {
+function BusTicket({ ticket, onDropService, qrFlipDirection }) {
   const [remaining, setRemaining] = useState(ticket.validSeconds ?? 0)
   const [qrKey, setQrKey] = useState(0)
   const hasLiveQr = Boolean(ticket.bookingReferenceNumber)
@@ -442,25 +525,27 @@ function BusTicket({ ticket, onDropService }) {
         </div>
 
         <div className="mt-bus-qr-card__code">
-          {hasLiveQr ? (
-            <TicketQrDisplay
-              bookingReferenceNumber={ticket.bookingReferenceNumber}
-              fallbackPayload={ticket.qrPayload}
-              size={179}
-              refreshable
-              onValidUntil={handleValidUntil}
-            />
-          ) : (
-            <>
+          <TicketQrFlip flipDirection={qrFlipDirection}>
+            {hasLiveQr ? (
+              <TicketQrDisplay
+                bookingReferenceNumber={ticket.bookingReferenceNumber}
+                fallbackPayload={ticket.qrPayload}
+                size={179}
+                refreshable
+                onValidUntil={handleValidUntil}
+              />
+            ) : (
               <QrCode payload={`${ticket.qrPayload}-${qrKey}`} size={179} className="mt-qr mt-qr--framed" />
-              <div className="mt-bus-actions">
-                <span className="mt-bus-valid">{ticket.status}</span>
-                <button type="button" className="mt-bus-refresh mt-bus-refresh--outline" onClick={() => setQrKey((n) => n + 1)}>
-                  Refresh QR
-                </button>
-              </div>
-            </>
-          )}
+            )}
+          </TicketQrFlip>
+          {!hasLiveQr ? (
+            <div className="mt-bus-actions">
+              <span className="mt-bus-valid">{ticket.status}</span>
+              <button type="button" className="mt-bus-refresh mt-bus-refresh--outline" onClick={() => setQrKey((n) => n + 1)}>
+                Refresh QR
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <div className="mt-bus-info">
@@ -541,7 +626,7 @@ function CancelTripModal({ open, reasonId, onReason, onClose, onSkip, onConfirm 
   )
 }
 
-function renderTicket(ticket, { onCancel, onDropService, busKey }) {
+function renderTicket(ticket, { onCancel, onDropService, busKey, qrFlipDirection }) {
   if (!ticket) return <p className="mt-ticket-empty">No ticket for this journey.</p>
 
   if (ticket.pending || ticket.bookingState === 'pending') {
@@ -562,11 +647,11 @@ function renderTicket(ticket, { onCancel, onDropService, busKey }) {
 
   switch (ticket.type) {
     case 'cab':
-      return <CabTicket ticket={ticket} onCancel={onCancel} />
+      return <CabTicket ticket={ticket} onCancel={onCancel} qrFlipDirection={qrFlipDirection} />
     case 'metro':
-      return <MetroTicket ticket={ticket} />
+      return <MetroTicket ticket={ticket} onDropService={onDropService} qrFlipDirection={qrFlipDirection} />
     case 'bus':
-      return <BusTicket key={busKey} ticket={ticket} onDropService={onDropService} />
+      return <BusTicket key={busKey} ticket={ticket} onDropService={onDropService} qrFlipDirection={qrFlipDirection} />
     case 'other':
       return <OtherTicket ticket={ticket} />
     default:
@@ -574,14 +659,47 @@ function renderTicket(ticket, { onCancel, onDropService, busKey }) {
   }
 }
 
+function tabIndex(tabId) {
+  return PRIMARY_TICKET_TABS.findIndex((tab) => tab.id === tabId)
+}
+
+function initialTabId(booking) {
+  if (!booking) return 'metro'
+  if (booking.defaultTab && isTabEnabled(booking, booking.defaultTab)) {
+    return booking.defaultTab
+  }
+  return PRIMARY_TICKET_TABS.find((tab) => isTabEnabled(booking, tab.id))?.id ?? 'metro'
+}
+
 export function TicketsPage({ booking, onBack, onCall, onCancelled, onDropService }) {
   const normalized = normalizeBooking(booking)
-  const [tabId, setTabId] = useState(() =>
-    firstEnabledTabId(normalized, normalized?.defaultTab ?? 'bus'),
-  )
+  const [tabId, setTabId] = useState(() => initialTabId(normalized))
   const [journeyIndex, setJourneyIndex] = useState(0)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [reasonId, setReasonId] = useState('find-driver')
+  const [tabFlipDirection, setTabFlipDirection] = useState(null)
+  const prevTabIdRef = useRef(tabId)
+  const skipTabFlipRef = useRef(true)
+
+  const handleTabChange = useCallback((nextTabId) => {
+    if (!skipTabFlipRef.current) {
+      const prevIdx = tabIndex(prevTabIdRef.current)
+      const nextIdx = tabIndex(nextTabId)
+      if (prevIdx !== -1 && nextIdx !== -1 && prevIdx !== nextIdx) {
+        setTabFlipDirection(nextIdx > prevIdx ? 'ltr' : 'rtl')
+      }
+    } else {
+      skipTabFlipRef.current = false
+    }
+    prevTabIdRef.current = nextTabId
+    setTabId(nextTabId)
+  }, [])
+
+  useEffect(() => {
+    if (!tabFlipDirection) return undefined
+    const timer = window.setTimeout(() => setTabFlipDirection(null), 620)
+    return () => window.clearTimeout(timer)
+  }, [tabFlipDirection])
 
   const enabledById = useMemo(() => {
     const map = {}
@@ -601,9 +719,9 @@ export function TicketsPage({ booking, onBack, onCall, onCancelled, onDropServic
   }, [tabId])
 
   useEffect(() => {
-    if (!normalized || isTabEnabled(normalized, tabId)) return
-    setTabId(firstEnabledTabId(normalized))
-  }, [normalized, tabId])
+    if (!normalized) return
+    setTabId((current) => (isTabEnabled(normalized, current) ? current : initialTabId(normalized)))
+  }, [normalized?.id, normalized?.defaultTab])
 
   if (!normalized) {
     return (
@@ -626,7 +744,7 @@ export function TicketsPage({ booking, onBack, onCall, onCancelled, onDropServic
           Confirming your bookings…
         </p>
       ) : null}
-      <ModeTabs activeId={tabId} enabledById={enabledById} onChange={setTabId} />
+      <ModeTabs activeId={tabId} enabledById={enabledById} onChange={handleTabChange} />
       {showJourneyTabs ? (
         <JourneyTabs journeys={journeys} activeIndex={journeyIndex} onChange={setJourneyIndex} />
       ) : null}
@@ -637,6 +755,7 @@ export function TicketsPage({ booking, onBack, onCall, onCancelled, onDropServic
               onCancel: () => setCancelOpen(true),
               onDropService,
               busKey,
+              qrFlipDirection: tabFlipDirection,
             })
           : (
             <EmptyTabPanel tabLabel={activeTab?.label ?? 'ticket'} />

@@ -12,7 +12,7 @@
   justify-content: space-between;
   padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
   background: #fff;
-  color: var(--mt-navy);
+  color: var(--mt-primary);
   flex-shrink: 0;
 }
 
@@ -23,7 +23,7 @@
   place-items: center;
   border: 0;
   background: transparent;
-  color: var(--mt-navy);
+  color: var(--mt-primary);
   border-radius: 999px;
 }
 
@@ -43,15 +43,15 @@
   border: 1px solid #d7dce3;
   border-radius: 999px;
   background: #fff;
-  color: var(--mt-navy);
+  color: var(--mt-primary);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
 }
 
 .mt-search__modes button.is-active {
-  background: var(--mt-navy);
-  border-color: var(--mt-navy);
+  background: var(--mt-primary);
+  border-color: var(--mt-primary);
   color: #fff;
 }
 
@@ -59,7 +59,7 @@
   background: #fff;
   border-radius: 14px;
   padding: 16px 14px;
-  border: 1px solid var(--mt-navy);
+  border: 1px solid var(--mt-primary);
 }
 
 .mt-search__field {
@@ -105,7 +105,7 @@
   margin-top: 12px;
   border: 0;
   border-radius: 8px;
-  background: var(--mt-navy);
+  background: var(--mt-button);
   color: #fff;
   font-size: 16px;
   font-weight: 700;

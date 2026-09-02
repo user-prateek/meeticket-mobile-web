@@ -1,12 +1,15 @@
 :root {
-  --mt-primary: #060496;
-  --mt-navy: var(--mt-primary);
+  /* Accent — banners, tab underlines, route markers, QR borders, selected outlines */
+  --mt-primary: #407afe;
+  /* CTA — filled buttons (Drop Service, Pay, Book, Search, etc.) */
+  --mt-navy: #060496;
+  --mt-button: var(--mt-navy);
   --mt-page: #f0f1f3;
   --mt-card: #ffffff;
   --mt-border: #e4e4e4;
   --mt-text: #111111;
   --mt-muted: #6b6b6b;
-  --mt-metro: #060496;
+  --mt-metro: var(--mt-primary);
   --mt-bus: #ff6011;
   --mt-walk: #5b5b5b;
   --mt-walk-icon-bg: #ffffff;

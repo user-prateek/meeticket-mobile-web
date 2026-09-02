@@ -1,0 +1,118 @@
+/* Shared 3D QR flip on ticket tab switch (metro / bus / cab). */
+
+.mt-ticket-qr-flip {
+  display: flex;
+  justify-content: center;
+  padding: var(--tk-space-4) 0 var(--tk-space-8);
+}
+
+.mt-ticket-qr-flip__scene {
+  width: var(--tk-qr-frame);
+  height: var(--tk-qr-frame);
+  perspective: 1000px;
+  perspective-origin: center center;
+  overflow: visible;
+}
+
+.mt-ticket-qr-flip__coin {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.mt-ticket-qr-flip__edge {
+  position: absolute;
+  inset: 10px 0;
+  border-radius: var(--tk-radius-6);
+  background: linear-gradient(
+    90deg,
+    #aeb4d8 0%,
+    #e4e7f6 22%,
+    #f7f8fd 50%,
+    #e4e7f6 78%,
+    #aeb4d8 100%
+  );
+  transform: translateZ(-3px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mt-ticket-qr-flip__face {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backface-visibility: hidden;
+  transform: translateZ(1px);
+}
+
+.mt-ticket-qr-flip--ltr .mt-ticket-qr-flip__coin {
+  transform-origin: left center;
+  animation: ticket-qr-flip-ltr 0.58s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.mt-ticket-qr-flip--rtl .mt-ticket-qr-flip__coin {
+  transform-origin: right center;
+  animation: ticket-qr-flip-rtl 0.58s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.mt-ticket-qr-flip--ltr .mt-ticket-qr-flip__edge,
+.mt-ticket-qr-flip--rtl .mt-ticket-qr-flip__edge {
+  animation: ticket-qr-edge 0.58s linear forwards;
+}
+
+.mt-ticket-qr-flip--settled .mt-ticket-qr-flip__coin {
+  transform: rotateY(0deg);
+  transform-origin: center center;
+}
+
+/* Single sweep — no mid-keyframe pause */
+@keyframes ticket-qr-flip-ltr {
+  from {
+    transform: rotateY(-90deg);
+  }
+  to {
+    transform: rotateY(0deg);
+  }
+}
+
+@keyframes ticket-qr-flip-rtl {
+  from {
+    transform: rotateY(90deg);
+  }
+  to {
+    transform: rotateY(0deg);
+  }
+}
+
+/* Brief coin edge flash — peaks early to match ease-out rotation */
+@keyframes ticket-qr-edge {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  28% {
+    opacity: 0.9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mt-ticket-qr-flip--ltr .mt-ticket-qr-flip__coin,
+  .mt-ticket-qr-flip--rtl .mt-ticket-qr-flip__coin,
+  .mt-ticket-qr-flip--ltr .mt-ticket-qr-flip__edge,
+  .mt-ticket-qr-flip--rtl .mt-ticket-qr-flip__edge {
+    animation: none;
+  }
+
+  .mt-ticket-qr-flip--settled .mt-ticket-qr-flip__coin,
+  .mt-ticket-qr-flip--ltr .mt-ticket-qr-flip__coin,
+  .mt-ticket-qr-flip--rtl .mt-ticket-qr-flip__coin {
+    transform: none;
+    transform-origin: center center;
+  }
+}

@@ -73,7 +73,7 @@ export function CabMap({ from, to, className }) {
           suppressMarkers: true,
           preserveViewport: false,
           polylineOptions: {
-            strokeColor: '#060496',
+            strokeColor: '#407AFE',
             strokeOpacity: 0.95,
             strokeWeight: 5,
           },

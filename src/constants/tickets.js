@@ -63,12 +63,25 @@ function readLegLocName(leg, role) {
 }
 
 function readCabDriverInfo(leg, details) {
-  const info = leg?.driver_info || leg?.driverInfo || details?.driver_info || details?.driverInfo
+  const assignment = details?.driver_assignment
+  const info =
+    leg?.driver_info ||
+    leg?.driverInfo ||
+    details?.driver_info ||
+    details?.driverInfo ||
+    assignment?.chauffeur ||
+    assignment?.driver
   return info && typeof info === 'object' ? info : null
 }
 
 function readCabVehicleInfo(leg, details) {
-  const info = leg?.vehicle_info || leg?.vehicleInfo || details?.vehicle_info || details?.vehicleInfo
+  const assignment = details?.driver_assignment
+  const info =
+    leg?.vehicle_info ||
+    leg?.vehicleInfo ||
+    details?.vehicle_info ||
+    details?.vehicleInfo ||
+    assignment?.vehicle
   return info && typeof info === 'object' ? info : null
 }
 
@@ -79,6 +92,49 @@ function formatCabProviderTitle(providerId, aggregatorLabel) {
   if (providerId === 'ola') return 'OLA'
   if (providerId === 'rapido') return 'Rapido'
   return 'Cab'
+}
+
+function formatCabTicketTitle(providerId, aggregatorLabel, vehicleType) {
+  const provider = formatCabProviderTitle(providerId, aggregatorLabel)
+  const type = String(vehicleType || '').trim()
+  if (type && provider && type.toLowerCase() !== provider.toLowerCase()) {
+    return `${provider} ${type}`
+  }
+  return type || provider || 'Cab'
+}
+
+function formatCabVehicleDescription(vehicleInfo) {
+  if (!vehicleInfo) return ''
+  const color = String(vehicleInfo.color || '').trim()
+  const name = String(
+    vehicleInfo.name || vehicleInfo.vehicle_model || vehicleInfo.model || '',
+  ).trim()
+  const type = String(vehicleInfo.vehicle_type || vehicleInfo.type || '').trim()
+  const parts = []
+  if (color) parts.push(color)
+  if (name) parts.push(name)
+  else if (type) parts.push(type)
+  return parts.join(' ')
+}
+
+function durationMinFromExpectedTimes(leg) {
+  const startRaw = leg?.ExpectedStartTime || leg?.expectedStartTime
+  const endRaw = leg?.ExpectedEndTime || leg?.expectedEndTime
+  if (!startRaw || !endRaw) return null
+  const start = new Date(String(startRaw).replace(' ', 'T'))
+  const end = new Date(String(endRaw).replace(' ', 'T'))
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null
+  const minutes = Math.ceil((end.getTime() - start.getTime()) / 60000)
+  return minutes > 0 ? minutes : null
+}
+
+function cabDatetimeFromLeg(leg, details, fallback) {
+  const expected = leg?.ExpectedStartTime || leg?.expectedStartTime
+  if (expected) {
+    const formatted = formatBookingTimestamp(expected)
+    if (formatted) return formatted
+  }
+  return issuedOnFromLeg(leg, details, fallback)
 }
 
 export const CANCEL_REASONS = [
@@ -122,17 +178,34 @@ function emptyTicketsByTab() {
 }
 
 export function getTabJourneys(booking, tabId) {
-  const normalized = normalizeBooking(booking)
-  return normalized?.tickets?.[tabId]?.journeys ?? []
+  return booking?.tickets?.[tabId]?.journeys ?? []
 }
 
 export function isTabEnabled(booking, tabId) {
   return getTabJourneys(booking, tabId).length > 0
 }
 
-export function firstEnabledTabId(booking, fallback = 'bus') {
-  const enabled = PRIMARY_TICKET_TABS.find((tab) => isTabEnabled(booking, tab))
-  return enabled?.id ?? fallback
+function tabHasJourneys(tickets, tabId) {
+  return (tickets?.[tabId]?.journeys?.length ?? 0) > 0
+}
+
+/**
+ * Default success tab: cab when booked, else first pg/status leg in API order.
+ */
+export function resolveDefaultTabFromBookings(bookings = [], tickets) {
+  if (!Array.isArray(bookings) || !bookings.length) {
+    return PRIMARY_TICKET_TABS.find((tab) => tabHasJourneys(tickets, tab.id))?.id ?? 'metro'
+  }
+
+  const hasCab = bookings.some((leg) => legTypeToTabId(leg.leg_type) === 'cab')
+  if (hasCab && tabHasJourneys(tickets, 'cab')) return 'cab'
+
+  for (const leg of bookings) {
+    const tabId = legTypeToTabId(leg.leg_type)
+    if (tabHasJourneys(tickets, tabId)) return tabId
+  }
+
+  return PRIMARY_TICKET_TABS.find((tab) => tabHasJourneys(tickets, tab.id))?.id ?? 'metro'
 }
 
 /**
@@ -214,6 +287,7 @@ function createCabTicket({ journey, trip, index = 0 }) {
     fareInr: 0,
     pin: '',
     datetime: '',
+    pax: 1,
     durationMin: mile?.durationMin ?? null,
     from: trip?.fromPlace ?? mile?.fromLabel ?? '',
     to: mile?.toLabel ?? journey?.destinationStation ?? '',
@@ -239,6 +313,68 @@ function formatBookingTimestamp(isoLike) {
   if (Number.isNaN(d.getTime())) return String(isoLike)
   const pad = (n) => String(n).padStart(2, '0')
   return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${String(d.getFullYear()).slice(-2)}, ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function parseMetroExpiryTime(value) {
+  if (value == null || value === '') return null
+  const raw = String(value).trim()
+
+  // Metro API: DDMMYYYYHHmmss — e.g. 02092026235959 → 2 Sep 2026, 23:59:59
+  if (/^\d{14}$/.test(raw)) {
+    const d = new Date(
+      Number(raw.slice(4, 8)),
+      Number(raw.slice(2, 4)) - 1,
+      Number(raw.slice(0, 2)),
+      Number(raw.slice(8, 10)),
+      Number(raw.slice(10, 12)),
+      Number(raw.slice(12, 14)),
+    )
+    return Number.isNaN(d.getTime()) ? null : d
+  }
+
+  if (/^\d{12}$/.test(raw)) {
+    const d = new Date(
+      Number(raw.slice(4, 8)),
+      Number(raw.slice(2, 4)) - 1,
+      Number(raw.slice(0, 2)),
+      Number(raw.slice(8, 10)),
+      Number(raw.slice(10, 12)),
+      0,
+    )
+    return Number.isNaN(d.getTime()) ? null : d
+  }
+
+  const d = new Date(raw.replace(' ', 'T'))
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+function formatMetroValidTill(value) {
+  const d = parseMetroExpiryTime(value)
+  if (!d) return value ? String(value).trim() : ''
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const pad = (n) => String(n).padStart(2, '0')
+  let hours = d.getHours()
+  const minutes = pad(d.getMinutes())
+  const ampm = hours >= 12 ? 'PM' : 'AM'
+  hours = hours % 12 || 12
+  return `${pad(d.getDate())} ${months[d.getMonth()]} '${String(d.getFullYear()).slice(-2)}, ${hours}:${minutes} ${ampm}`
+}
+
+
+function readMetroRefId(leg) {
+  return String(
+    leg.block_reference_number ||
+      leg.booking_reference_number ||
+      leg.ticket_id ||
+      leg.leg_id ||
+      '',
+  ).trim()
+}
+
+function resolveMetroFareInr(leg, fareInr) {
+  const fare = Number(leg.fare)
+  if (Number.isFinite(fare) && fare > 0) return fare
+  return fareInr
 }
 
 export function secondsUntilValidUntil(validUntil) {
@@ -327,19 +463,39 @@ function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
     const details = base.bookingDetails
     const defaults = createMetroTicket(null, index, journey, trip)
     const bookingRef = leg.booking_reference_number || null
+    const ticketQr = leg.ticket_qr || leg.ticketQr || details?.ticket_qr || null
+    const ticketId = leg.ticket_id || leg.ticketId || details?.ticket_id || null
+    const refId = readMetroRefId(leg) || ref
+    const childCount = Number(leg.child_count ?? details?.child_count ?? 0) || 0
+    const adultCount = leg.adult_count ?? details?.adult_count ?? defaults.pax
+    const expectedDurationMin = durationMinFromExpectedTimes(leg)
     return {
       ...defaults,
       ...base,
       id: `metro-${leg.leg_id}`,
       bookingState: 'confirmed',
-      fareInr: fareInr ?? defaults.fareInr,
-      from: readLegLocName(leg, 'from') || details?.from_stop_name || details?.source_station_name || defaults.from,
-      to: readLegLocName(leg, 'to') || details?.to_stop_name || details?.destination_station_name || defaults.to,
-      datetime: issuedOnFromLeg(leg, details, defaults.datetime),
-      pax: leg.adult_count ?? details?.adult_count ?? defaults.pax,
-      refId: ref,
-      bookingReferenceNumber: bookingRef,
-      qrPayload: bookingRef ? `MT-METRO-${bookingRef}` : `MT-METRO-${ref}`,
+      fareInr: resolveMetroFareInr(leg, fareInr ?? defaults.fareInr),
+      refId,
+      from: leg.from_station_name || defaults.from,
+      to: leg.to_station_name || defaults.to,
+      fromRole: 'Boarding',
+      toRole: 'Alighting',
+      datetime: cabDatetimeFromLeg(leg, details, defaults.datetime),
+      pax: adultCount + childCount || adultCount,
+      adultCount,
+      childCount,
+      platformNo: leg.platform_no ?? leg.platformNo ?? details?.platform_no ?? defaults.platformNo,
+      tripType: String(
+        leg.ticket_type || leg.ticketType || details?.ticket_type || defaults.tripType,
+      ).toUpperCase(),
+      durationMin: expectedDurationMin ?? defaults.durationMin,
+      validTill:
+        formatMetroValidTill(
+          leg.ticket_expiry_time || leg.ticketExpiryTime || details?.ticket_expiry_time,
+        ) || defaults.validTill,
+      ticketQr,
+      bookingReferenceNumber: bookingRef || ticketId || null,
+      qrPayload: ticketQr || (ticketId ? String(ticketId) : refId ? `MT-METRO-${refId}` : defaults.qrPayload),
     }
   }
 
@@ -396,21 +552,28 @@ function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
       details?.vehicle_number ||
       details?.vehicle_no ||
       defaults.driver.vehicleNo
+    const vehicleType =
+      vehicleInfo?.vehicle_type ||
+      vehicleInfo?.type ||
+      details?.vehicle_type ||
+      details?.service_name ||
+      ''
     const vehicleModel =
-      vehicleInfo?.vehicle_model ||
-      vehicleInfo?.model ||
-      vehicleInfo?.vehicle_name ||
-      vehicleInfo?.name ||
+      formatCabVehicleDescription(vehicleInfo) ||
       details?.vehicle_model ||
       details?.vehicle_name ||
       defaults.driver.vehicleModel
+    const expectedDurationMin = durationMinFromExpectedTimes(leg)
+    const childCount = Number(leg.child_count ?? details?.child_count ?? 0) || 0
+    const adultCount = leg.adult_count ?? details?.adult_count ?? defaults.pax
     return {
       ...defaults,
       ...base,
       id: `cab-${leg.leg_id}`,
       bookingState: 'confirmed',
       fareInr: fareInr ?? defaults.fareInr,
-      datetime: issuedOnFromLeg(leg, details, defaults.datetime),
+      datetime: cabDatetimeFromLeg(leg, details, defaults.datetime),
+      pax: adultCount + childCount || adultCount,
       pin: verificationCode || defaults.pin,
       from:
         readLegLocName(leg, 'from') ||
@@ -423,18 +586,14 @@ function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
         details?.to_stop_name ||
         defaults.to,
       durationMin:
+        expectedDurationMin ??
         vehicleInfo?.duration_min ??
         driverInfo?.duration_min ??
         details?.duration_min ??
         details?.eta_min ??
         defaults.durationMin,
       providerId,
-      title:
-        vehicleInfo?.vehicle_type ||
-        vehicleInfo?.type ||
-        details?.vehicle_type ||
-        details?.service_name ||
-        formatCabProviderTitle(providerId, aggregatorLabel),
+      title: formatCabTicketTitle(providerId, aggregatorLabel, vehicleType),
       paymentMethod: paymentMode === 'ONLINE' ? 'Online' : 'Cash',
       referenceNumber: bookingRef || leg.block_reference_number || defaults.referenceNumber,
       tripDetails:
@@ -493,14 +652,14 @@ export function buildBookingFromPgStatus({ journey, trip, order, pgStatus }) {
       pgStatus,
       isPolling: shouldContinuePgPolling(pgStatus),
       journeyId: journey?.id,
-      defaultTab: 'bus',
+      defaultTab: 'metro',
       tabs: PRIMARY_TICKET_TABS,
       payment: { method: 'Online' },
       tickets: emptyTicketsByTab(),
     }
   }
 
-  const defaultTab = firstEnabledTabId({ tickets }, 'bus')
+  const defaultTab = resolveDefaultTabFromBookings(legs, tickets)
 
   return {
     id: getOrderId(order) || pgStatus?.order_id || 'booking-live',

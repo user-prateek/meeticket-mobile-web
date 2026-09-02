@@ -53,8 +53,8 @@
 }
 
 .mt-srp__sort-chip.is-active {
-  border-color: var(--mt-navy);
-  color: var(--mt-navy);
+  border-color: var(--mt-primary);
+  color: var(--mt-primary);
   background: #fff;
 }
 
@@ -86,7 +86,7 @@
   height: 48px;
   border: 0;
   border-radius: 8px;
-  background: var(--mt-navy);
+  background: var(--mt-button);
   color: #fff;
   font-size: 16px;
   font-weight: 700;
@@ -108,10 +108,10 @@
 .mt-srp__retry {
   margin-top: 12px;
   padding: 8px 14px;
-  border: 1px solid var(--mt-navy);
+  border: 1px solid var(--mt-primary);
   border-radius: 8px;
   background: #fff;
-  color: var(--mt-navy);
+  color: var(--mt-primary);
   font-size: 13px;
   font-weight: 700;
 }

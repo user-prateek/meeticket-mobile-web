@@ -336,7 +336,7 @@ function PickupServiceCard({
                 <ModeIcon
                   mode={mode.id}
                   size={18}
-                  color={active ? 'var(--mt-navy)' : '#666666'}
+                  color={active ? 'var(--mt-primary)' : '#666666'}
                   className="mt-pickup__mode-icon"
                 />
                 {mode.label}

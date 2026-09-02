@@ -1,0 +1,320 @@
+/* MS-Mobile Figma — Metro ticket success (node 5503-5406). */
+
+.mt-metro-card {
+  overflow: hidden;
+  border-radius: var(--tk-card-radius);
+  background: var(--tk-surface);
+  box-shadow: var(--tk-card-shadow);
+}
+
+.mt-metro-card__banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tk-space-16);
+  padding: var(--tk-banner-pad-y) var(--tk-banner-pad-x);
+  background: var(--tk-primary);
+  color: #fff;
+}
+
+.mt-metro-card__ref {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--tk-banner-pnr);
+  font-weight: 700;
+  line-height: 24px;
+  word-break: break-all;
+}
+
+.mt-metro-card__fare {
+  flex-shrink: 0;
+  font-size: var(--tk-banner-fare);
+  font-weight: 700;
+  line-height: 24px;
+}
+
+.mt-metro-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tk-space-12);
+  padding: var(--tk-meta-pad);
+  border-bottom: 1px solid var(--tk-border);
+}
+
+.mt-metro-meta__left,
+.mt-metro-meta__right {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tk-space-8);
+  min-width: 0;
+  font-size: var(--tk-meta-label);
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.mt-metro-meta__left {
+  color: var(--tk-meta);
+}
+
+.mt-metro-meta__left svg,
+.mt-metro-meta__right svg {
+  color: var(--tk-meta);
+  flex-shrink: 0;
+}
+
+.mt-metro-meta__right {
+  flex-shrink: 0;
+  color: var(--tk-text);
+}
+
+.mt-metro-platform {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tk-space-12);
+  padding: var(--tk-space-8) var(--tk-space-12);
+  border-bottom: 1px solid var(--tk-border);
+  color: var(--tk-text);
+  font-size: var(--tk-meta-label);
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.mt-metro-platform__label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tk-space-6);
+  min-width: 0;
+}
+
+.mt-metro-platform__icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.mt-metro-oneway {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 1.5px solid var(--tk-primary);
+  border-radius: var(--tk-radius-pill);
+  background: var(--tk-surface);
+  color: var(--tk-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 14px;
+}
+
+.mt-metro-route {
+  display: flex;
+  align-items: center;
+  gap: var(--tk-space-12);
+  padding: var(--tk-space-10) var(--tk-space-12) var(--tk-space-12);
+}
+
+.mt-metro-route__duration {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tk-space-4);
+  width: 44px;
+  flex-shrink: 0;
+  align-self: center;
+  color: var(--tk-text);
+  font-size: var(--tk-meta-label);
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+}
+
+.mt-metro-route__clock {
+  color: var(--tk-meta);
+}
+
+.mt-metro-route__content {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: var(--tk-route-icon) 1fr;
+  grid-template-rows: auto auto;
+  column-gap: var(--tk-route-gap);
+  row-gap: 20px;
+  align-items: start;
+}
+
+.mt-metro-route__rail {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  box-sizing: border-box;
+}
+
+.mt-metro-route__dot,
+.mt-metro-route__sq {
+  flex-shrink: 0;
+  background: var(--tk-primary);
+}
+
+.mt-metro-route__dot {
+  width: var(--tk-route-icon);
+  height: var(--tk-route-icon);
+  border-radius: var(--tk-radius-pill);
+}
+
+.mt-metro-route__sq {
+  width: var(--tk-route-icon);
+  height: var(--tk-route-icon);
+  border-radius: 2px;
+}
+
+.mt-metro-route__line {
+  flex: 1;
+  width: 2px;
+  min-height: 20px;
+  margin: 4px 0;
+  background: var(--tk-rail);
+}
+
+.mt-metro-route__stop--from {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.mt-metro-route__stop--to {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.mt-metro-route__name {
+  display: block;
+  color: var(--tk-text);
+  font-size: var(--tk-route-name);
+  font-weight: 700;
+  line-height: 24px;
+  letter-spacing: 0.01em;
+}
+
+.mt-metro-route__label {
+  display: block;
+  margin-top: var(--tk-space-2);
+  color: var(--tk-meta);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.mt-metro-qr-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tk-qr-card-gap);
+  padding: var(--tk-qr-card-pad);
+  border-radius: var(--tk-card-radius);
+  background: var(--tk-surface);
+  box-shadow: var(--tk-card-shadow);
+}
+
+.mt-metro-qr-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--tk-space-12);
+  padding-bottom: var(--tk-space-10);
+}
+
+.mt-metro-qr-card__divider {
+  height: 1px;
+  margin: 0 0 var(--tk-space-12);
+  background: var(--tk-border);
+}
+
+.mt-metro-validity__label {
+  display: block;
+  margin-bottom: var(--tk-space-2);
+  color: var(--tk-tab-inactive);
+  font-size: var(--tk-validity-label);
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.mt-metro-validity__value {
+  display: block;
+  color: var(--tk-text);
+  font-size: var(--tk-meta-value);
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.mt-metro-qr-card__emblem {
+  width: var(--tk-emblem);
+  height: var(--tk-emblem);
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.mt-metro-qr-card__code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.mt-metro-qr-card__placeholder {
+  display: grid;
+  place-items: center;
+  width: var(--tk-qr-frame);
+  height: var(--tk-qr-frame);
+  border: 1px dashed var(--tk-border);
+  border-radius: var(--tk-radius-9);
+  color: var(--tk-meta);
+  font-size: var(--tk-meta-label);
+  font-weight: 600;
+  text-align: center;
+  padding: 12px;
+}
+
+.mt-qr--metro-framed {
+  box-sizing: border-box;
+  width: var(--tk-qr-frame);
+  height: var(--tk-qr-frame);
+  border: var(--tk-qr-border) solid var(--tk-primary);
+  border-radius: var(--tk-radius-9);
+  padding: var(--tk-qr-pad);
+  background: var(--tk-surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.mt-qr--image.mt-qr--metro-framed {
+  display: block;
+  object-fit: contain;
+}
+
+.mt-metro-info {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--tk-space-6);
+  padding: var(--tk-info-pad);
+  border-radius: var(--tk-radius-6);
+  background: #e8f7ee;
+  color: var(--tk-info-text);
+  font-size: var(--tk-info-font);
+  line-height: 16px;
+}
+
+.mt-metro-info__icon {
+  flex-shrink: 0;
+  color: var(--tk-success);
+}
+
+.mt-metro-info p {
+  margin: 0;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}

@@ -9,7 +9,7 @@ const persist = (key, initial) => atomWithStorage(key, initial, storage, { getOn
 export const tripAtom = persist('mt:trip:v2', null)
 
 /**
- * User from WebView query params: user_id, mobile, name, email.
+ * User from WebView query params: user_id, mobile, name, email, mbt (metro bearer token).
  * Session-scoped — see lib/userContext.js.
  */
 export const userAtom = persist('mt:user:v1', null)

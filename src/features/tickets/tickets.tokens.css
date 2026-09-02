@@ -6,10 +6,12 @@
   --tk-screen-bg: #f1f1f1;
   --tk-surface: #ffffff;
   --tk-border: #e4e4e4;
-  --tk-primary: #060496;
-  --tk-bus-accent: #407afe;
-  --tk-cab-accent: #060496;
-  --tk-cab-pin-digit-bg: rgba(255, 255, 255, 0.18);
+  --tk-primary: var(--mt-primary);
+  --tk-button: var(--mt-button);
+  --tk-bus-accent: var(--mt-primary);
+  --tk-cab-accent: var(--mt-primary);
+  --tk-cab-pin-bar-bg: var(--tk-primary);
+  --tk-cab-pin-digit-bg: var(--tk-button);
   --tk-text: #1a1a1a;
   --tk-muted: #666666;
   --tk-meta: #666666;
@@ -92,7 +94,7 @@
   --tk-validity-label: 14px;
   --tk-countdown: 24px;
   --tk-countdown-unit: 12px;
-  --tk-emblem: 64px;
+  --tk-emblem: 46px;
   --tk-qr-frame: 204px;
   --tk-qr-size: 179px;
   --tk-qr-border: 1.13px;
@@ -111,11 +113,11 @@
 
   --tk-terms-pad: 16px 12px;
 
-  --tk-cab-pin-pad: 12px 16px;
-  --tk-cab-pin-label: 12px;
-  --tk-cab-pin-digit-w: 34px;
-  --tk-cab-pin-digit-h: 40px;
-  --tk-cab-pin-digit: 20px;
+  --tk-cab-pin-pad: 10px 16px;
+  --tk-cab-pin-label: 14px;
+  --tk-cab-pin-digit-w: 32px;
+  --tk-cab-pin-digit-h: 36px;
+  --tk-cab-pin-digit: 18px;
   --tk-cab-pin-fare: 22px;
   --tk-cab-driver-avatar: 52px;
   --tk-cab-driver-vehicle-w: 56px;

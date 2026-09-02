@@ -242,7 +242,7 @@ export function LastMilePage({
                 <ModeIcon
                   mode={mode.id}
                   size={16}
-                  color={active ? 'var(--mt-navy)' : '#666666'}
+                  color={active ? 'var(--mt-primary)' : '#666666'}
                   className="mt-lastmile-page__mode-icon"
                 />
                 {mode.label}

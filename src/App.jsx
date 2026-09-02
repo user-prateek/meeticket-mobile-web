@@ -3,7 +3,7 @@ import { useSetAtom } from 'jotai'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { MobileShell } from './components/MobileShell'
 import { captureAppContextFromSearch, withAppContext } from './lib/appContext'
-import { captureUserFromSearch, parseUserQuery } from './lib/userContext'
+import { captureUserFromSearch } from './lib/userContext'
 import { demoJourneyPath } from './lib/tripQuery'
 import { userAtom } from './store/journey'
 import { CabPage } from './pages/CabPage'
@@ -24,11 +24,8 @@ function AppContextSync() {
 
   useEffect(() => {
     captureAppContextFromSearch(location.search)
-    const parsed = parseUserQuery(location.search)
-    if (parsed) {
-      const stored = captureUserFromSearch(location.search)
-      setUser(stored)
-    }
+    const stored = captureUserFromSearch(location.search)
+    if (stored) setUser(stored)
   }, [location.search, setUser])
 
   return null

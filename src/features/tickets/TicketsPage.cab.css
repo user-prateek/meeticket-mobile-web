@@ -50,20 +50,43 @@
   background: var(--tk-border);
 }
 
-.mt-cab-trip-card__datetime {
+.mt-cab-trip-card__meta {
   display: flex;
   align-items: center;
-  gap: var(--tk-space-8);
+  justify-content: space-between;
+  gap: var(--tk-space-12);
   padding: var(--tk-space-10) var(--tk-space-16);
-  color: var(--tk-meta);
+}
+
+.mt-cab-trip-card__meta-left,
+.mt-cab-trip-card__meta-right {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tk-space-8);
+  min-width: 0;
   font-size: var(--tk-meta-label);
   font-weight: 500;
   line-height: 20px;
 }
 
+.mt-cab-trip-card__meta-left {
+  color: var(--tk-meta);
+}
+
+.mt-cab-trip-card__meta-left svg,
+.mt-cab-trip-card__meta-right svg {
+  color: var(--tk-meta);
+  flex-shrink: 0;
+}
+
+.mt-cab-trip-card__meta-right {
+  flex-shrink: 0;
+  color: var(--tk-text);
+}
+
 .mt-cab-route {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--tk-space-12);
   padding: var(--tk-space-10) var(--tk-space-16) var(--tk-space-12);
 }
@@ -72,10 +95,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: var(--tk-space-4);
   width: 44px;
   flex-shrink: 0;
-  color: var(--tk-meta);
+  align-self: center;
+  color: var(--tk-text);
   font-size: var(--tk-meta-label);
   font-weight: 600;
   line-height: 16px;
@@ -83,31 +108,30 @@
 }
 
 .mt-cab-route__clock {
-  color: var(--tk-cab-accent);
+  color: var(--tk-meta);
 }
 
-.mt-cab-route__stops {
+.mt-cab-route__content {
   flex: 1;
   min-width: 0;
+  display: grid;
+  grid-template-columns: var(--tk-route-icon) 1fr;
+  grid-template-rows: auto auto;
+  column-gap: var(--tk-route-gap);
+  row-gap: 20px;
+  align-items: start;
 }
 
-.mt-cab-route__stop {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--tk-route-gap);
-}
-
-.mt-cab-route__stop + .mt-cab-route__stop {
-  margin-top: var(--tk-space-10);
-}
-
-.mt-cab-route__icon-col {
+.mt-cab-route__rail {
+  grid-column: 1;
+  grid-row: 1 / -1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: var(--tk-route-icon);
-  flex-shrink: 0;
-  padding-top: var(--tk-space-4);
+  height: 100%;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  box-sizing: border-box;
 }
 
 .mt-cab-route__dot,
@@ -129,41 +153,47 @@
 }
 
 .mt-cab-route__line {
-  width: 2px;
   flex: 1;
-  min-height: 36px;
-  margin: var(--tk-space-2) 0;
+  width: 2px;
+  min-height: 20px;
+  margin: 4px 0;
   background: var(--tk-rail);
 }
 
-.mt-cab-route__text {
-  flex: 1;
-  min-width: 0;
+.mt-cab-route__stop--from {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.mt-cab-route__stop--to {
+  grid-column: 2;
+  grid-row: 2;
 }
 
 .mt-cab-route__name {
   display: block;
   color: var(--tk-text);
   font-size: var(--tk-route-name);
-  font-weight: 600;
+  font-weight: 700;
   line-height: 24px;
+  letter-spacing: 0.01em;
 }
 
 .mt-cab-route__label {
   display: block;
   margin-top: var(--tk-space-2);
   color: var(--tk-meta);
-  font-size: var(--tk-route-role);
+  font-size: 14px;
   font-weight: 500;
-  line-height: 24px;
+  line-height: 20px;
 }
 
 .mt-cab-trip-card__driver {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--tk-space-12);
+  display: flex;
   align-items: center;
-  padding: var(--tk-space-12) var(--tk-space-16);
+  justify-content: space-between;
+  gap: var(--tk-space-12);
+  padding: var(--tk-space-12) var(--tk-space-16) var(--tk-space-16);
 }
 
 .mt-cab-trip-card__driver-visual {
@@ -224,6 +254,9 @@
   flex-direction: column;
   gap: var(--tk-space-2);
   min-width: 0;
+  margin-left: auto;
+  text-align: right;
+  align-items: flex-end;
 }
 
 .mt-cab-trip-card__driver-copy strong {
@@ -245,24 +278,6 @@
   font-weight: 600 !important;
 }
 
-.mt-cab-trip-card__track {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--tk-space-8);
-  width: calc(100% - 32px);
-  margin: 0 var(--tk-space-16) var(--tk-space-12);
-  min-height: 44px;
-  padding: 10px 12px;
-  border: 1.5px solid var(--tk-cab-accent);
-  border-radius: var(--tk-radius-8);
-  background: var(--tk-surface);
-  color: var(--tk-cab-accent);
-  font-size: var(--tk-meta-label);
-  font-weight: 600;
-  line-height: 20px;
-}
-
 .mt-cab-otp-card {
   overflow: hidden;
   border-radius: var(--tk-card-radius);
@@ -276,19 +291,20 @@
   justify-content: space-between;
   gap: var(--tk-space-12);
   padding: var(--tk-cab-pin-pad);
-  background: var(--tk-cab-accent);
+  background: var(--tk-cab-pin-bar-bg);
   color: #fff;
 }
 
 .mt-cab-otp-card__label {
   font-size: var(--tk-cab-pin-label);
   font-weight: 600;
-  line-height: 16px;
+  line-height: 20px;
+  letter-spacing: 0.01em;
 }
 
 .mt-cab-otp-card__digits {
   display: flex;
-  gap: var(--tk-space-6);
+  gap: var(--tk-space-4);
 }
 
 .mt-cab-otp-card__digit {
@@ -298,9 +314,10 @@
   height: var(--tk-cab-pin-digit-h);
   border-radius: var(--tk-radius-6);
   background: var(--tk-cab-pin-digit-bg);
+  color: #fff;
   font-size: var(--tk-cab-pin-digit);
   font-weight: 700;
-  line-height: 24px;
+  line-height: 1;
 }
 
 .mt-cab-otp-card__body {
@@ -313,7 +330,7 @@
   box-sizing: border-box;
   width: var(--tk-qr-frame);
   height: var(--tk-qr-frame);
-  border: var(--tk-qr-border) solid var(--tk-cab-accent);
+  border: var(--tk-qr-border) solid var(--tk-button);
   border-radius: var(--tk-radius-9);
   padding: var(--tk-qr-pad);
   background: var(--tk-surface);

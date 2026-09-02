@@ -180,7 +180,7 @@
   margin: 0;
   padding: 10px 16px;
   background: #e8f0fe;
-  color: #060496;
+  color: var(--mt-primary);
   font-size: 13px;
   font-weight: 600;
   text-align: center;
@@ -643,7 +643,7 @@
   padding: 14px 16px;
   border: 0;
   border-radius: 10px;
-  background: var(--mt-primary);
+  background: var(--mt-button);
   color: #fff;
   font-size: 15px;
   font-weight: 700;

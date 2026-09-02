@@ -150,14 +150,17 @@ async function resolveCabLegTimes({ journey, trip, lastMile, selectedVehicle }) 
   }
 }
 
-function buildMetroLegInfo(segment, trip) {
-  return {
+function buildMetroLegInfo(segment, trip, { metroBearerToken } = {}) {
+  const leg = {
     source_station_code: stringId(segment.fromStationCode || segment.fromId),
     destination_station_code: stringId(segment.toStationCode || segment.toId),
     travel_date: travelDate({ segment, trip }),
     FromLocName: stringId(segment.from),
     ToLocName: stringId(segment.to),
   }
+  const token = String(metroBearerToken || '').trim()
+  if (token) leg.metro_bearer_token = token
+  return leg
 }
 
 function buildRtcLegInfo(segment, trip) {
@@ -359,8 +362,8 @@ function resolveTransitFareMap(journey) {
   return assigned
 }
 
-function buildTransitLegInfo(segment, trip) {
-  if (segment.mode === 'metro') return buildMetroLegInfo(segment, trip)
+function buildTransitLegInfo(segment, trip, { metroBearerToken } = {}) {
+  if (segment.mode === 'metro') return buildMetroLegInfo(segment, trip, { metroBearerToken })
   if (segment.mode === 'bus') return buildRtcLegInfo(segment, trip)
   return null
 }
@@ -369,7 +372,7 @@ function buildTransitLegInfo(segment, trip) {
  * Bus / metro hops in journey order — each hop is one orders API leg.
  * First mile is handled separately and prepended.
  */
-function buildTransitLegs(journey, trip, { chainStart } = {}) {
+function buildTransitLegs(journey, trip, { chainStart, metroBearerToken } = {}) {
   const fareBySegmentId = resolveTransitFareMap(journey)
   const legs = []
   let nextChainStart = chainStart ? parseOrderDateTime(chainStart) : null
@@ -378,7 +381,7 @@ function buildTransitLegs(journey, trip, { chainStart } = {}) {
     const amount_paise = inrToPaise(fareBySegmentId.get(segment.id))
     if (amount_paise <= 0) continue
 
-    const leg_info = buildTransitLegInfo(segment, trip)
+    const leg_info = buildTransitLegInfo(segment, trip, { metroBearerToken })
     if (!leg_info) continue
 
     const times = resolveTransitLegTimes(segment, trip, nextChainStart)
@@ -398,6 +401,7 @@ function buildTransitLegs(journey, trip, { chainStart } = {}) {
 
 export async function buildOrderPayload({ journey, trip, lastMile, selectedVehicle, user }) {
   const profile = user || getUserContext() || {}
+  const metroBearerToken = profile.metroBearerToken || ''
   const legs = []
 
   const firstMileLeg = buildFirstMileLeg({ journey, trip, lastMile, selectedVehicle })
@@ -410,7 +414,7 @@ export async function buildOrderPayload({ journey, trip, lastMile, selectedVehic
     legs.push(firstMileLeg)
   }
 
-  legs.push(...buildTransitLegs(journey, trip, { chainStart }))
+  legs.push(...buildTransitLegs(journey, trip, { chainStart, metroBearerToken }))
 
   if (!legs.length) {
     const hasTransit = transitSegments(journey).length > 0

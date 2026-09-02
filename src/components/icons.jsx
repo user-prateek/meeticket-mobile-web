@@ -299,6 +299,20 @@ export function CalendarIcon({ size = 18, className }) {
   )
 }
 
+export function PersonIcon({ size = 18, className }) {
+  return (
+    <SvgIcon size={size} color="currentColor" className={className} viewBox="0 0 24 24">
+      <circle cx="12" cy="8" r="3.25" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M6 19c.9-2.8 3.1-4.5 6-4.5s5.1 1.7 6 4.5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </SvgIcon>
+  )
+}
+
 export function CashBillIcon({ size = 20, className }) {
   return (
     <SvgIcon size={size} className={className} viewBox="0 0 24 24">

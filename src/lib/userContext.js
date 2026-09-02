@@ -10,7 +10,7 @@ function firstParam(params, keys) {
 
 /**
  * User fields from WebView / deep-link query params:
- *   user_id, mobile, name, email
+ *   user_id, mobile, name, email, mbt (metro bearer token)
  */
 export function parseUserQuery(source) {
   const params =
@@ -25,16 +25,18 @@ export function parseUserQuery(source) {
   const mobile = firstParam(params, ['mobile', 'phone', 'phone_number'])
   const name = firstParam(params, ['name', 'user_name', 'userName'])
   const email = firstParam(params, ['email', 'user_email', 'userEmail'])
+  const metroBearerToken = firstParam(params, ['mbt', 'metro_bearer_token', 'metroBearerToken'])
 
   if (userId) partial.userId = userId
   if (mobile) partial.mobile = mobile
   if (name) partial.name = name
   if (email) partial.email = email
+  if (metroBearerToken) partial.metroBearerToken = metroBearerToken
 
   return Object.keys(partial).length ? partial : null
 }
 
-/** @returns {{ userId?: string, mobile?: string, name?: string, email?: string } | null} */
+/** @returns {{ userId?: string, mobile?: string, name?: string, email?: string, metroBearerToken?: string } | null} */
 export function loadUserContext() {
   if (typeof sessionStorage === 'undefined') return null
   try {

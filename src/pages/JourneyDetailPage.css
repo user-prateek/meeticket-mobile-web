@@ -297,7 +297,7 @@
 
 .mt-pickup__pin {
   flex-shrink: 0;
-  color: var(--mt-navy);
+  color: var(--mt-primary);
 }
 
 .mt-pickup__dest-station {
@@ -333,9 +333,9 @@
 }
 
 .mt-pickup__mode.is-selected {
-  border-color: var(--mt-navy);
-  color: var(--mt-navy);
-  box-shadow: 0 0 0 1px var(--mt-navy);
+  border-color: var(--mt-primary);
+  color: var(--mt-primary);
+  box-shadow: 0 0 0 1px var(--mt-primary);
 }
 
 .mt-pickup__mode-icon {
@@ -369,7 +369,7 @@
 }
 
 .mt-pickup__provider.is-selected {
-  outline: 2px solid var(--mt-navy);
+  outline: 2px solid var(--mt-primary);
   outline-offset: -2px;
   z-index: 1;
 }
@@ -586,7 +586,7 @@
   height: 48px;
   border: 0;
   border-radius: 10px;
-  background: var(--mt-navy);
+  background: var(--mt-button);
   color: #fff;
   font-size: 16px;
   font-weight: 700;
