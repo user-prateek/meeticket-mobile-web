@@ -1,31 +1,39 @@
 import { Navigate, useSearchParams } from 'react-router-dom'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { useEffect } from 'react'
-import { getOrderId } from '../api/orders'
+import { buildOrderPayload, createOrderAndInitiatePg } from '../api/orders'
+import {
+  LAST_MILE_PROVIDER_DEFAULT,
+  coerceEnabledProviderId,
+} from '../constants/lastMile'
 import { LastMilePage } from '../features/lastMile/LastMilePage'
 import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useJourneyOptionById, useSelectJourney } from '../hooks/useJourneyOptions'
-import { buildSuccessPath } from '../lib/successUrl'
 import { withAppContext } from '../lib/appContext'
 import { preloadGoogleMaps } from '../lib/googleMaps'
 import { tripToSearch } from '../lib/tripQuery'
-import { lastMileSelectionAtom, orderAtom, tripAtom } from '../store/journey'
+import { lastMileSelectionAtom, orderAtom, tripAtom, userAtom } from '../store/journey'
 
 /**
  * /cab?id=1&service=pickup|drop&provider=&mode=&vehicle=
  * First / last mile booking using access / egress from the selected journey.
  * Provider is locked from query params — no provider switcher on this page.
+ * After book → create order + Paytm → /payment.
  */
 export function CabPage() {
   const [params, setParams] = useSearchParams()
   const navigate = useAppNavigate()
   const trip = useAtomValue(tripAtom)
-  const storedOrder = useAtomValue(orderAtom)
+  const user = useAtomValue(userAtom)
+  const setOrder = useSetAtom(orderAtom)
   const setLastMileSelection = useSetAtom(lastMileSelectionAtom)
   const selectJourney = useSelectJourney()
   const id = params.get('id')
   const serviceId = params.get('service') === 'drop' ? 'drop' : 'pickup'
-  const providerId = params.get('provider') || undefined
+  const providerId =
+    coerceEnabledProviderId(params.get('provider'), {
+      fallback: LAST_MILE_PROVIDER_DEFAULT,
+    }) || LAST_MILE_PROVIDER_DEFAULT
   const modeId = params.get('mode') || undefined
   const vehicleId = params.get('vehicle') || undefined
   const journey = useJourneyOptionById(id)
@@ -40,6 +48,14 @@ export function CabPage() {
   }
 
   const mile = serviceId === 'drop' ? journey.egress : journey.access
+  const fromPlace =
+    mile?.fromLabel ||
+    (serviceId === 'drop' ? journey.destinationStation : trip?.fromPlace) ||
+    (serviceId === 'drop' ? 'Station' : 'Pickup')
+  const toPlace =
+    mile?.toLabel ||
+    (serviceId === 'drop' ? trip?.toPlace : journey.originStation) ||
+    (serviceId === 'drop' ? 'Drop' : 'Station')
 
   function detailPath() {
     const next = new URLSearchParams({ id: String(journey.id) })
@@ -47,6 +63,10 @@ export function CabPage() {
     if (modeId) next.set('mode', modeId)
     if (vehicleId) next.set('vehicle', vehicleId)
     return `/journey-detail?${next.toString()}`
+  }
+
+  function paymentPath() {
+    return `/payment?id=${String(journey.id)}`
   }
 
   function handleSelectionChange({ providerId: nextProvider, modeId: nextMode, vehicleId: nextVehicle }) {
@@ -60,22 +80,30 @@ export function CabPage() {
     setParams(next, { replace: true })
   }
 
-  function handleBook({ vehicle, providerId: bookedProvider, modeId: bookedMode }) {
-    selectJourney(journey)
-    setLastMileSelection({
+  async function handleBook({ vehicle, providerId: bookedProvider, modeId: bookedMode }) {
+    const lastMile = {
       journeyId: journey.id,
       providerId: bookedProvider || null,
       modeId: bookedMode || null,
       vehicleId: vehicle?.id || null,
+      fareInr: vehicle?.fareInr ?? null,
+      fareDisplay: vehicle?.fareDisplay || null,
       refexSearchId: vehicle?.searchId || null,
+    }
+
+    selectJourney(journey)
+    setLastMileSelection(lastMile)
+
+    const payload = await buildOrderPayload({
+      journey,
+      trip,
+      lastMile,
+      selectedVehicle: vehicle,
+      user,
     })
-    navigate(
-      buildSuccessPath({
-        orderId: getOrderId(storedOrder),
-        returnTo: detailPath(),
-      }),
-      { replace: true },
-    )
+    const order = await createOrderAndInitiatePg(payload, { journeyId: journey.id })
+    setOrder(order)
+    navigate(paymentPath(), { replace: true })
   }
 
   return (
@@ -87,8 +115,8 @@ export function CabPage() {
       initialProviderId={providerId}
       initialModeId={modeId}
       initialVehicleId={vehicleId}
-      fromPlace={mile?.fromLabel || trip?.fromPlace || 'Pickup'}
-      toPlace={mile?.toLabel || trip?.toPlace || 'Drop'}
+      fromPlace={fromPlace}
+      toPlace={toPlace}
       onBack={() => navigate(detailPath())}
       onSelectionChange={handleSelectionChange}
       onBook={handleBook}

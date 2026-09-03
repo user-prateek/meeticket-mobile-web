@@ -278,13 +278,17 @@ function FirstMileSection({ booking }) {
             <BrandLogo id={providerId} name={cabLeg.cab_aggregator || providerId} />
             <ModeIcon mode={mode} size={16} className="mt-provider-options__mode-icon" />
           </div>
-          <span className="mt-provider-options__label">{cabVehicleLabel || 'Cab'}</span>
           <span className="mt-provider-options__meta">
             {cabDurationMin ? <span className="mt-provider-options__eta">{cabDurationMin} Min</span> : null}
-            {cabDurationMin && cabFareInr ? (
+            {cabDurationMin ? (
               <span className="mt-provider-options__dot" aria-hidden="true">
-                {' '}
-                •{' '}
+                •
+              </span>
+            ) : null}
+            <span className="mt-provider-options__label">{cabVehicleLabel || 'Cab'}</span>
+            {cabFareInr ? (
+              <span className="mt-provider-options__dot" aria-hidden="true">
+                •
               </span>
             ) : null}
             {cabFareInr ? <span className="mt-provider-options__fare">₹{cabFareInr}</span> : null}

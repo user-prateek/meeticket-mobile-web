@@ -6,9 +6,209 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#060496" />
     <title>Meeticket</title>
+    <!-- Warm DNS/TLS for journey engines while HTML + JS download. -->
+    <link rel="preconnect" href="https://metrommdl.iamgds.com" crossorigin />
+    <link rel="preconnect" href="https://tgsrtcengine.iamgds.com" crossorigin />
+    <link rel="dns-prefetch" href="https://metrommdl.iamgds.com" />
+    <link rel="dns-prefetch" href="https://tgsrtcengine.iamgds.com" />
+    <!-- Critical boot UI: paints before any JS so WebView is never blank. -->
+    <style>
+      html, body { margin: 0; height: 100%; background: #e8e8ec; color: #111; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+      #root { min-height: 100%; height: 100%; }
+      .mt-boot { min-height: 100dvh; background: #e8e8ec; }
+      .mt-boot__shell { width: 100%; max-width: 430px; height: 100dvh; margin: 0 auto; background: #f0f1f3; display: flex; flex-direction: column; overflow: hidden; }
+      @media (min-width: 480px) {
+        .mt-boot { display: flex; justify-content: center; padding: 16px 0; }
+        .mt-boot__shell { height: min(874px, calc(100dvh - 32px)); border-radius: 24px; box-shadow: 0 12px 40px rgba(10, 30, 50, 0.18); }
+      }
+      @keyframes mt-boot-shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+      .mt-boot__bone { display: block; border-radius: 6px; background: linear-gradient(90deg, #e8eaed 0%, #f4f5f7 40%, #e8eaed 80%); background-size: 200% 100%; animation: mt-boot-shimmer 1.15s ease-in-out infinite; }
+      .mt-boot__header { display: flex; align-items: flex-start; gap: 8px; padding: calc(12px + env(safe-area-inset-top, 0px)) 14px 14px; background: #060496; color: #fff; flex-shrink: 0; }
+      .mt-boot__back { width: 36px; height: 36px; margin-top: 2px; border-radius: 999px; background: linear-gradient(90deg, rgba(255,255,255,.18), rgba(255,255,255,.32), rgba(255,255,255,.18)); background-size: 200% 100%; animation: mt-boot-shimmer 1.15s ease-in-out infinite; flex-shrink: 0; }
+      .mt-boot__title { margin: 4px 0 0; font-size: 22px; line-height: 1.2; font-weight: 700; letter-spacing: -0.02em; }
+      .mt-boot__sub { width: min(72%, 220px); height: 12px; margin-top: 8px; border-radius: 6px; background: linear-gradient(90deg, rgba(255,255,255,.18), rgba(255,255,255,.32), rgba(255,255,255,.18)); background-size: 200% 100%; animation: mt-boot-shimmer 1.15s ease-in-out infinite; }
+      .mt-boot__sort { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #fff; border-bottom: 1px solid #e8eaed; flex-shrink: 0; }
+      .mt-boot__sort .mt-boot__bone:first-child { width: 64px; height: 14px; flex-shrink: 0; }
+      .mt-boot__chip { width: 56px; height: 28px; border-radius: 8px; }
+      .mt-boot__list { flex: 1; overflow: hidden; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+      .mt-boot__card { background: #fff; border: 1px solid #e6e9ee; border-radius: 14px; padding: 14px 12px; display: flex; flex-direction: column; gap: 12px; }
+      .mt-boot__row { display: flex; gap: 8px; }
+      .mt-boot__pill { width: 88px; height: 28px; border-radius: 999px; }
+      .mt-boot__line { width: 78%; height: 14px; }
+      .mt-boot__line--mid { width: 58%; }
+      .mt-boot__metrics { display: flex; gap: 8px; }
+      .mt-boot__metric { flex: 1; height: 36px; }
+      .mt-boot__footer { padding: 8px 12px calc(12px + env(safe-area-inset-bottom, 0px)); flex-shrink: 0; }
+      .mt-boot__cta { width: 100%; height: 48px; border-radius: 8px; }
+      .mt-boot__bookings .mt-boot__sort,
+      .mt-boot__bookings .mt-boot__footer { display: none; }
+      .mt-boot__journey .mt-boot__bookings-only { display: none; }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="mt-boot" id="mt-boot" role="status" aria-live="polite" aria-label="Loading Meeticket">
+        <div class="mt-boot__shell">
+          <header class="mt-boot__header">
+            <span class="mt-boot__back" aria-hidden="true"></span>
+            <div>
+              <p class="mt-boot__title" id="mt-boot-title">Meeticket</p>
+              <div class="mt-boot__sub" id="mt-boot-sub" aria-hidden="true"></div>
+            </div>
+          </header>
+          <div class="mt-boot__sort" aria-hidden="true">
+            <span class="mt-boot__bone"></span>
+            <span class="mt-boot__bone mt-boot__chip"></span>
+            <span class="mt-boot__bone mt-boot__chip"></span>
+            <span class="mt-boot__bone mt-boot__chip"></span>
+          </div>
+          <div class="mt-boot__list" aria-hidden="true">
+            <div class="mt-boot__card">
+              <div class="mt-boot__row">
+                <span class="mt-boot__bone mt-boot__pill"></span>
+                <span class="mt-boot__bone mt-boot__pill" style="width:64px"></span>
+              </div>
+              <span class="mt-boot__bone mt-boot__line"></span>
+              <span class="mt-boot__bone mt-boot__line mt-boot__line--mid"></span>
+              <div class="mt-boot__row">
+                <span class="mt-boot__bone mt-boot__chip"></span>
+                <span class="mt-boot__bone mt-boot__chip"></span>
+                <span class="mt-boot__bone mt-boot__chip"></span>
+              </div>
+              <div class="mt-boot__metrics">
+                <span class="mt-boot__bone mt-boot__metric"></span>
+                <span class="mt-boot__bone mt-boot__metric"></span>
+                <span class="mt-boot__bone mt-boot__metric"></span>
+              </div>
+            </div>
+            <div class="mt-boot__card">
+              <div class="mt-boot__row">
+                <span class="mt-boot__bone mt-boot__pill"></span>
+                <span class="mt-boot__bone mt-boot__pill" style="width:64px"></span>
+              </div>
+              <span class="mt-boot__bone mt-boot__line"></span>
+              <span class="mt-boot__bone mt-boot__line mt-boot__line--mid"></span>
+              <div class="mt-boot__row">
+                <span class="mt-boot__bone mt-boot__chip"></span>
+                <span class="mt-boot__bone mt-boot__chip"></span>
+                <span class="mt-boot__bone mt-boot__chip"></span>
+              </div>
+              <div class="mt-boot__metrics">
+                <span class="mt-boot__bone mt-boot__metric"></span>
+                <span class="mt-boot__bone mt-boot__metric"></span>
+                <span class="mt-boot__bone mt-boot__metric"></span>
+              </div>
+            </div>
+            <div class="mt-boot__card mt-boot__bookings-only">
+              <div class="mt-boot__row">
+                <span class="mt-boot__bone mt-boot__pill"></span>
+                <span class="mt-boot__bone mt-boot__pill" style="width:64px"></span>
+              </div>
+              <span class="mt-boot__bone mt-boot__line"></span>
+              <span class="mt-boot__bone mt-boot__line mt-boot__line--mid"></span>
+              <div class="mt-boot__metrics">
+                <span class="mt-boot__bone mt-boot__metric"></span>
+                <span class="mt-boot__bone mt-boot__metric"></span>
+                <span class="mt-boot__bone mt-boot__metric"></span>
+              </div>
+            </div>
+          </div>
+          <div class="mt-boot__footer" aria-hidden="true">
+            <span class="mt-boot__bone mt-boot__cta"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var path = location.pathname || ''
+        var boot = document.getElementById('mt-boot')
+        var title = document.getElementById('mt-boot-title')
+        var sub = document.getElementById('mt-boot-sub')
+        if (!boot || !title) return
+
+        function jsonFetch(url) {
+          return fetch(url, { headers: { Accept: 'application/json' } }).then(function (res) {
+            if (!res.ok) throw new Error('Request failed (' + res.status + ')')
+            return res.json()
+          })
+        }
+
+        function buildQuery(parts) {
+          return Object.keys(parts)
+            .filter(function (k) { return parts[k] != null && parts[k] !== '' })
+            .map(function (k) {
+              return encodeURIComponent(k) + '=' + encodeURIComponent(parts[k])
+            })
+            .join('&')
+        }
+
+        // Start metro + TGSRTC while the React bundle downloads (biggest win on 3G).
+        if (path.indexOf('/journey') !== -1) {
+          try {
+            var q = new URLSearchParams(location.search)
+            var fromLat = q.get('from_lat')
+            var fromLon = q.get('from_lon')
+            var toLat = q.get('to_lat')
+            var toLon = q.get('to_lon')
+            if (fromLat && fromLon && toLat && toLon) {
+              var accessMode = q.get('access_mode') || 'walk'
+              var egressMode = q.get('egress_mode') || 'walk'
+              var candidates = q.get('candidates') || '2'
+              var common = {
+                from_lat: fromLat,
+                from_lon: fromLon,
+                to_lat: toLat,
+                to_lon: toLon,
+                access_mode: accessMode,
+                egress_mode: egressMode,
+                candidates: candidates,
+              }
+              window.__MT_JOURNEY_PREFETCH__ = {
+                key: [fromLat, fromLon, toLat, toLon, accessMode, egressMode, candidates].join('|'),
+                sources: {
+                  metro: jsonFetch('https://metrommdl.iamgds.com/journey?' + buildQuery(common)),
+                  tgsrtc: jsonFetch(
+                    'https://tgsrtcengine.iamgds.com/journey?' +
+                      buildQuery(Object.assign({}, common, { candidates: '2' })),
+                  ),
+                },
+              }
+            }
+          } catch (e) {}
+        }
+
+        if (path.indexOf('/bookings') !== -1) {
+          boot.className += ' mt-boot__bookings'
+          title.textContent = 'Multi Model Bookings'
+          if (sub) sub.style.display = 'none'
+          document.title = 'Bookings · Meeticket'
+        } else {
+          boot.className += ' mt-boot__journey'
+          title.textContent = 'Journey Options'
+          document.title = 'Journey · Meeticket'
+          try {
+            var q2 = new URLSearchParams(location.search)
+            var from = q2.get('from')
+            var to = q2.get('to')
+            if (sub && from && to) {
+              sub.style.display = 'none'
+              var p = document.createElement('p')
+              p.className = 'mt-boot__title'
+              p.style.fontSize = '13px'
+              p.style.fontWeight = '600'
+              p.style.opacity = '0.9'
+              p.style.margin = '6px 0 0'
+              p.style.overflow = 'hidden'
+              p.style.textOverflow = 'ellipsis'
+              p.style.whiteSpace = 'nowrap'
+              p.textContent = from + ' → ' + to
+              sub.parentNode.appendChild(p)
+            }
+          } catch (e) {}
+        }
+      })()
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

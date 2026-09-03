@@ -3,7 +3,7 @@ import { GOOGLE_MAPS_API_KEY, loadGoogleMaps } from '../lib/googleMaps'
 import './CabMap.css'
 
 /**
- * Google Map for cab first/last mile: A/B markers + walking directions path.
+ * Google Map for cab first/last mile: A/B markers + driving directions path.
  */
 export function CabMap({ from, to, className }) {
   const hostRef = useRef(null)
@@ -85,7 +85,7 @@ export function CabMap({ from, to, className }) {
           {
             origin,
             destination,
-            travelMode: gmaps.TravelMode.WALKING,
+            travelMode: gmaps.TravelMode.DRIVING,
             provideRouteAlternatives: false,
           },
           (result, routeStatus) => {
@@ -98,7 +98,7 @@ export function CabMap({ from, to, className }) {
             }
             setStatus('error')
             setError(
-              `Walking route failed (${routeStatus}). Enable Directions API for this key.`,
+              `Driving route failed (${routeStatus}). Enable Directions API for this key.`,
             )
             const bounds = new gmaps.LatLngBounds()
             bounds.extend(origin)

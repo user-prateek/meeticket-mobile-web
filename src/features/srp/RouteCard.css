@@ -473,8 +473,8 @@
 }
 
 .mt-provider-options {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   padding: 0;
   border: 0;
@@ -502,9 +502,11 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-height: 64px;
-  padding: 10px 6px 8px;
+  gap: 8px;
+  flex: 1 1 140px;
+  min-width: 0;
+  min-height: 56px;
+  padding: 10px 12px 8px;
   background: #fff;
   border: 1px solid #e6e9ee;
   border-radius: 8px;
@@ -512,10 +514,7 @@
 }
 
 .mt-provider-options__cell.is-empty {
-  visibility: hidden;
-  min-height: 64px;
-  padding: 0;
-  border: 0;
+  display: none;
 }
 
 .mt-provider-options__cell.is-selected {
@@ -556,6 +555,11 @@
 }
 
 .mt-provider-options__meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  max-width: 100%;
   font-size: 11px;
   font-weight: 700;
   line-height: 1.2;
@@ -564,24 +568,38 @@
   color: #4b5563;
 }
 
+.mt-provider-options__meta-item {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
 .mt-provider-options__eta {
   color: #4b5563;
+  flex-shrink: 0;
 }
 
 .mt-provider-options__dot {
+  margin: 0 5px;
   color: #9ca3af;
+  flex-shrink: 0;
 }
 
 .mt-provider-options__fare {
   color: var(--mt-fare);
+  flex-shrink: 0;
 }
 
 .mt-provider-options__label {
   display: block;
-  margin-top: 4px;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 11px;
-  font-weight: 700;
-  color: #111827;
+  font-weight: 600;
+  color: #4b5563;
   text-align: center;
   line-height: 1.2;
 }

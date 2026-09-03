@@ -1,15 +1,15 @@
-import { useCallback, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useSetAtom } from 'jotai'
 import { Header } from '../components/Header'
 import { SortIcon } from '../components/icons'
+import { JourneyListCardSkeletons, JourneySkeleton } from '../components/skeletons/PageSkeleton'
 import { SORT_DEFAULT, SORT_OPTIONS } from '../constants/journey'
 import {
   formatFare,
   getLastMileMode,
   getLastMileProvider,
 } from '../constants/lastMile'
-import { RouteCard } from '../features/srp/RouteCard'
 import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useJourneyOptions, useSelectJourney } from '../hooks/useJourneyOptions'
 import { GOTO_HOME_PATH } from '../lib/appContext'
@@ -20,6 +20,11 @@ import {
 import { hasRequiredTripParams, parseTripQuery } from '../lib/tripQuery'
 import { journeyOptionsAtom, lastMileSelectionAtom } from '../store/journey'
 import './JourneyPage.css'
+
+/** Heavy card (brands, ola/refex) — load after shell paints. */
+const RouteCard = lazy(() =>
+  import('../features/srp/RouteCard').then((m) => ({ default: m.RouteCard })),
+)
 
 function sortOptionsList(options, sortBy) {
   const next = [...options]
@@ -108,7 +113,7 @@ export function JourneyPage() {
   }, [fareSelectionsByOption, options, sortBy])
   const selected = list.find((option) => option.id === selectedId) ?? list[0] ?? null
   const count = list.length
-  const loading = status === 'loading' && count === 0
+  const loading = count === 0 && (status === 'loading' || status === 'idle')
   const loadingMore = status === 'loading' && count > 0
   const failed = status === 'error' && count === 0
 
@@ -162,7 +167,13 @@ export function JourneyPage() {
   const subtitle =
     trip.fromPlace && trip.toPlace
       ? `${trip.fromPlace} → ${trip.toPlace}`
-      : `${count} Option${count === 1 ? '' : 's'} Found`
+      : count > 0
+        ? `${count} Option${count === 1 ? '' : 's'} Found`
+        : null
+
+  if (loading) {
+    return <JourneySkeleton subtitle={subtitle || undefined} />
+  }
 
   function openDetails(option) {
     const lastMile = lastMileByOption[option.id] || buildLastMilePayload(option.id, null)
@@ -204,9 +215,7 @@ export function JourneyPage() {
       </div>
 
       <div className="mt-srp__list">
-        {loading ? (
-          <p className="mt-srp__empty">Finding journey options…</p>
-        ) : failed ? (
+        {failed ? (
           <div className="mt-srp__empty">
             <p>{error || 'Could not load journey options.'}</p>
             <button type="button" className="mt-srp__retry" onClick={reload}>
@@ -216,7 +225,7 @@ export function JourneyPage() {
         ) : count === 0 ? (
           <p className="mt-srp__empty">No journey options found.</p>
         ) : (
-          <>
+          <Suspense fallback={<JourneyListCardSkeletons count={Math.min(count, 3)} />}>
             {list.map((option) => (
               <RouteCard
                 key={`${option.source ?? 'journey'}-${option.id}`}
@@ -234,7 +243,7 @@ export function JourneyPage() {
             {loadingMore ? (
               <p className="mt-srp__empty mt-srp__loading-more">Loading more options…</p>
             ) : null}
-          </>
+          </Suspense>
         )}
       </div>
 

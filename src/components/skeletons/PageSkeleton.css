@@ -1,0 +1,156 @@
+/* Shimmer skeletons — keep in sync with critical CSS in index.html */
+
+@keyframes mt-skel-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.mt-skel-bone {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #e8eaed 0%, #f4f5f7 40%, #e8eaed 80%);
+  background-size: 200% 100%;
+  animation: mt-skel-shimmer 1.15s ease-in-out infinite;
+}
+
+.mt-skel-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 14px 14px;
+  background: var(--mt-navy, #060496);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.mt-skel-bone--back {
+  width: 36px;
+  height: 36px;
+  margin-top: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.32) 40%, rgba(255, 255, 255, 0.18) 80%);
+  background-size: 200% 100%;
+  animation: mt-skel-shimmer 1.15s ease-in-out infinite;
+}
+
+.mt-skel-header__copy {
+  min-width: 0;
+  padding-top: 4px;
+  flex: 1;
+}
+
+.mt-skel-header__title {
+  display: block;
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.mt-skel-header__sub {
+  margin: 6px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mt-skel-bone--sub {
+  width: min(72%, 220px);
+  height: 12px;
+  margin-top: 8px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.32) 40%, rgba(255, 255, 255, 0.18) 80%);
+  background-size: 200% 100%;
+  animation: mt-skel-shimmer 1.15s ease-in-out infinite;
+}
+
+.mt-skel-sort {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #fff;
+  border-bottom: 1px solid #e8eaed;
+}
+
+.mt-skel-bone--sort-label {
+  width: 64px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.mt-skel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mt-skel-card {
+  background: #fff;
+  border: 1px solid #e6e9ee;
+  border-radius: 14px;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mt-skel-card__row,
+.mt-skel-card__modes,
+.mt-skel-card__metrics {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.mt-skel-card__stops {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.mt-skel-bone--pill {
+  width: 88px;
+  height: 28px;
+  border-radius: 999px;
+}
+
+.mt-skel-bone--short {
+  width: 64px;
+}
+
+.mt-skel-bone--line {
+  width: 78%;
+  height: 14px;
+}
+
+.mt-skel-bone--mid {
+  width: 58%;
+}
+
+.mt-skel-bone--chip {
+  width: 56px;
+  height: 28px;
+  border-radius: 8px;
+}
+
+.mt-skel-bone--metric {
+  flex: 1;
+  height: 36px;
+}
+
+.mt-skel-bone--cta {
+  width: 100%;
+  height: 48px;
+  border-radius: 8px;
+}

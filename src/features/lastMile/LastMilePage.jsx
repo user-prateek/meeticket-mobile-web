@@ -5,10 +5,12 @@ import {
   LAST_MILE_MODE_DEFAULT,
   LAST_MILE_MODES,
   LAST_MILE_PROVIDER_DEFAULT,
+  coerceEnabledProviderId,
   formatVehicleFare,
   formatVehicleMeta,
   getLastMileProvider,
   getLastMileVehicles,
+  isProviderEnabled,
   providerSupportsMode,
 } from '../../constants/lastMile'
 import { getOlaRideEstimateForJourneyCached } from '../../api/ola'
@@ -34,7 +36,9 @@ export function LastMilePage({
   fromPlace = 'Ameerpet',
   toPlace = 'L.B. Nagar',
 }) {
-  const providerId = initialProviderId || LAST_MILE_PROVIDER_DEFAULT
+  const providerId =
+    coerceEnabledProviderId(initialProviderId, { fallback: LAST_MILE_PROVIDER_DEFAULT }) ||
+    LAST_MILE_PROVIDER_DEFAULT
 
   const [modeId, setModeId] = useState(() => {
     const preferred = initialModeId || LAST_MILE_MODE_DEFAULT
@@ -64,11 +68,29 @@ export function LastMilePage({
         serviceId,
         mile,
         trip,
+        journey,
         fromLabel: fromPlace,
         toLabel: toPlace,
       }),
-    [serviceId, mile, trip, fromPlace, toPlace],
+    [serviceId, mile, trip, journey, fromPlace, toPlace],
   )
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || !mapPoints) return
+    console.info('[cab-map]', {
+      serviceId,
+      mapFrom: mapPoints.from,
+      mapTo: mapPoints.to,
+      tripFrom: trip ? { lat: trip.fromLat, lng: trip.fromLon, place: trip.fromPlace } : null,
+      access: journey?.access,
+      originStation: journey?.originStation,
+    })
+  }, [mapPoints, serviceId, trip, journey])
+
+  const mapRouteCaption =
+    serviceId === 'drop'
+      ? `Last mile · ${mapPoints?.from?.label || 'Station'} → ${mapPoints?.to?.label || 'Drop'}`
+      : `First mile to station · ${mapPoints?.from?.label || 'Pickup'} → ${mapPoints?.to?.label || journey?.originStation || 'Station'}`
 
   function syncSelection(nextModeId, nextVehicleId) {
     onSelectionChange?.({
@@ -132,7 +154,7 @@ export function LastMilePage({
   }, [providerId, modeId, journey, trip, serviceId])
 
   useEffect(() => {
-    if (providerId !== 'ola') {
+    if (providerId !== 'ola' || !isProviderEnabled('ola')) {
       return undefined
     }
 
@@ -215,6 +237,12 @@ export function LastMilePage({
           <button type="button" className="mt-lastmile-page__back" onClick={onBack} aria-label="Go back">
             <BackIcon size={20} />
           </button>
+
+          {mapPoints ? (
+            <p className="mt-lastmile-page__map-caption" title={mapRouteCaption}>
+              {mapRouteCaption}
+            </p>
+          ) : null}
         </div>
       </div>
 

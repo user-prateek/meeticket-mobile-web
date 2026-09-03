@@ -6,6 +6,7 @@ import {
   JOURNEY_SERVICES,
 } from '../constants/journey'
 import { defaultFareOptionId, mapLegFareOptions } from '../lib/fareClasses'
+import { takeJourneySourcePrefetches } from '../lib/journeyPrefetch'
 
 const SHARED = {
   lastMileProviders: LAST_MILE_PROVIDERS,
@@ -165,6 +166,13 @@ function blockFareInr(block) {
   )
 }
 
+function readCoord(value) {
+  if (value == null || value === '') return null
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+}
+
+/** First/last mile from journey API `access` / `egress` (user ↔ station lat/lng). */
 function mapMileLeg(block, { fromLabel, toLabel, role }) {
   if (!block) return null
   return {
@@ -174,10 +182,10 @@ function mapMileLeg(block, { fromLabel, toLabel, role }) {
     durationMin: Math.round(Number(block.duration_minutes) || 0),
     fromLabel,
     toLabel,
-    fromLat: block.from_lat,
-    fromLon: block.from_lon,
-    toLat: block.to_lat,
-    toLon: block.to_lon,
+    fromLat: readCoord(block.from_lat),
+    fromLon: readCoord(block.from_lon),
+    toLat: readCoord(block.to_lat),
+    toLon: readCoord(block.to_lon),
   }
 }
 
@@ -439,7 +447,7 @@ function mergeJourneyChunks(bySource) {
   return { data, options }
 }
 
-async function fetchJourneySource(source, trip, { signal, bySource, onPartial } = {}) {
+async function fetchJourneySource(source, trip, { signal, bySource, onPartial, prefetches } = {}) {
   const url = urls[source.urlKey]
   if (!url) {
     console.warn(`[journey] ${source.id}: URL not configured (${source.urlKey})`)
@@ -447,7 +455,19 @@ async function fetchJourneySource(source, trip, { signal, bySource, onPartial } 
   }
 
   const params = buildJourneyParams(trip, { candidates: source.candidates(trip) })
-  const payload = await GetRequest(url, params, { signal })
+  let payload
+
+  const prefetchPromise = prefetches?.[source.id]
+  if (prefetchPromise) {
+    try {
+      payload = await prefetchPromise
+    } catch {
+      payload = await GetRequest(url, params, { signal })
+    }
+  } else {
+    payload = await GetRequest(url, params, { signal })
+  }
+
   const list = normalizeJourneyList(payload).map((item) => normalizeJourneyItem(item, source.id))
 
   bySource.set(source.id, { raw: list, trip })
@@ -460,6 +480,8 @@ async function fetchJourneySource(source, trip, { signal, bySource, onPartial } 
  * GET journey options from all engines in parallel.
  * Calls `onPartial` each time a source responds so the UI can render early results.
  * Returns { data: raw[], options: mapped[] }.
+ *
+ * Reuses HTML boot prefetch when present (same trip key) so APIs run during JS download.
  */
 export async function fetchJourneyOptions(trip, { signal, onPartial } = {}) {
   if (trip.fromLat == null || trip.fromLon == null || trip.toLat == null || trip.toLon == null) {
@@ -468,11 +490,12 @@ export async function fetchJourneyOptions(trip, { signal, onPartial } = {}) {
 
   const bySource = new Map()
   const errors = []
+  const prefetches = takeJourneySourcePrefetches(tripCacheKey(trip))
 
   await Promise.all(
     JOURNEY_SOURCES.map(async (source) => {
       try {
-        return await fetchJourneySource(source, trip, { signal, bySource, onPartial })
+        return await fetchJourneySource(source, trip, { signal, bySource, onPartial, prefetches })
       } catch (error) {
         if (error?.name === 'AbortError') throw error
         console.warn(`[journey] ${source.id} failed`, error)

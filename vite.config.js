@@ -35,6 +35,28 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    build: {
+      cssCodeSplit: true,
+      rollupOptions: {
+        output: {
+          // Parallel download of vendor vs app on slow networks (HTTP/2).
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return undefined
+            if (
+              id.includes('react-dom') ||
+              id.includes('react-router') ||
+              id.includes('/jotai/') ||
+              id.includes('\\jotai\\') ||
+              /node_modules\/react\//.test(id) ||
+              /node_modules\\react\\/.test(id)
+            ) {
+              return 'vendor'
+            }
+            return undefined
+          },
+        },
+      },
+    },
     server: {
       // Ola calls the sandbox host directly (no /ola-api proxy).
       // Refex and Orders need a dev proxy for CORS.

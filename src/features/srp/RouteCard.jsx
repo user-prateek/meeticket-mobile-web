@@ -5,12 +5,13 @@ import { searchRefexForJourney } from '../../api/refex'
 import { BusGlyph, MetroGlyph, ModeIcon, PinIcon } from '../../components/icons'
 import { FareClassPanel } from '../../components/FareClassPanel'
 import {
-  CARD_MODE_ORDER,
   LAST_MILE_MODE_DEFAULT,
   formatVehicleEta,
   formatVehicleFare,
   getProviderCardSlots,
   isProviderDisabledForMode,
+  isProviderEnabled,
+  providerDisabledReason,
 } from '../../constants/lastMile'
 import { metroLineFromRouteId } from '../../constants/metroLines'
 import { formatMetroStationName } from '../../api/journey'
@@ -58,6 +59,53 @@ function vehicleMetaParts(vehicle) {
   const eta = formatVehicleEta(vehicle)
   const fare = formatVehicleFare(vehicle) || null
   return { eta, fare, peak: Boolean(vehicle.peak) }
+}
+
+function VehicleSlotMeta({ label, eta, fare, peak }) {
+  const parts = []
+  if (eta) {
+    parts.push(
+      <span key="eta" className="mt-provider-options__eta">
+        {eta}
+      </span>,
+    )
+  }
+  if (label) {
+    parts.push(
+      <span key="label" className="mt-provider-options__label">
+        {label}
+      </span>,
+    )
+  }
+  if (fare) {
+    parts.push(
+      <span key="fare" className="mt-provider-options__fare">
+        {fare}
+      </span>,
+    )
+  }
+  if (peak) {
+    parts.push(
+      <span key="peak" className="mt-provider-options__peak">
+        Peak
+      </span>,
+    )
+  }
+
+  return (
+    <span className="mt-provider-options__meta">
+      {parts.map((part, index) => (
+        <span key={part.key} className="mt-provider-options__meta-item">
+          {index > 0 ? (
+            <span className="mt-provider-options__dot" aria-hidden="true">
+              •
+            </span>
+          ) : null}
+          {part}
+        </span>
+      ))}
+    </span>
+  )
 }
 
 function VehicleCheckBadge() {
@@ -395,7 +443,7 @@ export function RouteCard({
   }, [providerExpanded, selectedProviderId, option.id, trip])
 
   useEffect(() => {
-    if (!providerExpanded || selectedProviderId !== 'ola') {
+    if (!providerExpanded || selectedProviderId !== 'ola' || !isProviderEnabled('ola')) {
       return undefined
     }
 
@@ -495,7 +543,7 @@ export function RouteCard({
 
   function selectProvider(event, id) {
     event.stopPropagation()
-    if (isProviderDisabledForMode(id, lastMile)) return
+    if (!isProviderEnabled(id) || isProviderDisabledForMode(id, lastMile)) return
     selectCard()
     setSelectedProviderId(id)
     setProviderExpanded(true)
@@ -627,17 +675,7 @@ export function RouteCard({
             {!hasProviderOptions ? (
               <p className="mt-provider-options__empty">{providerEmptyMessage}</p>
             ) : (
-              providerSlots.map((vehicle, index) => {
-                if (!vehicle) {
-                  return (
-                    <div
-                      key={CARD_MODE_ORDER[index]}
-                      className="mt-provider-options__cell is-empty"
-                      aria-hidden="true"
-                    />
-                  )
-                }
-
+              providerSlots.filter(Boolean).map((vehicle) => {
                 const active = selectedVehicleId === vehicle.id
                 const { eta, fare, peak } = vehicleMetaParts(vehicle)
 
@@ -659,18 +697,7 @@ export function RouteCard({
                         className="mt-provider-options__mode-icon"
                       />
                     </div>
-                    <span className="mt-provider-options__label">{vehicle.label}</span>
-                    <span className="mt-provider-options__meta">
-                      {eta ? <span className="mt-provider-options__eta">{eta}</span> : null}
-                      {eta && fare ? (
-                        <span className="mt-provider-options__dot" aria-hidden="true">
-                          {' '}
-                          •{' '}
-                        </span>
-                      ) : null}
-                      {fare ? <span className="mt-provider-options__fare">{fare}</span> : null}
-                      {peak ? <span className="mt-provider-options__peak"> Peak</span> : null}
-                    </span>
+                    <VehicleSlotMeta label={vehicle.label} eta={eta} fare={fare} peak={peak} />
                   </button>
                 )
               })
@@ -686,7 +713,8 @@ export function RouteCard({
                   type="button"
                   role="listitem"
                   disabled={disabled}
-                  title={disabled ? 'Refex is available for cab only' : undefined}
+                  aria-disabled={disabled || undefined}
+                  title={providerDisabledReason(provider.id, lastMile)}
                   className={`mt-providers__cell mt-providers__cell--${provider.id}${disabled ? ' is-disabled' : ''}`}
                   onClick={(event) => selectProvider(event, provider.id)}
                 >

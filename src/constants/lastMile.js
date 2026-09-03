@@ -16,12 +16,13 @@ import rapidoLogo from '../assets/brands/rapido.png'
 import refexLogo from '../assets/brands/refex.png'
 
 export const LAST_MILE_PROVIDERS = [
-  { id: 'ola', name: 'Ola', logo: olaLogo, accent: '#111111' },
-  { id: 'rapido', name: 'Rapido', logo: rapidoLogo, accent: '#f5b400' },
-  { id: 'refex', name: 'Refex', logo: refexLogo, accent: '#128c4a' },
+  { id: 'ola', name: 'Ola', logo: olaLogo, accent: '#111111', enabled: false },
+  { id: 'rapido', name: 'Rapido', logo: rapidoLogo, accent: '#f5b400', enabled: false },
+  { id: 'refex', name: 'Refex', logo: refexLogo, accent: '#128c4a', enabled: true },
 ]
 
-export const LAST_MILE_PROVIDER_DEFAULT = 'ola'
+/** Ola / Rapido not integrated yet — only Refex is live. */
+export const LAST_MILE_PROVIDER_DEFAULT = 'refex'
 
 export const LAST_MILE_MODES = [
   { id: 'cab', label: 'Cab' },
@@ -34,13 +35,42 @@ export const LAST_MILE_MODE_DEFAULT = 'cab'
 /** Refex corporate cab — cab only. */
 export const REFEX_SUPPORTED_MODES = ['cab']
 
+export function isProviderEnabled(providerId) {
+  if (!providerId) return false
+  const provider = LAST_MILE_PROVIDERS.find((item) => item.id === providerId)
+  return Boolean(provider?.enabled)
+}
+
+/** Providers that can be selected (integrated). Catalog still lists disabled ones in UI. */
+export function getEnabledLastMileProviders() {
+  return LAST_MILE_PROVIDERS.filter((provider) => provider.enabled)
+}
+
+/** Keep only integrated providers; otherwise return fallback (default null). */
+export function coerceEnabledProviderId(providerId, { fallback = null } = {}) {
+  if (isProviderEnabled(providerId)) return providerId
+  return fallback
+}
+
 export function providerSupportsMode(providerId, modeId) {
+  if (!isProviderEnabled(providerId)) return false
   if (providerId === 'refex') return modeId === 'cab'
   return true
 }
 
 export function isProviderDisabledForMode(providerId, modeId) {
   return !providerSupportsMode(providerId, modeId)
+}
+
+/** Tooltip / title when a provider tile cannot be selected. */
+export function providerDisabledReason(providerId, modeId) {
+  if (!isProviderEnabled(providerId)) {
+    return `${getLastMileProvider(providerId)?.name || 'This provider'} is coming soon`
+  }
+  if (providerId === 'refex' && modeId && modeId !== 'cab') {
+    return 'Refex is available for cab only'
+  }
+  return undefined
 }
 
 /**

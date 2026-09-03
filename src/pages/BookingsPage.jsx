@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { fetchUserBookings } from '../api/orders'
 import { Header } from '../components/Header'
+import { BookingsSkeleton } from '../components/skeletons/PageSkeleton'
 import { BookingCard } from '../features/bookings/BookingCard'
 import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useAppSession } from '../hooks/useAppSession'
@@ -60,17 +61,15 @@ export function BookingsPage() {
     navigate(GOTO_HOME_PATH, { replace: true })
   }, [navigate])
 
+  if (status === 'loading') {
+    return <BookingsSkeleton />
+  }
+
   return (
     <div className="mt-bookings">
       <Header title="Multi Model Bookings" onBack={goHome} />
 
       <div className="mt-bookings__body">
-        {status === 'loading' ? (
-          <p className="mt-bookings__message" role="status">
-            Loading your bookings…
-          </p>
-        ) : null}
-
         {status === 'no-user' ? (
           <p className="mt-bookings__message">
             Open this page with a signed-in user (<code>user_id</code> in the URL) to see your bookings.
