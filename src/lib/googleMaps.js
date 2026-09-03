@@ -1,7 +1,16 @@
 /** Google Maps JS API key — set in `.env` as VITE_GOOGLE_MAPS_API_KEY=… */
 export const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
+/** Cloud Map ID — required for AdvancedMarkerElement. */
+export const GOOGLE_MAPS_MAP_ID = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID'
 
 let loadPromise = null
+
+async function withMarkerLibrary(gmaps) {
+  if (typeof gmaps.importLibrary === 'function') {
+    await gmaps.importLibrary('marker')
+  }
+  return gmaps
+}
 
 /**
  * Preload Maps JS (classic loader — `google.maps.Map` is a real constructor after load).
@@ -16,7 +25,7 @@ export function loadGoogleMaps(apiKey = GOOGLE_MAPS_API_KEY) {
   }
 
   if (window.google?.maps?.Map && typeof window.google.maps.Map === 'function') {
-    return Promise.resolve(window.google.maps)
+    return withMarkerLibrary(window.google.maps)
   }
 
   if (loadPromise) return loadPromise
@@ -25,7 +34,7 @@ export function loadGoogleMaps(apiKey = GOOGLE_MAPS_API_KEY) {
     const finish = () => {
       const gmaps = window.google?.maps
       if (gmaps?.Map && typeof gmaps.Map === 'function') {
-        resolve(gmaps)
+        withMarkerLibrary(gmaps).then(resolve).catch(reject)
         return
       }
       loadPromise = null
@@ -48,7 +57,7 @@ export function loadGoogleMaps(apiKey = GOOGLE_MAPS_API_KEY) {
 
     const script = document.createElement('script')
     // No `loading=async` — that requires importLibrary and breaks `new google.maps.Map`.
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&v=weekly`
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&v=weekly&libraries=marker`
     script.async = true
     script.defer = true
     script.dataset.googleMaps = 'true'
@@ -166,8 +175,20 @@ export function resolveCabMapPoints({ serviceId, mile, trip, journey, fromLabel,
     return null
   }
 
+  // Station names come from the journey API (boarding/alighting). Do not replace with
+  // neighborhood reverse-geocode (e.g. Miyapur metro → "Hafeezpet").
   return {
-    from: { lat: fromLat, lng: fromLon, label: resolvedFromLabel },
-    to: { lat: toLat, lng: toLon, label: resolvedToLabel },
+    from: {
+      lat: fromLat,
+      lng: fromLon,
+      label: resolvedFromLabel,
+      lockLabel: isDrop,
+    },
+    to: {
+      lat: toLat,
+      lng: toLon,
+      label: resolvedToLabel,
+      lockLabel: !isDrop,
+    },
   }
 }

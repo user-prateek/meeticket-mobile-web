@@ -87,11 +87,6 @@ export function LastMilePage({
     })
   }, [mapPoints, serviceId, trip, journey])
 
-  const mapRouteCaption =
-    serviceId === 'drop'
-      ? `Last mile · ${mapPoints?.from?.label || 'Station'} → ${mapPoints?.to?.label || 'Drop'}`
-      : `First mile to station · ${mapPoints?.from?.label || 'Pickup'} → ${mapPoints?.to?.label || journey?.originStation || 'Station'}`
-
   function syncSelection(nextModeId, nextVehicleId) {
     onSelectionChange?.({
       providerId,
@@ -232,17 +227,18 @@ export function LastMilePage({
     <section className="mt-lastmile-page">
       <div className="mt-lastmile-page__map" aria-label="Map">
         <div className="mt-lastmile-page__map-canvas">
-          <CabMap from={mapPoints?.from} to={mapPoints?.to} />
+          <CabMap
+            from={mapPoints?.from}
+            to={mapPoints?.to}
+            vehicleSrc={selected?.icon}
+            distance={
+              mile?.distanceM != null ? Number(mile.distanceM) / 1000 : undefined
+            }
+          />
 
           <button type="button" className="mt-lastmile-page__back" onClick={onBack} aria-label="Go back">
             <BackIcon size={20} />
           </button>
-
-          {mapPoints ? (
-            <p className="mt-lastmile-page__map-caption" title={mapRouteCaption}>
-              {mapRouteCaption}
-            </p>
-          ) : null}
         </div>
       </div>
 

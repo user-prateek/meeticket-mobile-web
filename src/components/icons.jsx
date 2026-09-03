@@ -405,6 +405,44 @@ export function InterchangeIcon({ size = 36, className, style, ...rest }) {
   )
 }
 
+export function HomeOutlineIcon({ size = 20, className, style, ...rest }) {
+  return (
+    <SvgIcon size={size} color="currentColor" className={className} style={style} viewBox="0 0 24 24" {...rest}>
+      <path
+        d="M4.5 11.2 12 5l7.5 6.2V19a1.5 1.5 0 0 1-1.5 1.5h-3.5V15h-5v5.5H6A1.5 1.5 0 0 1 4.5 19v-7.8Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </SvgIcon>
+  )
+}
+
+export function CardOutlineIcon({ size = 20, className, style, ...rest }) {
+  return (
+    <SvgIcon size={size} color="currentColor" className={className} style={style} viewBox="0 0 24 24" {...rest}>
+      <rect x="3.5" y="6.5" width="17" height="11" rx="2" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M3.5 10.5h17" stroke="currentColor" strokeWidth="1.7" />
+    </SvgIcon>
+  )
+}
+
+export function HeadsetOutlineIcon({ size = 20, className, style, ...rest }) {
+  return (
+    <SvgIcon size={size} color="currentColor" className={className} style={style} viewBox="0 0 24 24" {...rest}>
+      <path
+        d="M5.5 12.5V11a6.5 6.5 0 0 1 13 0v1.5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <rect x="3.5" y="11.5" width="4" height="6.5" rx="1.4" stroke="currentColor" strokeWidth="1.7" />
+      <rect x="16.5" y="11.5" width="4" height="6.5" rx="1.4" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M18.5 18v.6A2.4 2.4 0 0 1 16.1 21H13" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </SvgIcon>
+  )
+}
+
 export function ModeIcon({ mode, size, color, className, style }) {
   if (mode === 'interchange') {
     return (

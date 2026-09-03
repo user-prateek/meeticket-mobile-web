@@ -1,6 +1,7 @@
 import { Navigate, useSearchParams } from 'react-router-dom'
 import { useAtomValue } from 'jotai'
 import { Header } from '../components/Header'
+import { helplineNumber } from '../api/config'
 import { getOrderId, pgOrderRef } from '../api/orders'
 import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useJourneyOptionById } from '../hooks/useJourneyOptions'
@@ -9,7 +10,6 @@ import { tripToSearch } from '../lib/tripQuery'
 import { lastMileSelectionAtom, orderAtom, tripAtom } from '../store/journey'
 import './PaymentPage.css'
 
-const SUPPORT_PHONE = '080-26252625'
 const REFUND_EMAIL = 'onlinerefund@tgsrtc.org'
 
 /**
@@ -81,7 +81,9 @@ export function PaymentBookingFailedPage() {
           <span aria-hidden="true">🎧</span>
           <div>
             <strong>Need Help?</strong>
-            <a href={`tel:${SUPPORT_PHONE}`}>{SUPPORT_PHONE}</a>
+            {helplineNumber ? (
+              <a href={`tel:${helplineNumber.replace(/[^\d+]/g, '')}`}>{helplineNumber}</a>
+            ) : null}
           </div>
         </div>
 

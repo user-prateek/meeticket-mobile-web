@@ -1,0 +1,150 @@
+.mt-pay-fail {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  background: #f0f1f3;
+}
+
+.mt-pay-fail__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mt-pay-fail__alert {
+  background: #fff;
+  border: 1px solid #f3b4b8;
+  border-radius: 10px;
+  padding: 22px 18px 20px;
+  text-align: center;
+}
+
+.mt-pay-fail__bang {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #e5394a;
+  color: #fff;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.mt-pay-fail__alert-title {
+  margin: 12px 0 10px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #e14b5a;
+}
+
+.mt-pay-fail__alert-copy {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #4b5563;
+}
+
+.mt-pay-fail__row,
+.mt-pay-fail__help {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.08);
+  text-align: left;
+}
+
+.mt-pay-fail__row-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1.5px solid var(--mt-navy);
+  color: var(--mt-navy);
+  background: #fff;
+}
+
+.mt-pay-fail__row-copy,
+.mt-pay-fail__help-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.mt-pay-fail__row-copy strong,
+.mt-pay-fail__help-copy strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--mt-navy);
+}
+
+.mt-pay-fail__row-copy small {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.3;
+  color: #6b7280;
+}
+
+.mt-pay-fail__chevron {
+  flex-shrink: 0;
+  color: #6b7280;
+}
+
+.mt-pay-fail__help {
+  background: #d7ebff;
+  box-shadow: none;
+}
+
+.mt-pay-fail__help-copy a,
+.mt-pay-fail__help-copy span {
+  display: block;
+  margin-top: 3px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.3;
+  color: #111111;
+  text-decoration: none;
+}
+
+.mt-pay-fail__actions {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mt-pay-fail__btn {
+  width: 100%;
+  padding: 13px 16px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mt-pay-fail__btn--fill {
+  border: 0;
+  background: var(--mt-navy);
+  color: #fff;
+}
+
+.mt-pay-fail__btn--ghost {
+  background: #fff;
+  color: var(--mt-navy);
+  border: 1.5px solid var(--mt-navy);
+}

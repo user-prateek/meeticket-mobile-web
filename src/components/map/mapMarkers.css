@@ -1,0 +1,136 @@
+.mt-map-marker-host {
+  width: 0;
+  height: 0;
+  overflow: visible;
+  position: relative;
+}
+
+.mt-map-pickup {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  transform: translate(0, -50%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.mt-map-pickup__vehicle {
+  position: relative;
+  width: 52px;
+  height: 36px;
+  flex-shrink: 0;
+  margin-left: -26px;
+  z-index: 2;
+}
+
+.mt-map-pickup__vehicle img {
+  display: block;
+  width: 52px;
+  height: 36px;
+  object-fit: contain;
+}
+
+.mt-map-pickup__dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1.5px solid #000;
+  box-sizing: border-box;
+}
+
+.mt-map-pickup__cluster {
+  display: flex;
+  align-items: stretch;
+  margin-left: -4px;
+  z-index: 1;
+}
+
+.mt-map-badge {
+  width: 36px;
+  height: 40px;
+  background: #000;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mt-map-badge__value {
+  font-size: 17px;
+  line-height: 17px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.mt-map-badge__unit {
+  margin-top: 1px;
+  font-size: 9px;
+  line-height: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mt-map-label {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 9px 0 11px;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.22);
+  white-space: nowrap;
+}
+
+.mt-map-label__name {
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 600;
+  color: #111;
+}
+
+.mt-map-label__chevron {
+  color: #222;
+  flex-shrink: 0;
+}
+
+.mt-map-drop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.mt-map-drop__pin {
+  position: absolute;
+  left: -6px;
+  top: -6px;
+  width: 12px;
+  height: 12px;
+  background: #000;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+}
+
+.mt-map-drop__pin-inner {
+  width: 5px;
+  height: 5px;
+  background: #fff;
+}
+
+.mt-map-drop__label {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+}

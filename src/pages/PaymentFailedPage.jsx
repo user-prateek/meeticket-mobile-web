@@ -1,15 +1,19 @@
 import { Navigate, useSearchParams } from 'react-router-dom'
 import { useAtomValue } from 'jotai'
 import { Header } from '../components/Header'
-import { getOrderId, pgFailureMessage } from '../api/orders'
+import {
+  CardOutlineIcon,
+  ChevronIcon,
+  HeadsetOutlineIcon,
+  HomeOutlineIcon,
+} from '../components/icons'
+import { helplineNumber } from '../api/config'
 import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useJourneyOptionById } from '../hooks/useJourneyOptions'
-import { withAppContext } from '../lib/appContext'
+import { GOTO_HOME_PATH, withAppContext } from '../lib/appContext'
 import { tripToSearch } from '../lib/tripQuery'
-import { lastMileSelectionAtom, orderAtom, tripAtom } from '../store/journey'
-import './PaymentPage.css'
-
-const SUPPORT_PHONE = '080-26252625'
+import { lastMileSelectionAtom, tripAtom } from '../store/journey'
+import './PaymentFailedPage.css'
 
 /**
  * /payment/failed?id=1 — payment unsuccessful (pg_status failure).
@@ -18,13 +22,10 @@ export function PaymentFailedPage() {
   const [params] = useSearchParams()
   const navigate = useAppNavigate()
   const trip = useAtomValue(tripAtom)
-  const storedOrder = useAtomValue(orderAtom)
   const lastMile = useAtomValue(lastMileSelectionAtom)
 
   const journeyId = params.get('id')
   const journey = useJourneyOptionById(journeyId)
-  const orderId = getOrderId(storedOrder)
-  const message = pgFailureMessage(storedOrder?.pgStatus)
 
   if (!journey) {
     const fallback = trip ? `/journey${tripToSearch(trip)}` : '/journey'
@@ -39,61 +40,72 @@ export function PaymentFailedPage() {
     return `/journey-detail?${next.toString()}`
   }
 
+  function goHome() {
+    navigate(GOTO_HOME_PATH, { replace: true })
+  }
+
+  const telHref = helplineNumber ? `tel:${helplineNumber.replace(/[^\d+]/g, '')}` : undefined
+
   return (
-    <section className="mt-payment-page">
+    <section className="mt-pay-fail">
       <Header title="Payment Failed" onBack={() => navigate(detailPath())} />
 
-      <div className="mt-pay-result">
-        <div className="mt-pay-result__card mt-pay-result__card--warn">
-          <span className="mt-pay-result__icon mt-pay-result__icon--error" aria-hidden="true">
+      <div className="mt-pay-fail__body">
+        <div className="mt-pay-fail__alert">
+          <span className="mt-pay-fail__bang" aria-hidden="true">
             !
           </span>
-          <h2>Payment Unsuccessful</h2>
-          <p>{message}</p>
-          <p className="mt-pay-result__sub">
-            We&apos;re sorry! It seems there is some problem with your payment. You can retry the
-            payment or choose another payment option to proceed further.
+          <h2 className="mt-pay-fail__alert-title">Payment Unsuccessful</h2>
+          <p className="mt-pay-fail__alert-copy">
+            We&apos;re sorry! It seems there is some problem with your payment. But don&apos;t worry,
+            you can retry the payment or choose another payment option to proceed further.
           </p>
         </div>
 
-        <button type="button" className="mt-pay-result__option" onClick={() => navigate('/journey')}>
-          <span className="mt-pay-result__option-icon" aria-hidden="true">
-            ⌂
+        <button type="button" className="mt-pay-fail__row" onClick={goHome}>
+          <span className="mt-pay-fail__row-icon" aria-hidden="true">
+            <HomeOutlineIcon size={20} />
           </span>
-          <span>
+          <span className="mt-pay-fail__row-copy">
             <strong>Go to Homepage &amp; initiate a fresh booking</strong>
             <small>Start a new booking from the beginning</small>
           </span>
-          <span aria-hidden="true">›</span>
+          <ChevronIcon size={16} className="mt-pay-fail__chevron" />
         </button>
 
-        <button type="button" className="mt-pay-result__option" onClick={() => navigate(detailPath())}>
-          <span className="mt-pay-result__option-icon" aria-hidden="true">
-            💳
+        <button type="button" className="mt-pay-fail__row" onClick={() => navigate(detailPath())}>
+          <span className="mt-pay-fail__row-icon" aria-hidden="true">
+            <CardOutlineIcon size={20} />
           </span>
-          <span>
+          <span className="mt-pay-fail__row-copy">
             <strong>Choose another payment option</strong>
             <small>Try a different payment method</small>
           </span>
-          <span aria-hidden="true">›</span>
+          <ChevronIcon size={16} className="mt-pay-fail__chevron" />
         </button>
 
-        <div className="mt-pay-result__help">
-          <span aria-hidden="true">🎧</span>
-          <div>
+        <div className="mt-pay-fail__help">
+          <span className="mt-pay-fail__row-icon" aria-hidden="true">
+            <HeadsetOutlineIcon size={20} />
+          </span>
+          <div className="mt-pay-fail__help-copy">
             <strong>Need Help?</strong>
-            <a href={`tel:${SUPPORT_PHONE}`}>{SUPPORT_PHONE}</a>
+            {helplineNumber ? (
+              <a href={telHref}>Please Call: {helplineNumber}</a>
+            ) : (
+              <span>Please Call:</span>
+            )}
           </div>
         </div>
 
-        {orderId ? <p className="mt-pay-result__ref">Order ref: {orderId}</p> : null}
-
-        <button type="button" className="mt-payment-page__retry" onClick={() => navigate(detailPath())}>
-          Retry Booking
-        </button>
-        <button type="button" className="mt-payment-page__retry mt-payment-page__retry--ghost" onClick={() => navigate('/journey')}>
-          Back to Home
-        </button>
+        <div className="mt-pay-fail__actions">
+          <button type="button" className="mt-pay-fail__btn mt-pay-fail__btn--fill" onClick={() => navigate(detailPath())}>
+            Retry Booking
+          </button>
+          <button type="button" className="mt-pay-fail__btn mt-pay-fail__btn--ghost" onClick={goHome}>
+            Back to Home
+          </button>
+        </div>
       </div>
     </section>
   )

@@ -59,6 +59,7 @@ const qrDirectBaseUrl = (import.meta.env.VITE_QR_BASE_URL || 'https://meeticketq
 /** Dev: `/qr-api` → VITE_QR_BASE_URL (vite.config.js). */
 export const qrBaseUrl = import.meta.env.DEV && qrDirectBaseUrl ? '/qr-api' : qrDirectBaseUrl
 export const qrApiKey = import.meta.env.VITE_QR_API_KEY || ''
+export const helplineNumber = String(import.meta.env.VITE_HELPLINE_NUMBER || '').trim()
 
 /** GET endpoints end with `?`. POST endpoints do not. */
 export const urls = {

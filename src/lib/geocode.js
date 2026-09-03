@@ -34,8 +34,8 @@ export async function reverseGeocodeLatLng(lat, lon, { signal } = {}) {
 
     geocoder.geocode({ location: { lat: Number(lat), lng: Number(lon) } }, (results, status) => {
       if (signal) signal.removeEventListener('abort', onAbort)
-      if (status === 'OK' && results?.[0]) {
-        resolve(results[0])
+      if (status === 'OK' && results?.length) {
+        resolve(results)
         return
       }
       if (status === 'ZERO_RESULTS') {
@@ -46,19 +46,97 @@ export async function reverseGeocodeLatLng(lat, lon, { signal } = {}) {
     })
   })
 
-  if (!response) return null
+  if (!response?.length) return null
 
-  const components = response.address_components || []
+  const primary = response[0]
+  const components = primary.address_components || []
   const city =
     components.find((c) => c.types.includes('locality'))?.long_name ||
     components.find((c) => c.types.includes('administrative_area_level_2'))?.long_name ||
     ''
 
   return {
-    address: response.formatted_address || '',
-    placeId: response.place_id || '',
+    address: primary.formatted_address || '',
+    placeId: primary.place_id || '',
     city,
+    shortName: shortNameFromGeocodeResults(response),
   }
+}
+
+const TRANSIT_RESULT_TYPES = [
+  'subway_station',
+  'transit_station',
+  'train_station',
+  'bus_station',
+]
+
+const SHORT_NAME_TYPES = [
+  'point_of_interest',
+  'establishment',
+  'premise',
+  'neighborhood',
+  'sublocality_level_1',
+  'sublocality',
+  'sublocality_level_2',
+  'route',
+]
+
+function componentName(result, type) {
+  return result?.address_components?.find((c) => c.types?.includes(type))?.long_name || ''
+}
+
+function shortNameFromGeocodeResults(results) {
+  if (!Array.isArray(results) || !results.length) return ''
+
+  // Prefer an explicit transit-station result (Miyapur metro, not Hafeezpet neighborhood).
+  for (const result of results) {
+    if (result.types?.some((type) => TRANSIT_RESULT_TYPES.includes(type))) {
+      return shortNameFromFormattedAddress(result.formatted_address)
+    }
+  }
+
+  for (const type of SHORT_NAME_TYPES) {
+    for (const result of results) {
+      const name = componentName(result, type)
+      if (name) return name
+    }
+  }
+
+  return shortNameFromFormattedAddress(results[0]?.formatted_address)
+}
+
+/** @deprecated use shortNameFromGeocodeResults — kept for single-result callers */
+export function shortNameFromGeocode(result) {
+  return shortNameFromGeocodeResults(result ? [result] : [])
+}
+
+export function shortNameFromFormattedAddress(address) {
+  const first = String(address || '')
+    .split(',')[0]
+    .trim()
+  if (!first) return ''
+  return first
+    .replace(/\s+\d{6}\s*$/u, '')
+    .replace(/\s+Telangana(?:\s+state)?(?:\s+India)?$/iu, '')
+    .replace(/\s+Hyderabad$/iu, '')
+    .trim()
+}
+
+const shortNameCache = new Map()
+
+function coordCacheKey(lat, lon) {
+  return `${Number(lat).toFixed(5)},${Number(lon).toFixed(5)}`
+}
+
+/** Short place label for a lat/lng (cached). */
+export async function reverseGeocodeShortName(lat, lon, { signal } = {}) {
+  const key = coordCacheKey(lat, lon)
+  if (shortNameCache.has(key)) return shortNameCache.get(key)
+
+  const result = await reverseGeocodeLatLng(lat, lon, { signal })
+  const name = result?.shortName || ''
+  if (name) shortNameCache.set(key, name)
+  return name
 }
 
 /** Great-circle distance in km. */
