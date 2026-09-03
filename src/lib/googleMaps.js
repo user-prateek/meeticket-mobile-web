@@ -109,8 +109,6 @@ function readMileCoords(leg, raw) {
  *
  * Pickup map: access.from → access.to  (user → chosen station)
  * Drop map:   egress.from → egress.to
- *
- * Refex fare search may use sandbox coords; the map always uses these.
  */
 export function resolveCabMapPoints({ serviceId, mile, trip, journey, fromLabel, toLabel }) {
   const isDrop = serviceId === 'drop'

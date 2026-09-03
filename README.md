@@ -20,8 +20,7 @@ Option ids are integers `1, 2, 3…` assigned when mapping the API response into
 ## Journey query
 
 ```
-/journey?from_lat=17.404897799573&from_lon=78.4655127838186
-  &to_lat=17.4184128072581&to_lon=78.49696327420617
+/journey?from_lat=…&from_lon=…&to_lat=…&to_lon=…
   &access_mode=walk&egress_mode=walk&candidates=2
 ```
 

@@ -9,23 +9,14 @@
  * `from` / `to` should be a short place name (first line / landmark), not the full
  * address with area, city, state, and pincode.
  *
- * Example (Swagger-verified):
- *   /journey?from_lat=17.404897799573&from_lon=78.4655127838186
- *     &to_lat=17.4184128072581&to_lon=78.49696327420617
- *     &access_mode=walk&egress_mode=walk&candidates=2
+ * Example:
+ *   /journey?from_lat=…&from_lon=…&to_lat=…&to_lon=…
+ *     &from=…&to=…&access_mode=walk&egress_mode=walk&candidates=2
  */
 
-export const DEMO_TRIP_QUERY = {
-  from_lat: '17.404897799573',
-  from_lon: '78.4655127838186',
-  to_lat: '17.4184128072581',
-  to_lon: '78.49696327420617',
-  from: 'Lutheran Church',
-  to: '4m hotel Bholakpur',
-  candidates: '2',
-  access_mode: 'walk',
-  egress_mode: 'walk',
-}
+const DEFAULT_ACCESS_MODE = 'walk'
+const DEFAULT_EGRESS_MODE = 'walk'
+const DEFAULT_CANDIDATES = '2'
 
 function parseCoord(value) {
   if (value == null || value === '') return null
@@ -46,7 +37,7 @@ function parseCandidates(value) {
   return n === 2 ? 2 : 1
 }
 
-/** True when URL includes all four coordinates (no demo fallback). */
+/** True when URL includes all four coordinates. */
 export function hasRequiredTripParams(source) {
   const params =
     source instanceof URLSearchParams
@@ -77,28 +68,26 @@ export function shortPlaceLabel(value) {
   return name || firstLine
 }
 
-/** Build a trip object from URLSearchParams or a plain object. */
+/** Build a trip object from URLSearchParams or a plain object. Coords come from the URL only. */
 export function parseTripQuery(source) {
   const params =
     source instanceof URLSearchParams
       ? source
       : new URLSearchParams(source ?? '')
 
-  const fromPlace = shortPlaceLabel(
-    firstParam(params, ['from', 'fromPlace']) || DEMO_TRIP_QUERY.from,
+  const fromPlace = shortPlaceLabel(firstParam(params, ['from', 'fromPlace']) || '')
+  const toPlace = shortPlaceLabel(firstParam(params, ['to', 'toPlace']) || '')
+  const fromLat = parseCoord(firstParam(params, ['from_lat', 'fromLat']))
+  const fromLon = parseCoord(firstParam(params, ['from_lon', 'fromLon', 'fromLng']))
+  const toLat = parseCoord(firstParam(params, ['to_lat', 'toLat']))
+  const toLon = parseCoord(firstParam(params, ['to_lon', 'toLon', 'toLng']))
+  const accessMode =
+    firstParam(params, ['access_mode', 'accessMode']) || DEFAULT_ACCESS_MODE
+  const egressMode =
+    firstParam(params, ['egress_mode', 'egressMode']) || DEFAULT_EGRESS_MODE
+  const candidates = parseCandidates(
+    firstParam(params, ['candidates']) ?? DEFAULT_CANDIDATES,
   )
-  const toPlace = shortPlaceLabel(firstParam(params, ['to', 'toPlace']) || DEMO_TRIP_QUERY.to)
-  const fromLat =
-    parseCoord(firstParam(params, ['from_lat', 'fromLat'])) ?? Number(DEMO_TRIP_QUERY.from_lat)
-  const fromLon =
-    parseCoord(firstParam(params, ['from_lon', 'fromLon', 'fromLng'])) ??
-    Number(DEMO_TRIP_QUERY.from_lon)
-  const toLat = parseCoord(firstParam(params, ['to_lat', 'toLat'])) ?? Number(DEMO_TRIP_QUERY.to_lat)
-  const toLon =
-    parseCoord(firstParam(params, ['to_lon', 'toLon', 'toLng'])) ?? Number(DEMO_TRIP_QUERY.to_lon)
-  const accessMode = firstParam(params, ['access_mode', 'accessMode']) || DEMO_TRIP_QUERY.access_mode
-  const egressMode = firstParam(params, ['egress_mode', 'egressMode']) || DEMO_TRIP_QUERY.egress_mode
-  const candidates = parseCandidates(firstParam(params, ['candidates']) ?? DEMO_TRIP_QUERY.candidates)
 
   return {
     fromPlace,
@@ -128,8 +117,8 @@ export function tripToSearchParams(trip) {
   }
   if (trip.fromPlace) params.set('from', shortPlaceLabel(trip.fromPlace))
   if (trip.toPlace) params.set('to', shortPlaceLabel(trip.toPlace))
-  params.set('access_mode', trip.accessMode || 'walk')
-  params.set('egress_mode', trip.egressMode || 'walk')
+  params.set('access_mode', trip.accessMode || DEFAULT_ACCESS_MODE)
+  params.set('egress_mode', trip.egressMode || DEFAULT_EGRESS_MODE)
   params.set('candidates', String(trip.candidates === 2 ? 2 : 1))
   return params
 }
@@ -139,6 +128,7 @@ export function tripToSearch(trip) {
   return q ? `?${q}` : ''
 }
 
+/** Default entry when no trip query is present — JourneyPage shows the missing-params state. */
 export function demoJourneyPath() {
-  return `/journey${tripToSearch(parseTripQuery(DEMO_TRIP_QUERY))}`
+  return '/journey'
 }

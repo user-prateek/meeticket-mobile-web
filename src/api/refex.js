@@ -1,14 +1,18 @@
 import olaGoAc from '../assets/vehicles/ola_go_ac.png'
 import { haversineKm } from '../lib/geocode'
+import { fetchDrivingEtaMinutes } from '../lib/drivingEta'
 import {
   refexClientId,
   refexClientSecret,
   refexCorporateName,
   refexPartnerName,
-  refexUseSandboxCoordinates,
+  refexStartOffsetMinutes,
   refexVendorId,
   urls,
 } from './config'
+
+/** Fallback ride minutes when Google Directions is unavailable. */
+const REFEX_END_FALLBACK_MINUTES = 50
 
 /** Guide §5.4 — reusable extra_charges block for mock car_types. */
 function refexMockExtraCharges(overrides = {}) {
@@ -230,16 +234,12 @@ function upperCity(value, fallback = 'HYDERABAD') {
 
 /** Refex staging accepts short city-style strings (see working curl: "hyderabad"). */
 function shortRefexAddress(label, fallback = 'hyderabad') {
-  const text = String(label || '')
-    .trim()
-    .toLowerCase()
+  const text = String(label || '').trim()
   if (!text) return fallback
-  if (text.includes('hyderabad')) return 'hyderabad'
-  const first = text.split(',')[0].trim()
-  return first || fallback
+  return text.split(',')[0].trim() || fallback
 }
 
-function formatRefexDistanceKm(value, fallback = '40') {
+function formatRefexDistanceKm(value, fallback = '1.0') {
   const km = Number(value)
   if (!Number.isFinite(km) || km <= 0) return fallback
   return km.toFixed(1)
@@ -354,24 +354,6 @@ export function mapRefexSearchResponse(payload, { searchId, httpOk = true } = {}
   }
 }
 
-/** Refex staging sandbox — only this route returns cabs (see working curl from Refex team). */
-const REFEX_SANDBOX_COORDINATES = {
-  pickUplat: 17.240041,
-  pickUplon: 78.429251,
-  droplat: 17.390873,
-  droplon: 78.469006,
-  pickUpAddress: 'Rajiv Gandhi International Airport',
-  dropAddress: 'ABIDS CENTRAL GST DIVISION',
-  pickUpCity: 'HYDERABAD',
-  dropCity: 'HYDERABAD',
-  distance: '40',
-  pickUpPlaceId: '1',
-  dropPlaceId: '1',
-}
-
-/** @deprecated use REFEX_SANDBOX_COORDINATES */
-const REFEX_SEARCH_DEFAULTS = REFEX_SANDBOX_COORDINATES
-
 /**
  * Search request body — field names/casing match working Postman payload exactly:
  * PickUpPlaceId, PickUpAddress, PickUplat, PickUplon, DropPlaceId, DropAddress,
@@ -383,17 +365,17 @@ export function buildRefexSearchPayload({
   tripMode = 'POINT TO POINT',
   startTime,
   endTime,
-  pickUplat = REFEX_SEARCH_DEFAULTS.pickUplat,
-  pickUplon = REFEX_SEARCH_DEFAULTS.pickUplon,
-  droplat = REFEX_SEARCH_DEFAULTS.droplat,
-  droplon = REFEX_SEARCH_DEFAULTS.droplon,
-  pickUpAddress = REFEX_SEARCH_DEFAULTS.pickUpAddress,
-  dropAddress = REFEX_SEARCH_DEFAULTS.dropAddress,
-  pickUpPlaceId = REFEX_SEARCH_DEFAULTS.pickUpPlaceId,
-  dropPlaceId = REFEX_SEARCH_DEFAULTS.dropPlaceId,
-  pickUpCity = REFEX_SEARCH_DEFAULTS.pickUpCity,
-  dropCity = REFEX_SEARCH_DEFAULTS.dropCity,
-  distance = REFEX_SEARCH_DEFAULTS.distance,
+  pickUplat,
+  pickUplon,
+  droplat,
+  droplon,
+  pickUpAddress = '',
+  dropAddress = '',
+  pickUpPlaceId = '1',
+  dropPlaceId = '1',
+  pickUpCity = 'HYDERABAD',
+  dropCity = 'HYDERABAD',
+  distance = '1.0',
   vendorId = refexVendorId,
   corporateName = refexCorporateName,
   epassStatus = '1',
@@ -413,7 +395,7 @@ export function buildRefexSearchPayload({
     TripMode: String(tripMode || 'POINT TO POINT'),
     StartTime,
     EndTime,
-    Distance: String(distance ?? REFEX_SEARCH_DEFAULTS.distance),
+    Distance: String(distance ?? '1.0'),
     SearchId: String(searchId),
     VendorId: String(vendorId ?? ''),
     CorporateName: String(corporateName || 'Mee Ticket'),
@@ -423,33 +405,87 @@ export function buildRefexSearchPayload({
   }
 }
 
-/** Pickup StartTime — must be in the future (IST). */
-export function refexPickupStartTime(journey, { minAheadMinutes = 30 } = {}) {
-  const accessMin = Number(journey?.access?.durationMin) || 0
-  const minutesAhead = Math.max(minAheadMinutes, accessMin + 10)
-  return defaultRefexStartTime(minutesAhead)
+/** Pickup StartTime in IST (offset from env via config). */
+export function refexPickupStartTime() {
+  return defaultRefexStartTime(refexStartOffsetMinutes)
+}
+
+/**
+ * EndTime = StartTime + driving minutes (Google Directions).
+ * Falls back to access duration or 50 min if Directions fails.
+ */
+export async function resolveRefexEndTime({
+  startTime,
+  pickUplat,
+  pickUplon,
+  droplat,
+  droplon,
+  fallbackMinutes,
+} = {}) {
+  let driveMin = null
+  const hasCoords = [pickUplat, pickUplon, droplat, droplon].every(
+    (value) => value != null && Number.isFinite(Number(value)),
+  )
+
+  if (hasCoords) {
+    try {
+      driveMin = await fetchDrivingEtaMinutes({
+        fromLat: pickUplat,
+        fromLng: pickUplon,
+        toLat: droplat,
+        toLng: droplon,
+      })
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn('[refex] Google driving ETA failed — using fallback', error)
+      }
+    }
+  }
+
+  const minutesAfterStart =
+    driveMin > 0
+      ? driveMin
+      : Math.max(Number(fallbackMinutes) || 0, REFEX_END_FALLBACK_MINUTES)
+
+  return {
+    endTime: defaultRefexEndTime(startTime, minutesAfterStart),
+    driveMin: driveMin > 0 ? driveMin : null,
+    minutesAfterStart,
+  }
 }
 
 /**
  * Resolve Refex search endpoints from journey + trip.
  * Pickup: user location → boarding station. Drop: alighting station → destination.
  */
-export function resolveRefexTripEndpoints({ journey, trip, serviceId = 'pickup' } = {}) {
-  if (refexUseSandboxCoordinates) {
-    return {
-      ...REFEX_SANDBOX_COORDINATES,
-      hasCoords: true,
-      sandboxCoordinates: true,
-    }
-  }
+function readCoord(value) {
+  if (value == null || value === '') return null
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+}
 
+export function resolveRefexTripEndpoints({ journey, trip, serviceId = 'pickup' } = {}) {
   const isDrop = serviceId === 'drop'
   const mile = isDrop ? journey?.egress : journey?.access
+  const raw = isDrop ? journey?.raw?.egress : journey?.raw?.access
 
-  const pickUplat = Number(isDrop ? mile?.fromLat : trip?.fromLat ?? mile?.fromLat)
-  const pickUplon = Number(isDrop ? mile?.fromLon : trip?.fromLon ?? mile?.fromLon)
-  const droplat = Number(isDrop ? trip?.toLat ?? mile?.toLat : mile?.toLat)
-  const droplon = Number(isDrop ? trip?.toLon ?? mile?.toLon : mile?.toLon)
+  const tripFromLat = readCoord(trip?.fromLat)
+  const tripFromLon = readCoord(trip?.fromLon ?? trip?.fromLng)
+  const tripToLat = readCoord(trip?.toLat)
+  const tripToLon = readCoord(trip?.toLon ?? trip?.toLng)
+
+  const pickUplat = isDrop
+    ? readCoord(mile?.fromLat ?? raw?.from_lat)
+    : readCoord(mile?.fromLat ?? raw?.from_lat) ?? tripFromLat
+  const pickUplon = isDrop
+    ? readCoord(mile?.fromLon ?? raw?.from_lon)
+    : readCoord(mile?.fromLon ?? raw?.from_lon) ?? tripFromLon
+  const droplat = isDrop
+    ? readCoord(mile?.toLat ?? raw?.to_lat) ?? tripToLat
+    : readCoord(mile?.toLat ?? raw?.to_lat)
+  const droplon = isDrop
+    ? readCoord(mile?.toLon ?? raw?.to_lon) ?? tripToLon
+    : readCoord(mile?.toLon ?? raw?.to_lon)
 
   const pickUpAddress = String(
     isDrop ? mile?.fromLabel : trip?.fromPlace ?? mile?.fromLabel ?? '',
@@ -458,31 +494,26 @@ export function resolveRefexTripEndpoints({ journey, trip, serviceId = 'pickup' 
     isDrop ? trip?.toPlace ?? mile?.toLabel : mile?.toLabel ?? journey?.originStation ?? '',
   )
 
-  let distance = REFEX_SEARCH_DEFAULTS.distance
+  const hasCoords = [pickUplat, pickUplon, droplat, droplon].every((value) => value != null)
+
+  let distance = '1.0'
   if (mile?.distanceM) {
     distance = formatRefexDistanceKm(Number(mile.distanceM) / 1000)
-  } else if (
-    Number.isFinite(pickUplat) &&
-    Number.isFinite(pickUplon) &&
-    Number.isFinite(droplat) &&
-    Number.isFinite(droplon)
-  ) {
+  } else if (hasCoords) {
     distance = formatRefexDistanceKm(haversineKm(pickUplat, pickUplon, droplat, droplon))
   }
 
-  const hasCoords = [pickUplat, pickUplon, droplat, droplon].every((value) => Number.isFinite(value))
-
   return {
-    pickUplat: REFEX_SEARCH_DEFAULTS.pickUplat, //hasCoords ? pickUplat : REFEX_SEARCH_DEFAULTS.pickUplat,
-    pickUplon: REFEX_SEARCH_DEFAULTS.pickUplon, //hasCoords ? pickUplon : REFEX_SEARCH_DEFAULTS.pickUplon,
-    droplat: REFEX_SEARCH_DEFAULTS.droplat, //hasCoords ? droplat : REFEX_SEARCH_DEFAULTS.droplat,
-    droplon: REFEX_SEARCH_DEFAULTS.droplon, //hasCoords ? droplon : REFEX_SEARCH_DEFAULTS.droplon,
+    pickUplat,
+    pickUplon,
+    droplat,
+    droplon,
     pickUpAddress: shortRefexAddress(pickUpAddress),
     dropAddress: shortRefexAddress(dropAddress),
-    pickUpPlaceId: REFEX_SEARCH_DEFAULTS.pickUpPlaceId,
-    dropPlaceId: REFEX_SEARCH_DEFAULTS.dropPlaceId,
-    pickUpCity: REFEX_SEARCH_DEFAULTS.pickUpCity,
-    dropCity: REFEX_SEARCH_DEFAULTS.dropCity,
+    pickUpPlaceId: '1',
+    dropPlaceId: '1',
+    pickUpCity: 'HYDERABAD',
+    dropCity: 'HYDERABAD',
     distance,
     hasCoords,
   }
@@ -493,17 +524,32 @@ export async function searchRefexForJourney(
   { signal } = {},
 ) {
   const endpoints = resolveRefexTripEndpoints({ journey, trip, serviceId })
-  const startTime = `2026-09-0${new Date().getDate()} 23:00:00` // refexPickupStartTime(journey) //TODO  USE Actual time from journey
-  const endTime = `2026-09-0${new Date().getDate()} 23:00:00` // defaultRefexEndTime(startTime) //TODO USE Actual time from journey
+  const startTime = refexPickupStartTime()
   const searchId = createRefexSearchId('Refex')
+
+  if (!endpoints.hasCoords) {
+    throw new Error('Missing pickup or drop coordinates for Refex search')
+  }
+
+  const mile = serviceId === 'drop' ? journey?.egress : journey?.access
+  const { endTime, driveMin, minutesAfterStart } = await resolveRefexEndTime({
+    startTime,
+    pickUplat: endpoints.pickUplat,
+    pickUplon: endpoints.pickUplon,
+    droplat: endpoints.droplat,
+    droplon: endpoints.droplon,
+    fallbackMinutes: mile?.durationMin,
+  })
 
   console.info('[refex] journey search', {
     journeyId: journey?.id,
     serviceId,
     searchId,
-    sandboxCoordinates: refexUseSandboxCoordinates,
+    hasCoords: endpoints.hasCoords,
     startTime,
     endTime,
+    driveMin,
+    minutesAfterStart,
     distance: endpoints.distance,
     pickUplat: endpoints.pickUplat,
     pickUplon: endpoints.pickUplon,
@@ -537,7 +583,7 @@ export async function searchRefex(params = {}, { signal, useMock } = {}) {
 
   const mockFromRequest = () =>
     buildRefexSearchMockResponse({
-      distance: params.distance ?? REFEX_SEARCH_DEFAULTS.distance,
+      distance: params.distance ?? '1.0',
       startTime,
     })
 
@@ -579,7 +625,7 @@ export async function searchRefex(params = {}, { signal, useMock } = {}) {
   const mapped = mapRefexSearchResponse(payload, { searchId, httpOk: httpStatus === 200 })
   const noCars = mapped.ok && mapped.vehicles.length === 0
 
-  if (import.meta.env.DEV && (!mapped.ok || noCars) && !refexUseSandboxCoordinates) {
+  if (import.meta.env.DEV && (!mapped.ok || noCars)) {
     console.warn('[refex] live search unavailable', {
       httpStatus,
       errorMessage: mapped.errorMessage,

@@ -44,14 +44,11 @@ export const refexVendorId = import.meta.env.VITE_REFEX_VENDOR_ID || ''
 export const refexCorporateName = import.meta.env.VITE_REFEX_CORPORATE_NAME || 'Mee Ticket'
 export const refexPartnerName =
   import.meta.env.VITE_REFEX_PARTNER_NAME || refexCorporateName || 'Mee Ticket'
-
-/**
- * Refex staging only returns cabs for fixed pickup/drop coordinates.
- * When true (dev only), search uses sandbox lat/lon instead of user → station coords.
- * Never active in production builds — `import.meta.env.DEV` is false after `vite build`.
- */
-export const refexUseSandboxCoordinates =
-  import.meta.env.DEV && import.meta.env.VITE_REFEX_USE_SANDBOX_COORDINATES === 'true'
+/** Temporary Refex StartTime offset (minutes). From `VITE_REFEX_START_OFFSET_MINUTES`; default 0. */
+export const refexStartOffsetMinutes = (() => {
+  const raw = Number(import.meta.env.VITE_REFEX_START_OFFSET_MINUTES)
+  return Number.isFinite(raw) && raw >= 0 ? raw : 0
+})()
 
 const refexApiRoot = refexBaseUrl ? `${refexBaseUrl}/thirdparty/v1/api/meeticket` : ''
 
