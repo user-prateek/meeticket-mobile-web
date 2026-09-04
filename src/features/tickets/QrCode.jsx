@@ -5,7 +5,7 @@ function hashSeed(str) {
 }
 
 /** Decorative QR stand-in for mock tickets (not a real encoder). */
-export function QrCode({ payload = 'meeticket', size = 180, className }) {
+export function QrCode({ payload = 'meeticket', size = 180, className, moduleFill = '#111' }) {
   const seed = hashSeed(payload)
   const cells = 21
   const modules = []
@@ -46,7 +46,7 @@ export function QrCode({ payload = 'meeticket', size = 180, className }) {
       <rect width={cells} height={cells} fill="#fff" />
       {modules.map((key) => {
         const [x, y] = key.split(',').map(Number)
-        return <rect key={key} x={x} y={y} width="1" height="1" fill="#111" />
+        return <rect key={key} x={x} y={y} width="1" height="1" fill={moduleFill} />
       })}
     </svg>
   )

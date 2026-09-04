@@ -24,7 +24,7 @@ import {
   PRIMARY_TICKET_TABS,
   secondsUntilValidUntil,
 } from '../../constants/tickets'
-import { TicketQrDisplay } from './TicketQrDisplay'
+import { ExpiredQrFrame, TicketQrDisplay } from './TicketQrDisplay'
 import { TicketQrFlip } from './TicketQrFlip'
 import { OtpQrCode } from './OtpQrCode'
 import { QrCode } from './QrCode'
@@ -436,6 +436,9 @@ function MetroTicket({ ticket, onDropService, qrFlipDirection }) {
 }
 
 function formatCountdown(totalSeconds) {
+  if (totalSeconds == null || !Number.isFinite(totalSeconds)) {
+    return { hrs: '--', mns: '--', secs: '--' }
+  }
   const s = Math.max(0, totalSeconds)
   const hrs = String(Math.floor(s / 3600)).padStart(2, '0')
   const mns = String(Math.floor((s % 3600) / 60)).padStart(2, '0')
@@ -494,7 +497,9 @@ function BusTicket({ ticket, onDropService, qrFlipDirection }) {
     hasLiveQr ? null : ticket.validSeconds ?? 0,
   )
   const [qrKey, setQrKey] = useState(0)
+  const [qrFailed, setQrFailed] = useState(false)
   const expired = remaining != null && remaining <= 0
+  const unusable = expired || qrFailed
 
   useEffect(() => {
     if (remaining == null) return undefined
@@ -509,14 +514,25 @@ function BusTicket({ ticket, onDropService, qrFlipDirection }) {
     if (seconds != null) setRemaining(seconds)
   }, [])
 
-  const clock = formatCountdown(remaining ?? 0)
+  const handleQrState = useCallback(({ status, error, consumed, expired: qrExpired }) => {
+    if (consumed || qrExpired) {
+      setRemaining(0)
+      setQrFailed(false)
+      return
+    }
+    setQrFailed(status === 'error' && Boolean(error))
+  }, [])
+
+  const clock = formatCountdown(remaining)
   const pax = ticket.passengers
   const infoText = expired
-    ? 'This ticket cannot be used now. Validity has expired.'
-    : ticket.instruction
+    ? 'This ticket cannot be used now. Validity has expired or booking has been used.'
+    : qrFailed
+      ? 'Ticket QR could not be loaded. Tap Refresh QR to try again.'
+      : ticket.instruction
 
   return (
-    <div className={`mt-ticket mt-ticket--bus${expired ? ' is-expired' : ''}`}>
+    <div className={`mt-ticket mt-ticket--bus${unusable ? ' is-expired' : ''}`}>
       <article className="mt-bus-card">
         <header className="mt-bus-card__banner">
           <span className="mt-bus-card__pnr">PNR: {ticket.pnr}</span>
@@ -557,21 +573,30 @@ function BusTicket({ ticket, onDropService, qrFlipDirection }) {
               refreshable
               expired={expired}
               onValidUntil={handleValidUntil}
+              onQrState={handleQrState}
               wrapQr={(qr) => <TicketQrFlip flipDirection={qrFlipDirection}>{qr}</TicketQrFlip>}
             />
+          ) : expired ? (
+            <>
+              <TicketQrFlip flipDirection={qrFlipDirection}>
+                <ExpiredQrFrame
+                  size={179}
+                  seed={ticket.qrPayload || ticket.pnr || 'bus'}
+                  className="mt-qr"
+                />
+              </TicketQrFlip>
+            </>
           ) : (
             <>
               <TicketQrFlip flipDirection={qrFlipDirection}>
                 <QrCode
                   payload={`${ticket.qrPayload}-${qrKey}`}
                   size={179}
-                  className={`mt-qr mt-qr--framed${expired ? ' is-expired' : ''}`}
+                  className="mt-qr mt-qr--framed"
                 />
               </TicketQrFlip>
               <div className="mt-bus-actions">
-                <span className={`mt-bus-valid${expired ? ' is-expired' : ''}`}>
-                  {expired ? 'Expired' : ticket.status}
-                </span>
+                <span className="mt-bus-valid">{ticket.status}</span>
                 <button
                   type="button"
                   className="mt-bus-refresh mt-bus-refresh--outline"
@@ -584,7 +609,7 @@ function BusTicket({ ticket, onDropService, qrFlipDirection }) {
           )}
         </div>
 
-        <div className={`mt-bus-info${expired ? ' is-expired' : ''}`}>
+        <div className={`mt-bus-info${unusable ? ' is-expired' : ''}`}>
           <InfoIcon size={24} className="mt-bus-info__icon" />
           <p>{infoText}</p>
         </div>

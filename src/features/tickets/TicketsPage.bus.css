@@ -399,6 +399,67 @@
   filter: grayscale(0.35);
 }
 
+/* Expired / consumed: faded QR look + EXPIRED pill; actions row hidden in JS */
+.mt-qr-expired {
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  width: var(--tk-qr-frame);
+  height: var(--tk-qr-frame);
+  border: var(--tk-qr-border) solid var(--tk-border);
+  border-radius: var(--tk-radius-9);
+  padding: var(--tk-qr-pad);
+  background: var(--tk-surface);
+  box-shadow: var(--tk-card-shadow);
+}
+
+.mt-qr-expired__art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+}
+
+.mt-qr-expired__veil {
+  position: absolute;
+  inset: var(--tk-qr-pad, 10px);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  pointer-events: none;
+}
+
+.mt-qr-expired-badge {
+  position: absolute;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 7px;
+  border: 1.5px solid #dc2626;
+  border-radius: 999px;
+  background: #fff;
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  pointer-events: none;
+}
+
+.mt-qr-expired-badge__icon {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #dc2626;
+  flex-shrink: 0;
+}
+
 .mt-bus-refresh--outline {
   border: 1px solid var(--tk-primary);
   background: var(--tk-surface);
