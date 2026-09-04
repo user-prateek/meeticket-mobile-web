@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
 import { useAtomValue } from 'jotai'
-import { getOrderId } from '../api/orders'
+import { cancelOrderLeg, fetchOrderPgStatus, getOrderId } from '../api/orders'
 import { buildBookingFromPgStatus } from '../constants/tickets'
 import { TicketsPage } from '../features/tickets/TicketsPage'
 import { useAppNavigate } from '../hooks/useAppNavigate'
@@ -74,6 +74,24 @@ export function SuccessPage() {
     })
   }, [orderId, pgStatus, trip])
 
+  async function handleCancelled({ legId, reason, reasonLabel }) {
+    if (!orderId) {
+      throw new Error('Missing order id')
+    }
+    if (legId == null || legId === '') {
+      throw new Error('Missing cab leg id')
+    }
+
+    await cancelOrderLeg(orderId, legId, {
+      cancelled_by: 'Customer',
+      reason: reason || reasonLabel || 'Customer cancelled',
+    })
+
+    const status = await fetchOrderPgStatus(orderId)
+    setPgStatus(status)
+    setFetchError('')
+  }
+
   if (!orderId) {
     return <Navigate to={withAppContext('/journey')} replace />
   }
@@ -100,7 +118,7 @@ export function SuccessPage() {
       onBack={goBack}
       onCall={() => window.alert('Calling support…')}
       onDropService={() => navigate('/gotohome', { replace: false })}
-      onCancelled={goBack}
+      onCancelled={handleCancelled}
     />
   )
 }

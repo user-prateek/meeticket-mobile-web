@@ -151,6 +151,17 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
+.mt-tickets__cancelled-banner {
+  margin: 0 var(--tk-body-pad);
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
 .mt-tickets__body {
   flex: 1;
   overflow: auto;
@@ -635,6 +646,17 @@
 
 .mt-cancel-modal__option input {
   accent-color: var(--mt-primary);
+}
+
+.mt-cancel-modal__error {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 .mt-cancel-modal__cta {

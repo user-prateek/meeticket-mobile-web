@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { CheckIcon, RefreshIcon } from '../../components/icons'
+import { CheckIcon, CloseIcon, RefreshIcon } from '../../components/icons'
 import { useBookingQr } from '../../hooks/useBookingQr'
 import { QrCode } from './QrCode'
 
@@ -9,6 +9,7 @@ export function TicketQrDisplay({
   size = 180,
   className = 'mt-qr',
   refreshable = false,
+  expired = false,
   onValidUntil,
   /** Wrap only the QR graphic (e.g. TicketQrFlip). Actions stay outside the wrapper. */
   wrapQr,
@@ -31,13 +32,13 @@ export function TicketQrDisplay({
     qrNode = (
       <img
         src={qrImage}
-        alt="Ticket QR code"
-        className={`${className} mt-qr--image mt-qr--framed`}
+        alt={expired ? 'Expired ticket QR code' : 'Ticket QR code'}
+        className={`${className} mt-qr--image mt-qr--framed${expired ? ' is-expired' : ''}`}
         width={size}
         height={size}
       />
     )
-  } else if (bookingReferenceNumber && status === 'error') {
+  } else if (bookingReferenceNumber && status === 'error' && !qrImage) {
     qrNode = (
       <div className="mt-qr mt-qr--error">
         <p>{error || 'Could not load QR code'}</p>
@@ -47,16 +48,29 @@ export function TicketQrDisplay({
       </div>
     )
   } else {
-    qrNode = <QrCode payload={fallbackPayload} size={size} className={`${className} mt-qr--framed`} />
+    qrNode = (
+      <QrCode
+        payload={fallbackPayload}
+        size={size}
+        className={`${className} mt-qr--framed${expired ? ' is-expired' : ''}`}
+      />
+    )
   }
 
   const actionsEl =
     refreshable && bookingReferenceNumber ? (
       <div className="mt-bus-actions">
-        <span className="mt-bus-valid">
-          <CheckIcon size={20} />
-          Valid
-        </span>
+        {expired ? (
+          <span className="mt-bus-valid is-expired" role="status">
+            <CloseIcon size={18} />
+            Expired
+          </span>
+        ) : (
+          <span className="mt-bus-valid">
+            <CheckIcon size={20} />
+            Valid
+          </span>
+        )}
         <button
           type="button"
           className="mt-bus-refresh mt-bus-refresh--outline"

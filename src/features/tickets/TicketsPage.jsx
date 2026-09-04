@@ -132,7 +132,8 @@ function CabRouteTimeline({ from, to, fromRole, toRole, durationMin }) {
 }
 
 function CabTicket({ ticket, onCancel, qrFlipDirection }) {
-  const pin = String(ticket.pin || '').trim()
+  const cancelled = ticket.bookingState === 'cancelled'
+  const pin = cancelled ? '' : String(ticket.pin || '').trim()
   const providerLogo = getCabProviderLogo(ticket.providerId)
   const showFare = ticket.fareInr != null && Number(ticket.fareInr) > 0
   const showDriver = Boolean(
@@ -143,7 +144,7 @@ function CabTicket({ ticket, onCancel, qrFlipDirection }) {
   )
 
   return (
-    <div className="mt-ticket mt-ticket--cab">
+    <div className={`mt-ticket mt-ticket--cab${cancelled ? ' is-cancelled' : ''}`}>
       <article className="mt-cab-trip-card">
         <div className="mt-cab-trip-card__provider">
           <div className="mt-cab-trip-card__brand">
@@ -239,6 +240,8 @@ function CabTicket({ ticket, onCancel, qrFlipDirection }) {
             <button type="button" className="mt-cab-bottom-card__cancel" onClick={onCancel}>
               Cancel Ride
             </button>
+          ) : cancelled ? (
+            <span className="mt-cab-bottom-card__cancelled-label">Cancelled</span>
           ) : null}
         </div>
       </article>
@@ -486,27 +489,34 @@ function BusCountdown({ clock }) {
 }
 
 function BusTicket({ ticket, onDropService, qrFlipDirection }) {
-  const [remaining, setRemaining] = useState(ticket.validSeconds ?? 0)
-  const [qrKey, setQrKey] = useState(0)
   const hasLiveQr = Boolean(ticket.bookingReferenceNumber)
+  const [remaining, setRemaining] = useState(() =>
+    hasLiveQr ? null : ticket.validSeconds ?? 0,
+  )
+  const [qrKey, setQrKey] = useState(0)
+  const expired = remaining != null && remaining <= 0
 
   useEffect(() => {
+    if (remaining == null) return undefined
     const id = window.setInterval(() => {
       setRemaining((n) => (n > 0 ? n - 1 : 0))
     }, 1000)
     return () => window.clearInterval(id)
-  }, [])
+  }, [remaining == null])
 
   const handleValidUntil = useCallback((validUntil) => {
     const seconds = secondsUntilValidUntil(validUntil)
     if (seconds != null) setRemaining(seconds)
   }, [])
 
-  const clock = formatCountdown(remaining)
+  const clock = formatCountdown(remaining ?? 0)
   const pax = ticket.passengers
+  const infoText = expired
+    ? 'This ticket cannot be used now. Validity has expired.'
+    : ticket.instruction
 
   return (
-    <div className="mt-ticket mt-ticket--bus">
+    <div className={`mt-ticket mt-ticket--bus${expired ? ' is-expired' : ''}`}>
       <article className="mt-bus-card">
         <header className="mt-bus-card__banner">
           <span className="mt-bus-card__pnr">PNR: {ticket.pnr}</span>
@@ -529,8 +539,10 @@ function BusTicket({ ticket, onDropService, qrFlipDirection }) {
 
       <article className="mt-bus-qr-card">
         <div className="mt-bus-qr-card__top">
-          <div className="mt-bus-validity">
-            <span className="mt-bus-validity__label">Ticket is Valid Till</span>
+          <div className={`mt-bus-validity${expired ? ' is-expired' : ''}`}>
+            <span className="mt-bus-validity__label">
+              {expired ? 'Ticket expired' : 'Ticket is Valid Till'}
+            </span>
             <BusCountdown clock={clock} />
           </div>
           <img className="mt-bus-qr-card__emblem" src={tgsrtcLogo} alt="TGSRTC" draggable={false} />
@@ -543,17 +555,28 @@ function BusTicket({ ticket, onDropService, qrFlipDirection }) {
               fallbackPayload={ticket.qrPayload}
               size={179}
               refreshable
+              expired={expired}
               onValidUntil={handleValidUntil}
               wrapQr={(qr) => <TicketQrFlip flipDirection={qrFlipDirection}>{qr}</TicketQrFlip>}
             />
           ) : (
             <>
               <TicketQrFlip flipDirection={qrFlipDirection}>
-                <QrCode payload={`${ticket.qrPayload}-${qrKey}`} size={179} className="mt-qr mt-qr--framed" />
+                <QrCode
+                  payload={`${ticket.qrPayload}-${qrKey}`}
+                  size={179}
+                  className={`mt-qr mt-qr--framed${expired ? ' is-expired' : ''}`}
+                />
               </TicketQrFlip>
               <div className="mt-bus-actions">
-                <span className="mt-bus-valid">{ticket.status}</span>
-                <button type="button" className="mt-bus-refresh mt-bus-refresh--outline" onClick={() => setQrKey((n) => n + 1)}>
+                <span className={`mt-bus-valid${expired ? ' is-expired' : ''}`}>
+                  {expired ? 'Expired' : ticket.status}
+                </span>
+                <button
+                  type="button"
+                  className="mt-bus-refresh mt-bus-refresh--outline"
+                  onClick={() => setQrKey((n) => n + 1)}
+                >
                   Refresh QR
                 </button>
               </div>
@@ -561,9 +584,9 @@ function BusTicket({ ticket, onDropService, qrFlipDirection }) {
           )}
         </div>
 
-        <div className="mt-bus-info">
+        <div className={`mt-bus-info${expired ? ' is-expired' : ''}`}>
           <InfoIcon size={24} className="mt-bus-info__icon" />
-          <p>{ticket.instruction}</p>
+          <p>{infoText}</p>
         </div>
       </article>
 
@@ -595,19 +618,40 @@ function EmptyTabPanel({ tabLabel }) {
   )
 }
 
-function CancelTripModal({ open, reasonId, onReason, onClose, onSkip, onConfirm }) {
+function CancelTripModal({
+  open,
+  reasonId,
+  onReason,
+  onClose,
+  onSkip,
+  onConfirm,
+  confirming = false,
+  error = '',
+}) {
   if (!open) return null
 
   return (
     <div className="mt-cancel-modal" role="dialog" aria-modal="true" aria-labelledby="mt-cancel-title">
-      <button type="button" className="mt-cancel-modal__backdrop" aria-label="Dismiss" onClick={onClose} />
+      <button
+        type="button"
+        className="mt-cancel-modal__backdrop"
+        aria-label="Dismiss"
+        onClick={onClose}
+        disabled={confirming}
+      />
       <div className="mt-cancel-modal__sheet">
         <div className="mt-cancel-modal__top">
-          <button type="button" className="mt-cancel-modal__icon" onClick={onClose} aria-label="Close">
+          <button
+            type="button"
+            className="mt-cancel-modal__icon"
+            onClick={onClose}
+            aria-label="Close"
+            disabled={confirming}
+          >
             <CloseIcon size={18} />
           </button>
           <h2 id="mt-cancel-title">Cancel Trip?</h2>
-          <button type="button" className="mt-cancel-modal__skip" onClick={onSkip}>
+          <button type="button" className="mt-cancel-modal__skip" onClick={onSkip} disabled={confirming}>
             Skip
           </button>
         </div>
@@ -624,6 +668,7 @@ function CancelTripModal({ open, reasonId, onReason, onClose, onSkip, onConfirm 
                   value={reason.id}
                   checked={reasonId === reason.id}
                   onChange={() => onReason(reason.id)}
+                  disabled={confirming}
                 />
                 <span>{reason.label}</span>
               </label>
@@ -631,8 +676,19 @@ function CancelTripModal({ open, reasonId, onReason, onClose, onSkip, onConfirm 
           ))}
         </ul>
 
-        <button type="button" className="mt-cancel-modal__cta" onClick={onConfirm} disabled={!reasonId}>
-          Cancel Ride
+        {error ? (
+          <p className="mt-cancel-modal__error" role="alert">
+            {error}
+          </p>
+        ) : null}
+
+        <button
+          type="button"
+          className="mt-cancel-modal__cta"
+          onClick={onConfirm}
+          disabled={!reasonId || confirming}
+        >
+          {confirming ? 'Cancelling…' : 'Cancel Ride'}
         </button>
       </div>
     </div>
@@ -654,6 +710,14 @@ function renderTicket(ticket, { onCancel, onDropService, busKey, qrFlipDirection
     return (
       <div className="mt-ticket mt-ticket--failed">
         <p className="mt-ticket-empty">{ticket.message || 'Booking failed.'}</p>
+      </div>
+    )
+  }
+
+  if (ticket.bookingState === 'cancelled' && ticket.type !== 'cab' && ticket.type !== 'metro' && ticket.type !== 'bus') {
+    return (
+      <div className="mt-ticket mt-ticket--cancelled">
+        <p className="mt-ticket-empty">{ticket.message || 'This booking was cancelled.'}</p>
       </div>
     )
   }
@@ -690,6 +754,8 @@ export function TicketsPage({ booking, onBack, onCall, onCancelled, onDropServic
   const [journeyIndex, setJourneyIndex] = useState(0)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [reasonId, setReasonId] = useState('find-driver')
+  const [cancelLoading, setCancelLoading] = useState(false)
+  const [cancelError, setCancelError] = useState('')
   const [tabFlipDirection, setTabFlipDirection] = useState(null)
   const prevTabIdRef = useRef(tabId)
   const skipTabFlipRef = useRef(true)
@@ -762,6 +828,12 @@ export function TicketsPage({ booking, onBack, onCall, onCancelled, onDropServic
         <JourneyTabs journeys={journeys} activeIndex={journeyIndex} onChange={setJourneyIndex} />
       ) : null}
 
+      {ticket?.bookingState === 'cancelled' ? (
+        <p className="mt-tickets__cancelled-banner" role="status">
+          Ride cancelled
+        </p>
+      ) : null}
+
       <div className="mt-tickets__body" role="tabpanel">
         {tabEnabled
           ? renderTicket(ticket, {
@@ -778,12 +850,43 @@ export function TicketsPage({ booking, onBack, onCall, onCancelled, onDropServic
       <CancelTripModal
         open={cancelOpen}
         reasonId={reasonId}
-        onReason={setReasonId}
-        onClose={() => setCancelOpen(false)}
-        onSkip={() => setCancelOpen(false)}
-        onConfirm={() => {
+        onReason={(nextId) => {
+          setReasonId(nextId)
+          setCancelError('')
+        }}
+        onClose={() => {
+          if (cancelLoading) return
           setCancelOpen(false)
-          onCancelled?.({ reasonId })
+          setCancelError('')
+        }}
+        onSkip={() => {
+          if (cancelLoading) return
+          setCancelOpen(false)
+          setCancelError('')
+        }}
+        confirming={cancelLoading}
+        error={cancelError}
+        onConfirm={async () => {
+          if (cancelLoading) return
+          const reason = CANCEL_REASONS.find((item) => item.id === reasonId)
+          const payload = {
+            orderId: normalized?.orderId || normalized?.id,
+            legId: ticket?.legId,
+            legType: ticket?.legType || ticket?.type,
+            reasonId,
+            reasonLabel: reason?.label || reasonId,
+            reason: reason?.label || reasonId,
+          }
+          setCancelLoading(true)
+          setCancelError('')
+          try {
+            await onCancelled?.(payload)
+            setCancelOpen(false)
+          } catch (error) {
+            setCancelError(error?.message || 'Could not cancel this ride.')
+          } finally {
+            setCancelLoading(false)
+          }
         }}
       />
     </section>

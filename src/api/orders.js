@@ -500,6 +500,55 @@ export function orderPgStatusUrl(orderId) {
   return `${urls.orders}/${encodeURIComponent(id)}/pg/status`
 }
 
+/** POST /api/orders/{orderId}/legs/{legId}/cancel — CAB (Refex) only today. */
+export function orderLegCancelUrl(orderId, legId) {
+  const id = getOrderId({ order_id: orderId, orderId }) ?? orderId
+  if (!urls.orders || !id || legId == null || legId === '') return ''
+  return `${urls.orders}/${encodeURIComponent(id)}/legs/${encodeURIComponent(String(legId))}/cancel`
+}
+
+/**
+ * Cancel a confirmed order leg (CAB/Refex).
+ * HTTP 200 is not enough — check `cancellation.status` (`CANCELLED` | `FAILED` | …).
+ */
+export async function cancelOrderLeg(
+  orderId,
+  legId,
+  { cancelled_by = 'Customer', reason } = {},
+  { signal } = {},
+) {
+  const url = orderLegCancelUrl(orderId, legId)
+  if (!url) {
+    throw new Error('Cancel URL is not configured (missing order id or leg id)')
+  }
+
+  const body = {
+    cancelled_by: String(cancelled_by || 'Customer').trim() || 'Customer',
+    reason: String(reason || '').trim() || 'Customer cancelled',
+  }
+
+  if (import.meta.env.DEV) {
+    console.info('[orders] POST', url, { body })
+  }
+
+  const data = await PostRequest(url, body, {
+    signal,
+    headers: ordersAuthHeaders(),
+  })
+
+  const cancelStatus = String(data?.cancellation?.status || '').toUpperCase()
+  if (cancelStatus === 'FAILED') {
+    const err = new Error(
+      data?.cancellation?.failure_reason || data?.leg?.failure_reason || 'Cancellation failed',
+    )
+    err.cancellation = data?.cancellation
+    err.leg = data?.leg
+    throw err
+  }
+
+  return data
+}
+
 /** GET /api/pg/callback?order_id=… — Paytm redirect target (returns JSON). */
 export function pgCallbackUrl(orderId) {
   const id = getOrderId({ order_id: orderId, orderId }) ?? orderId
@@ -628,11 +677,13 @@ export function isPgPaymentSuccessful(pgStatus) {
 }
 
 const LEG_CONFIRMED = new Set(['CONFIRMED', 'SUCCESS', 'BOOKED', 'COMPLETED'])
-const LEG_FAILED = new Set(['FAILED', 'FAILURE', 'CANCELLED'])
+const LEG_CANCELLED = new Set(['CANCELLED', 'CANCELED'])
+const LEG_FAILED = new Set(['FAILED', 'FAILURE'])
 
 export function classifyLegBooking(leg) {
   const status = String(leg?.status ?? '').toUpperCase()
   if (LEG_CONFIRMED.has(status)) return 'confirmed'
+  if (LEG_CANCELLED.has(status)) return 'cancelled'
   if (LEG_FAILED.has(status)) return 'failed'
   return 'pending'
 }

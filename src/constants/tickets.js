@@ -446,6 +446,7 @@ function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
       bookingState: 'pending',
       message: 'Confirming booking…',
       pending: true,
+      canCancel: false,
     }
   }
 
@@ -456,12 +457,26 @@ function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
       bookingState: 'failed',
       message: leg.failure_reason || 'Booking could not be completed.',
       pending: false,
+      canCancel: false,
+    }
+  }
+
+  if (state === 'cancelled' && tabId !== 'cab' && tabId !== 'metro' && tabId !== 'bus') {
+    return {
+      ...base,
+      id: `${tabId}-cancelled-${leg.leg_id}`,
+      type: tabId,
+      bookingState: 'cancelled',
+      message: 'This booking was cancelled.',
+      pending: false,
+      canCancel: false,
     }
   }
 
   if (tabId === 'metro') {
     const details = base.bookingDetails
     const defaults = createMetroTicket(null, index, journey, trip)
+    const cancelled = state === 'cancelled'
     const bookingRef = leg.booking_reference_number || null
     const ticketQr = leg.ticket_qr || leg.ticketQr || details?.ticket_qr || null
     const ticketId = leg.ticket_id || leg.ticketId || details?.ticket_id || null
@@ -473,7 +488,8 @@ function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
       ...defaults,
       ...base,
       id: `metro-${leg.leg_id}`,
-      bookingState: 'confirmed',
+      bookingState: cancelled ? 'cancelled' : 'confirmed',
+      canCancel: false,
       fareInr: resolveMetroFareInr(leg, fareInr ?? defaults.fareInr),
       refId:leg.ticket_id || refId,
       from: leg.from_station_name || defaults.from,
@@ -502,12 +518,14 @@ function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
   if (tabId === 'bus') {
     const details = base.bookingDetails
     const defaults = createBusTicket(null, index, journey)
+    const cancelled = state === 'cancelled'
     const bookingRef = leg.booking_reference_number || null
     return {
       ...defaults,
       ...base,
       id: `bus-${leg.leg_id}`,
-      bookingState: 'confirmed',
+      bookingState: cancelled ? 'cancelled' : 'confirmed',
+      canCancel: false,
       pnr: bookingRef || defaults.pnr,
       fareInr: fareInr ?? defaults.fareInr,
       issuedOn: issuedOnFromLeg(leg, details, defaults.issuedOn),
@@ -533,6 +551,7 @@ function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
     const verificationCode = readCabVerificationCode(leg, details)
     const driverInfo = readCabDriverInfo(leg, details)
     const vehicleInfo = readCabVehicleInfo(leg, details)
+    const cancelled = state === 'cancelled'
     const driverName =
       driverInfo?.name ||
       driverInfo?.driver_name ||
@@ -570,11 +589,13 @@ function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
       ...defaults,
       ...base,
       id: `cab-${leg.leg_id}`,
-      bookingState: 'confirmed',
+      bookingState: cancelled ? 'cancelled' : 'confirmed',
+      canCancel: !cancelled,
+      statusLabel: cancelled ? 'Cancelled' : null,
       fareInr: fareInr ?? defaults.fareInr,
       datetime: cabDatetimeFromLeg(leg, details, defaults.datetime),
       pax: adultCount + childCount || adultCount,
-      pin: verificationCode || defaults.pin,
+      pin: cancelled ? '' : verificationCode || defaults.pin,
       from:
         readLegLocName(leg, 'from') ||
         details?.pickup_address ||

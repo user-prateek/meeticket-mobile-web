@@ -342,9 +342,11 @@
 
 .mt-bus-actions {
   display: flex;
+  align-items: center;
   gap: var(--tk-action-gap);
   width: 100%;
-  max-width: 204px;
+  max-width: 280px;
+  justify-content: center;
 }
 
 .mt-bus-valid,
@@ -353,18 +355,48 @@
   align-items: center;
   justify-content: center;
   gap: var(--tk-space-6);
-  min-height: var(--tk-action-h);
-  padding: 6px var(--tk-action-pad-x);
+  min-height: 36px;
+  padding: 8px 14px;
   border-radius: var(--tk-radius-pill);
   font-size: var(--tk-action-font);
   font-weight: 600;
   line-height: 16px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .mt-bus-valid {
-  border: 0;
+  border: 1px solid;
   background: transparent;
   color: var(--tk-success-btn);
+}
+
+.mt-bus-valid.is-expired {
+  color: #b91c1c;
+}
+
+.mt-bus-validity.is-expired .mt-countdown__row-item strong {
+  color: #b91c1c;
+}
+
+.mt-bus-validity.is-expired .mt-bus-validity__label {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.mt-bus-info.is-expired {
+  background: #fef2f2;
+}
+
+.mt-bus-info.is-expired p {
+  color: #991b1b;
+  font-weight: 600;
+}
+
+.mt-qr.is-expired,
+.mt-qr--framed.is-expired {
+  opacity: 0.55;
+  filter: grayscale(0.35);
 }
 
 .mt-bus-refresh--outline {

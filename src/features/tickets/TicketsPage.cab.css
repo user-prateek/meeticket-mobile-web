@@ -1,5 +1,10 @@
 /* MS-Mobile Figma — Cab ticket success (node 5503-5496). */
 
+.mt-ticket--cab.is-cancelled .mt-cab-trip-card,
+.mt-ticket--cab.is-cancelled .mt-cab-bottom-card {
+  opacity: 0.92;
+}
+
 .mt-cab-trip-card {
   overflow: hidden;
   border-radius: var(--tk-card-radius);
@@ -388,6 +393,21 @@
   border-radius: var(--tk-radius-8);
   background: var(--tk-surface);
   color: var(--tk-cab-accent);
+  font-size: var(--tk-meta-label);
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.mt-cab-bottom-card__cancelled-label {
+  min-width: 132px;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: var(--tk-radius-8);
+  background: #fee2e2;
+  color: #b91c1c;
   font-size: var(--tk-meta-label);
   font-weight: 700;
   line-height: 20px;
