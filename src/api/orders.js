@@ -258,6 +258,10 @@ function buildCabAggSpecificInfo({ lastMile, selectedVehicle }) {
 
 function blockFareInrForMode(journey, mode) {
   const block = mode === 'bus' ? journey?.raw?.bus : mode === 'metro' ? journey?.raw?.metro : null
+  if (mode === 'metro') {
+    // Charge metro.total_fare only (e.g. 51), not sum of leg.fare (28+37).
+    return readPositiveInr(block?.total_fare)
+  }
   return readPositiveInr(block?.total_fare, block?.fare, block?.ticket_fare)
 }
 
@@ -346,15 +350,21 @@ function resolveTransitFareMap(journey) {
     const modeSegments = segments.filter((segment) => segment.mode === mode)
     if (!modeSegments.length) continue
 
-    modeSegments.forEach((segment) => {
-      const fare = readPositiveInr(segment.fareInr)
-      if (fare > 0) assigned.set(segment.id, fare)
-    })
-
     let blockFare = blockFareInrForMode(journey, mode)
     if (blockFare <= 0 && modeSegments.length && isSingleTransitMode(journey)) {
       blockFare = journeyTransitFareInr(journey)
     }
+
+    if (mode === 'metro' && blockFare > 0) {
+      // Always collect metro.total_fare across hops — ignore any leg.fare values.
+      distributeRemainingFare(modeSegments, blockFare, assigned)
+      continue
+    }
+
+    modeSegments.forEach((segment) => {
+      const fare = readPositiveInr(segment.fareInr)
+      if (fare > 0) assigned.set(segment.id, fare)
+    })
 
     distributeRemainingFare(modeSegments, blockFare, assigned)
   }

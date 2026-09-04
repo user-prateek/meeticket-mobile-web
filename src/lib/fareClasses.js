@@ -124,17 +124,36 @@ export function sumTransitFareInr(segments = []) {
     .reduce((sum, segment) => sum + (Number(segment.fareInr) || 0), 0)
 }
 
+export function sumBusFareInr(segments = []) {
+  return segments
+    .filter((segment) => segment.mode === 'bus')
+    .reduce((sum, segment) => sum + (Number(segment.fareInr) || 0), 0)
+}
+
 export function applyFareSelectionsToJourney(journey, selections = {}) {
   if (!journey) return journey
   const segments = applyFareSelections(journey.segments || [], selections)
   const cardSegments = applyFareSelections(journey.cardSegments || segments, selections)
-  const totalFareInr = sumTransitFareInr(segments)
+  // Bus total follows selected fare classes; metro uses API `metro.total_fare` (never sum legs).
+  const busFareInr = sumBusFareInr(segments)
+  const metroFareInr =
+    journey.metroFareInr != null
+      ? Number(journey.metroFareInr) || 0
+      : readPositiveInrFromRawMetro(journey)
+  const totalFareInr = busFareInr + metroFareInr
   return {
     ...journey,
     segments,
     cardSegments,
+    busFareInr,
+    metroFareInr,
     totalFareInr,
     payment: { ...(journey.payment || {}), amountInr: totalFareInr },
     fareSelections: selections,
   }
+}
+
+function readPositiveInrFromRawMetro(journey) {
+  const amount = Number(journey?.raw?.metro?.total_fare)
+  return Number.isFinite(amount) && amount > 0 ? amount : 0
 }

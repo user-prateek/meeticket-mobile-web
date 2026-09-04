@@ -173,12 +173,18 @@ function getItemLayout(segment, segments) {
   return getTransitEdge(segments, segment.id)
 }
 
-function formatMetaFareSuffix(segment) {
+function formatMetaFareSuffix(segment, { hideMetroFare = false } = {}) {
   if (segment.mode === 'bus') {
     const range = formatSegmentFareRange(segment)
     return range ? `, ${range}` : ''
   }
+  // Metro↔metro interchange: legs don't sum to journey total — show total only.
+  if (segment.mode === 'metro' && hideMetroFare) return ''
   return segment.fareInr != null ? `, ₹${segment.fareInr}` : ''
+}
+
+function hasMetroInterchange(segments) {
+  return segments.filter((segment) => segment.mode === 'metro').length >= 2
 }
 
 function ModeCapsule({ segment, edge = 'start' }) {
@@ -207,8 +213,9 @@ function TransitMeta({
   hasFareOptions,
   expanded,
   onToggle,
+  hideMetroFare = false,
 }) {
-  const fareSuffix = formatMetaFareSuffix(segment)
+  const fareSuffix = formatMetaFareSuffix(segment, { hideMetroFare })
   const durationFare = (
     <span className="mt-capsule__meta-text">
       {segment.durationMin} Min{fareSuffix}
@@ -263,6 +270,7 @@ function Timeline({
 }) {
   const displaySegments = applyFareSelections(segments, fareSelections)
   const expandedSegment = displaySegments.find((segment) => segment.id === expandedSegmentId)
+  const hideMetroFare = hasMetroInterchange(displaySegments)
 
   return (
     <div className="mt-transit-fare">
@@ -302,6 +310,7 @@ function Timeline({
                       edge={edge}
                       hasFareOptions={hasFareOptions}
                       expanded={expanded}
+                      hideMetroFare={hideMetroFare}
                       onToggle={() =>
                         onToggleExpand?.(expanded ? null : segment.id)
                       }

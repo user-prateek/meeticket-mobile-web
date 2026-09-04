@@ -156,7 +156,11 @@ function legFareInr(leg) {
   return fromOptions > 0 ? fromOptions : undefined
 }
 
-function blockFareInr(block) {
+function blockFareInr(block, mode) {
+  // Metro: charge API `total_fare` only — never derive from leg `fare` fields.
+  if (mode === 'metro') {
+    return readPositiveInr(block?.total_fare)
+  }
   return readPositiveInr(
     block?.total_fare,
     block?.fare,
@@ -197,6 +201,8 @@ function mapTransitHops(block, mode, prefix) {
 
   const hops = []
   const stops = []
+  // Metro journey fare is `metro.total_fare` from API — never sum leg fares.
+  const apiBlockFare = blockFareInr(block, mode)
 
   legs.forEach((leg, index) => {
     if (index > 0) {
@@ -229,11 +235,17 @@ function mapTransitHops(block, mode, prefix) {
     const selectedFareOption =
       fareOptions.find((option) => option.id === selectedFareOptionId) || fareOptions[0]
 
+    // Multi-leg metro: omit per-leg fare (API total only). Single metro can show leg/total.
+    const hopFareInr =
+      mode === 'metro' && legs.length > 1
+        ? undefined
+        : selectedFareOption?.fareInr ?? legFareInr(leg)
+
     hops.push({
       id: `${prefix}-${index}`,
       mode,
       durationMin: Math.round(Number(leg.duration_minutes) || 0),
-      fareInr: selectedFareOption?.fareInr ?? legFareInr(leg),
+      fareInr: hopFareInr,
       fareOptions,
       selectedFareOptionId: selectedFareOption?.id || null,
       title,
@@ -260,15 +272,27 @@ function mapTransitHops(block, mode, prefix) {
     })
   })
 
-  const fare =
-    blockFareInr(block) ||
-    legs.reduce((sum, leg) => sum + readPositiveInr(legFareInr(leg)), 0)
+  let fare = apiBlockFare
+  if (mode !== 'metro' && !fare) {
+    fare = legs.reduce((sum, leg) => sum + readPositiveInr(legFareInr(leg)), 0)
+  } else if (mode === 'metro' && !fare && legs.length === 1) {
+    // Direct metro without total_fare: fall back to the single leg amount.
+    fare = readPositiveInr(legFareInr(legs[0]))
+  }
+
   const durationMin =
     Number(block.total_duration_minutes) ||
     hops.filter((h) => h.mode !== 'interchange').reduce((sum, h) => sum + (h.durationMin || 0), 0)
 
   const transitHops = hops.filter((h) => h.mode === mode)
-  if (fare && transitHops.length && transitHops.every((h) => h.fareInr == null)) {
+  if (mode === 'metro' && fare && transitHops.length === 1 && transitHops[0].fareInr == null) {
+    transitHops[0].fareInr = fare
+  } else if (
+    mode !== 'metro' &&
+    fare &&
+    transitHops.length &&
+    transitHops.every((h) => h.fareInr == null)
+  ) {
     transitHops[0].fareInr = fare
   }
 
@@ -369,7 +393,9 @@ export function mapJourneyOption(item, trip, { id = 1, source } = {}) {
   const segments = [...bus.hops, ...metro.hops]
   const cardSegments = buildCardSegments(metro, bus)
   const stops = [...bus.stops, ...metro.stops]
-  const fare = (bus.fare || 0) + (metro.fare || 0)
+  const metroFareInr = metro.fare || 0
+  const busFareInr = bus.fare || 0
+  const fare = busFareInr + metroFareInr
   const walkM = roundMeters(item.access?.distance_m) + roundMeters(item.egress?.distance_m)
 
   const access = mapMileLeg(item.access, {
@@ -405,6 +431,8 @@ export function mapJourneyOption(item, trip, { id = 1, source } = {}) {
         Number(item.total_duration_minutes) ||
         0,
     ),
+    metroFareInr,
+    busFareInr,
     totalFareInr: fare,
     notSuggested,
     note: item.note || (notSuggested ? notSuggestedHint(metro, bus) : null),
