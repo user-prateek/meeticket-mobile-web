@@ -581,7 +581,6 @@ function BusTicket({ ticket, onDropService, qrFlipDirection }) {
               <TicketQrFlip flipDirection={qrFlipDirection}>
                 <ExpiredQrFrame
                   size={179}
-                  seed={ticket.qrPayload || ticket.pnr || 'bus'}
                   className="mt-qr"
                 />
               </TicketQrFlip>

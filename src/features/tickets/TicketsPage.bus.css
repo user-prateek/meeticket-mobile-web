@@ -419,6 +419,7 @@
   display: block;
   width: 100%;
   height: 100%;
+  object-fit: fill;
   pointer-events: none;
   user-select: none;
 }
@@ -426,8 +427,8 @@
 .mt-qr-expired__veil {
   position: absolute;
   inset: var(--tk-qr-pad, 10px);
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.15);
   pointer-events: none;
 }
 

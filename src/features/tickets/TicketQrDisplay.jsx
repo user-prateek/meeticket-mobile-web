@@ -2,9 +2,10 @@ import { useEffect, useMemo } from 'react'
 import { CheckIcon, CloseIcon, RefreshIcon } from '../../components/icons'
 import { secondsUntilValidUntil } from '../../constants/tickets'
 import { useBookingQr } from '../../hooks/useBookingQr'
+import expiredQrDummy from '../../assets/tickets/expired-qr-dummy.png'
 import { QrCode } from './QrCode'
 
-function ExpiredQrFrame({ size = 179, seed = 'expired', className = '' }) {
+function ExpiredQrFrame({ size = 179, className = '' }) {
   return (
     <div
       className={`mt-qr-expired ${className}`.trim()}
@@ -12,12 +13,13 @@ function ExpiredQrFrame({ size = 179, seed = 'expired', className = '' }) {
       role="img"
       aria-label="Expired ticket QR code"
     >
-      {/* Decorative modules only — not a real QR, so scanners cannot read a ticket. */}
-      <QrCode
-        payload={`expired:${seed}`}
-        size={size}
+      <img
+        src={expiredQrDummy}
+        alt=""
         className="mt-qr-expired__art"
-        moduleFill="#b0b0b0"
+        width={size}
+        height={size}
+        draggable={false}
       />
       <span className="mt-qr-expired__veil" aria-hidden="true" />
       <span className="mt-qr-expired-badge">
@@ -82,7 +84,6 @@ export function TicketQrDisplay({
     qrNode = (
       <ExpiredQrFrame
         size={size}
-        seed={bookingReferenceNumber || fallbackPayload || 'ticket'}
         className={className}
       />
     )
