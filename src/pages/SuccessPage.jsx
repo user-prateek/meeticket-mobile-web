@@ -3,12 +3,20 @@ import { Navigate, useSearchParams } from 'react-router-dom'
 import { useAtomValue } from 'jotai'
 import { getOrderId } from '../api/orders'
 import { buildBookingFromPgStatus } from '../constants/tickets'
+import { DropServiceSheet } from '../features/tickets/DropServiceSheet'
 import { TicketsPage } from '../features/tickets/TicketsPage'
 import { useAppNavigate } from '../hooks/useAppNavigate'
+import { useHydrateJourneyOptions, useSelectJourney } from '../hooks/useJourneyOptions'
 import { PG_STATUS_POLL_MS, usePgStatusPolling } from '../hooks/usePgStatusPolling'
 import { withAppContext } from '../lib/appContext'
 import { buildSuccessPath, useSuccessBackNavigation } from '../lib/successUrl'
-import { orderAtom, tripAtom } from '../store/journey'
+import {
+  journeyOptionsAtom,
+  orderAtom,
+  selectedJourneyAtom,
+  selectedJourneyIdAtom,
+  tripAtom,
+} from '../store/journey'
 import './SuccessPage.css'
 
 /**
@@ -20,7 +28,21 @@ export function SuccessPage() {
   const navigate = useAppNavigate()
   const trip = useAtomValue(tripAtom)
   const storedOrder = useAtomValue(orderAtom)
+  const journey = useAtomValue(selectedJourneyAtom)
+  const selectedJourneyId = useAtomValue(selectedJourneyIdAtom)
+  const journeyOptions = useAtomValue(journeyOptionsAtom)
+  const selectJourney = useSelectJourney()
   const goBack = useSuccessBackNavigation(trip)
+
+  // Rehydrate journey options after refresh so Drop Service → /cab has egress.
+  useHydrateJourneyOptions(trip)
+
+  // After refetch, option ids may not match the stored selection — keep a journey bound.
+  useEffect(() => {
+    if (!journeyOptions.length) return
+    if (journeyOptions.some((option) => Number(option.id) === Number(selectedJourneyId))) return
+    selectJourney(journeyOptions[0])
+  }, [journeyOptions, selectedJourneyId, selectJourney])
 
   const urlOrderId = params.get('order') || params.get('order_id')
   const orderId = urlOrderId || getOrderId(storedOrder)
@@ -28,6 +50,8 @@ export function SuccessPage() {
   const [pgStatus, setPgStatus] = useState(null)
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
+  const [dropOpen, setDropOpen] = useState(false)
+  const [dropFromLabel, setDropFromLabel] = useState('')
 
   useEffect(() => {
     if (urlOrderId || !orderId) return
@@ -68,11 +92,38 @@ export function SuccessPage() {
     if (!pgStatus || !orderId) return null
     const order = { orderId, order_id: orderId, pgStatus }
     return buildBookingFromPgStatus({
+      journey,
       trip,
       order,
       pgStatus,
     })
-  }, [orderId, pgStatus, trip])
+  }, [journey, orderId, pgStatus, trip])
+
+  const journeyId = journey?.id ?? selectedJourneyId ?? displayBooking?.journeyId ?? storedOrder?.journeyId
+
+  function handleDropService(ticket) {
+    setDropFromLabel(
+      ticket?.to ||
+        journey?.egress?.fromLabel ||
+        journey?.destinationStation ||
+        '',
+    )
+    setDropOpen(true)
+  }
+
+  function handleDropConfirm({ providerId, modeId, vehicleId }) {
+    if (!journeyId) return
+    const next = new URLSearchParams({
+      id: String(journeyId),
+      service: 'drop',
+    })
+    if (orderId) next.set('order', String(orderId))
+    if (providerId) next.set('provider', providerId)
+    if (modeId) next.set('mode', modeId)
+    if (vehicleId) next.set('vehicle', vehicleId)
+    setDropOpen(false)
+    navigate(`/cab?${next.toString()}`)
+  }
 
   if (!orderId) {
     return <Navigate to={withAppContext('/journey')} replace />
@@ -95,12 +146,29 @@ export function SuccessPage() {
   }
 
   return (
-    <TicketsPage
-      booking={displayBooking}
-      onBack={goBack}
-      onCall={() => window.alert('Calling support…')}
-      onDropService={() => navigate('/gotohome', { replace: false })}
-      onCancelled={goBack}
-    />
+    <>
+      <TicketsPage
+        booking={displayBooking}
+        onBack={goBack}
+        onCall={() => window.alert('Calling support…')}
+        onDropService={handleDropService}
+        onCancelled={(payload) => {
+          // Cancel API + cancelled ticket UI come later.
+          if (import.meta.env.DEV) {
+            console.info('[cab] cancel ride (stub)', payload)
+          }
+          goBack()
+        }}
+      />
+      <DropServiceSheet
+        open={dropOpen}
+        fromLabel={dropFromLabel}
+        journey={journey}
+        trip={trip}
+        pgStatus={pgStatus}
+        onClose={() => setDropOpen(false)}
+        onConfirm={handleDropConfirm}
+      />
+    </>
   )
 }

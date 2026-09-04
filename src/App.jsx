@@ -39,6 +39,9 @@ const PaymentPage = lazy(() =>
 const SuccessPage = lazy(() =>
   import('./pages/SuccessPage').then((m) => ({ default: m.SuccessPage })),
 )
+const LiveTrackingPage = lazy(() =>
+  import('./features/tracking/LiveTrackingPage').then((m) => ({ default: m.LiveTrackingPage })),
+)
 
 function RouteFallback() {
   const path = useLocation().pathname
@@ -113,6 +116,7 @@ export default function App() {
                     <Route path="/payment/failed" element={<PaymentFailedPage />} />
                     <Route path="/payment/booking-failed" element={<PaymentBookingFailedPage />} />
                     <Route path="/cab" element={<CabPage />} />
+                    <Route path="/live-tracking" element={<LiveTrackingPage />} />
                     <Route path="/bookings" element={<BookingsPage />} />
                     <Route path="/success" element={<SuccessPage />} />
                     <Route path="/gotohome" element={<GoToHomePage />} />
