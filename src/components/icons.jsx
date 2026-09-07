@@ -176,15 +176,28 @@ const MODE_ICONS = {
 
 const MODE_PNG_KEYS = new Set(['metro', 'bus', 'walk'])
 
-export function PhoneIcon({ size = 22, className }) {
+export function PhoneIcon({ size = 18, className }) {
+  return (
+    <SvgIcon size={size} color="currentColor" className={className} viewBox="0 0 18 18">
+      <path
+        d="M16.95 18C14.8667 18 12.8083 17.5458 10.775 16.6375C8.74167 15.7292 6.89167 14.4417 5.225 12.775C3.55833 11.1083 2.27083 9.25833 1.3625 7.225C0.454167 5.19167 0 3.13333 0 1.05C0 0.75 0.1 0.5 0.3 0.3C0.5 0.1 0.75 0 1.05 0H5.1C5.33333 0 5.54167 0.0791667 5.725 0.2375C5.90833 0.395833 6.01667 0.583333 6.05 0.8L6.7 4.3C6.73333 4.56667 6.725 4.79167 6.675 4.975C6.625 5.15833 6.53333 5.31667 6.4 5.45L3.975 7.9C4.30833 8.51667 4.70417 9.1125 5.1625 9.6875C5.62083 10.2625 6.125 10.8167 6.675 11.35C7.19167 11.8667 7.73333 12.3458 8.3 12.7875C8.86667 13.2292 9.46667 13.6333 10.1 14L12.45 11.65C12.6 11.5 12.7958 11.3875 13.0375 11.3125C13.2792 11.2375 13.5167 11.2167 13.75 11.25L17.2 11.95C17.4333 12.0167 17.625 12.1375 17.775 12.3125C17.925 12.4875 18 12.6833 18 12.9V16.95C18 17.25 17.9 17.5 17.7 17.7C17.5 17.9 17.25 18 16.95 18Z"
+        fill="currentColor"
+      />
+    </SvgIcon>
+  )
+}
+
+/** Folded map icon for tickets header Map Guide. */
+export function MapGuideIcon({ size = 18, className }) {
   return (
     <SvgIcon size={size} color="currentColor" className={className} viewBox="0 0 24 24">
       <path
-        d="M7.2 3.8h3.2l1.2 3.2-1.8 1.2a12.5 12.5 0 0 0 6 6l1.2-1.8 3.2 1.2v3.2c0 .9-.7 1.7-1.6 1.8C9.8 19.4 4.6 14.2 3.4 5.4c-.1-.9.7-1.6 1.6-1.6Z"
+        d="M3.5 6.2 9 4.5l6 2.2 5.5-1.7v13.3L15 16.5l-6-2.2-5.5 1.7V6.2Z"
         stroke="currentColor"
         strokeWidth="1.7"
         strokeLinejoin="round"
       />
+      <path d="M9 4.5v10M15 6.7v9.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
     </SvgIcon>
   )
 }

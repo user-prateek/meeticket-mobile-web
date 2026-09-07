@@ -1,0 +1,112 @@
+.mt-map-guide-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
+
+.mt-map-guide-popup {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 70;
+  box-sizing: border-box;
+  width: min(248px, calc(100vw - 24px));
+  padding: 10px;
+  border: 1.5px solid var(--tk-primary, #003399);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(0, 34, 102, 0.12);
+}
+
+.mt-map-guide-popup__caret {
+  position: absolute;
+  top: -7px;
+  right: 34px;
+  width: 12px;
+  height: 12px;
+  border-top: 1.5px solid var(--tk-primary, #003399);
+  border-left: 1.5px solid var(--tk-primary, #003399);
+  background: #fff;
+  transform: rotate(45deg);
+}
+
+.mt-map-guide-popup__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mt-map-guide-popup__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #1a1a1a;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mt-map-guide-popup__option.is-selected {
+  background: #e8f1ff;
+}
+
+.mt-map-guide-popup__radio {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #9aa3b2;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.mt-map-guide-popup__radio.is-on {
+  border-color: var(--tk-primary, #003399);
+  background:
+    radial-gradient(circle at center, var(--tk-primary, #003399) 0 5px, #fff 6px 100%);
+}
+
+.mt-map-guide-popup__label {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.mt-map-guide-popup__cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 10px;
+  min-height: 42px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--tk-button, #003399);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mt-map-guide-popup__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

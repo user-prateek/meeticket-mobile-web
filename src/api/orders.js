@@ -1,5 +1,6 @@
 import { PostRequest } from './client'
 import { ordersApiKey, ordersBaseUrl, urls } from './config'
+import { getAppContext } from '../lib/appContext'
 import { getUserContext } from '../lib/userContext'
 import { dedupeInFlight } from '../lib/dedupeRequest'
 import { fetchDrivingEtaMinutes } from '../lib/drivingEta'
@@ -150,7 +151,7 @@ async function resolveCabLegTimes({ journey, trip, lastMile, selectedVehicle }) 
   }
 }
 
-function buildMetroLegInfo(segment, trip, { metroBearerToken } = {}) {
+function buildMetroLegInfo(segment, trip, { metroBearerToken, stopCoords } = {}) {
   const leg = {
     source_station_code: stringId(segment.fromStationCode || segment.fromId),
     destination_station_code: stringId(segment.toStationCode || segment.toId),
@@ -160,17 +161,92 @@ function buildMetroLegInfo(segment, trip, { metroBearerToken } = {}) {
   }
   const token = String(metroBearerToken || '').trim()
   if (token) leg.metro_bearer_token = token
+
+  const sourceLat = coord(stopCoords?.sourceLat)
+  const sourceLng = coord(stopCoords?.sourceLng)
+  const destLat = coord(stopCoords?.destLat)
+  const destLng = coord(stopCoords?.destLng)
+  if (sourceLat != null) leg.source_station_lat = sourceLat
+  if (sourceLng != null) leg.source_station_lng = sourceLng
+  if (destLat != null) leg.destination_station_lat = destLat
+  if (destLng != null) leg.destination_station_lng = destLng
+
   return leg
 }
 
-function buildRtcLegInfo(segment, trip) {
-  return {
+function buildRtcLegInfo(segment, trip, { stopCoords } = {}) {
+  const leg = {
     source_stop_id: stringId(segment.fromId),
     destination_stop_id: stringId(segment.toId),
     route_id: stringId(segment.routeId || segment.routeShortName),
     travel_date: travelDate({ segment, trip }),
     FromLocName: stringId(segment.from),
     ToLocName: stringId(segment.to),
+  }
+
+  const sourceLat = coord(stopCoords?.sourceLat)
+  const sourceLng = coord(stopCoords?.sourceLng)
+  const destLat = coord(stopCoords?.destLat)
+  const destLng = coord(stopCoords?.destLng)
+  if (sourceLat != null) leg.source_stop_lat = sourceLat
+  if (sourceLng != null) leg.source_stop_lng = sourceLng
+  if (destLat != null) leg.destination_stop_lat = destLat
+  if (destLng != null) leg.destination_stop_lng = destLng
+
+  return leg
+}
+
+/** Order-level overall journey pickup/drop (required by POST /orders). */
+function resolveOrderPickupDrop({ journey, trip }) {
+  const access = journey?.access
+  const egress = journey?.egress
+  const accessRaw = journey?.raw?.access
+  const egressRaw = journey?.raw?.egress
+
+  return {
+    pickup_lat: coord(access?.fromLat ?? trip?.fromLat ?? accessRaw?.from_lat),
+    pickup_lng: coord(
+      access?.fromLon ?? trip?.fromLon ?? trip?.fromLng ?? accessRaw?.from_lon,
+    ),
+    pickup_place_name: stringId(access?.fromLabel ?? trip?.fromPlace) || undefined,
+    drop_lat: coord(egress?.toLat ?? trip?.toLat ?? egressRaw?.to_lat),
+    drop_lng: coord(egress?.toLon ?? trip?.toLon ?? trip?.toLng ?? egressRaw?.to_lon),
+    drop_place_name: stringId(egress?.toLabel ?? trip?.toPlace) || undefined,
+  }
+}
+
+/**
+ * Station/stop coords for a transit hop.
+ * Journey API only gives access.to (board) and egress.from (alight) reliably.
+ */
+function resolveTransitStopCoords(journey, index, transitCount) {
+  const access = journey?.access
+  const egress = journey?.egress
+  const accessRaw = journey?.raw?.access
+  const egressRaw = journey?.raw?.egress
+
+  const boardLat = coord(access?.toLat ?? accessRaw?.to_lat)
+  const boardLng = coord(access?.toLon ?? accessRaw?.to_lon)
+  const alightLat = coord(egress?.fromLat ?? egressRaw?.from_lat)
+  const alightLng = coord(egress?.fromLon ?? egressRaw?.from_lon)
+
+  const isFirst = index === 0
+  const isLast = index === transitCount - 1
+
+  if (transitCount <= 1) {
+    return {
+      sourceLat: boardLat,
+      sourceLng: boardLng,
+      destLat: alightLat,
+      destLng: alightLng,
+    }
+  }
+
+  return {
+    sourceLat: isFirst ? boardLat : null,
+    sourceLng: isFirst ? boardLng : null,
+    destLat: isLast ? alightLat : null,
+    destLng: isLast ? alightLng : null,
   }
 }
 
@@ -372,9 +448,13 @@ function resolveTransitFareMap(journey) {
   return assigned
 }
 
-function buildTransitLegInfo(segment, trip, { metroBearerToken } = {}) {
-  if (segment.mode === 'metro') return buildMetroLegInfo(segment, trip, { metroBearerToken })
-  if (segment.mode === 'bus') return buildRtcLegInfo(segment, trip)
+function buildTransitLegInfo(segment, trip, { metroBearerToken, stopCoords } = {}) {
+  if (segment.mode === 'metro') {
+    return buildMetroLegInfo(segment, trip, { metroBearerToken, stopCoords })
+  }
+  if (segment.mode === 'bus') {
+    return buildRtcLegInfo(segment, trip, { stopCoords })
+  }
   return null
 }
 
@@ -384,15 +464,17 @@ function buildTransitLegInfo(segment, trip, { metroBearerToken } = {}) {
  */
 function buildTransitLegs(journey, trip, { chainStart, metroBearerToken } = {}) {
   const fareBySegmentId = resolveTransitFareMap(journey)
+  const segments = transitSegments(journey)
   const legs = []
   let nextChainStart = chainStart ? parseOrderDateTime(chainStart) : null
 
-  for (const segment of transitSegments(journey)) {
+  segments.forEach((segment, index) => {
     const amount_paise = inrToPaise(fareBySegmentId.get(segment.id))
-    if (amount_paise <= 0) continue
+    if (amount_paise <= 0) return
 
-    const leg_info = buildTransitLegInfo(segment, trip, { metroBearerToken })
-    if (!leg_info) continue
+    const stopCoords = resolveTransitStopCoords(journey, index, segments.length)
+    const leg_info = buildTransitLegInfo(segment, trip, { metroBearerToken, stopCoords })
+    if (!leg_info) return
 
     const times = resolveTransitLegTimes(segment, trip, nextChainStart)
     Object.assign(leg_info, times)
@@ -404,7 +486,7 @@ function buildTransitLegs(journey, trip, { chainStart, metroBearerToken } = {}) 
       amount_paise,
       payment_mode: PAYMENT_MODE,
     })
-  }
+  })
 
   return legs
 }
@@ -443,13 +525,28 @@ export async function buildOrderPayload({ journey, trip, lastMile, selectedVehic
     throw new Error(`Invalid fare for ${invalidLeg.leg_type} leg`)
   }
 
-  return {
+  const pickupDrop = resolveOrderPickupDrop({ journey, trip })
+  const missingPickupDrop = ['pickup_lat', 'pickup_lng', 'drop_lat', 'drop_lng'].filter(
+    (key) => pickupDrop[key] == null,
+  )
+  if (missingPickupDrop.length) {
+    throw new Error(`Missing order location fields: ${missingPickupDrop.join(', ')}`)
+  }
+  if (!pickupDrop.pickup_place_name || !pickupDrop.drop_place_name) {
+    throw new Error('Missing pickup_place_name or drop_place_name')
+  }
+
+  let platform = String(getAppContext()?.src || '').trim()
+
+  return compactRecord({
     user_id: resolveUserId(profile),
     name: profile.name || import.meta.env.VITE_ORDER_USER_NAME || 'Test User',
     mobile: profile.mobile || import.meta.env.VITE_ORDER_USER_MOBILE || '8755993810',
     email: profile.email || import.meta.env.VITE_ORDER_USER_EMAIL || 'test@example.com',
+    platform: platform || undefined,
+    ...pickupDrop,
     legs,
-  }
+  })
 }
 
 export async function createOrder(payload, { signal, journeyId } = {}) {

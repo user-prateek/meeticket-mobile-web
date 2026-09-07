@@ -10,6 +10,7 @@ import {
   ClockIcon,
   CloseIcon,
   InfoIcon,
+  MapGuideIcon,
   ModeIcon,
   PencilIcon,
   PersonIcon,
@@ -26,8 +27,10 @@ import {
 } from '../../constants/tickets'
 import { ExpiredQrFrame, TicketQrDisplay } from './TicketQrDisplay'
 import { TicketQrFlip } from './TicketQrFlip'
+import { MapGuidePopup } from './MapGuidePopup'
 import { OtpQrCode } from './OtpQrCode'
 import { QrCode } from './QrCode'
+import { buildMapGuideOptions } from '../../lib/mapGuide'
 import './tickets.tokens.css'
 import './TicketsPage.css'
 import './TicketsPage.bus.css'
@@ -35,16 +38,42 @@ import './TicketsPage.cab.css'
 import './TicketsPage.metro.css'
 import './TicketsPage.qr-flip.css'
 
-function TicketsHeader({ onBack, onCall }) {
+function TicketsHeader({ onBack, onCall, mapGuideOpen, onMapGuide, mapGuideOptions }) {
   return (
     <header className="mt-tickets__header">
       <button type="button" className="mt-tickets__icon-btn" onClick={onBack} aria-label="Go back">
         <BackIcon size={28} />
       </button>
       <AppLogo width={60} height={58} className="mt-tickets__logo" />
-      <button type="button" className="mt-tickets__call-btn" onClick={onCall} aria-label="Call support">
-        <PhoneIcon size={24} />
-      </button>
+      <div className="mt-tickets__header-actions">
+        <div className="mt-tickets__map-guide-wrap">
+          <button
+            type="button"
+            className={`mt-tickets__map-guide${mapGuideOpen ? ' is-open' : ''}`}
+            onClick={(event) => {
+              event.stopPropagation()
+              onMapGuide?.()
+            }}
+            aria-label="Map Guide"
+            aria-expanded={mapGuideOpen}
+            aria-haspopup="dialog"
+          >
+            <MapGuideIcon size={18} className="mt-tickets__map-guide-icon" />
+            <span className="mt-tickets__map-guide-label">
+              <span>Map</span>
+              <span>Guide</span>
+            </span>
+          </button>
+          <MapGuidePopup
+            open={mapGuideOpen}
+            options={mapGuideOptions}
+            onClose={() => onMapGuide?.(false)}
+          />
+        </div>
+        <button type="button" className="mt-tickets__call-btn" onClick={onCall} aria-label="Call support">
+          <PhoneIcon size={18} />
+        </button>
+      </div>
     </header>
   )
 }
@@ -772,7 +801,15 @@ function initialTabId(booking) {
   return PRIMARY_TICKET_TABS.find((tab) => isTabEnabled(booking, tab.id))?.id ?? 'metro'
 }
 
-export function TicketsPage({ booking, onBack, onCall, onCancelled, onDropService }) {
+export function TicketsPage({
+  booking,
+  journey,
+  trip,
+  onBack,
+  onCall,
+  onCancelled,
+  onDropService,
+}) {
   const normalized = normalizeBooking(booking)
   const [tabId, setTabId] = useState(() => initialTabId(normalized))
   const [journeyIndex, setJourneyIndex] = useState(0)
@@ -781,8 +818,24 @@ export function TicketsPage({ booking, onBack, onCall, onCancelled, onDropServic
   const [cancelLoading, setCancelLoading] = useState(false)
   const [cancelError, setCancelError] = useState('')
   const [tabFlipDirection, setTabFlipDirection] = useState(null)
+  const [mapGuideOpen, setMapGuideOpen] = useState(false)
   const prevTabIdRef = useRef(tabId)
   const skipTabFlipRef = useRef(true)
+
+  const mapGuideOptions = useMemo(
+    () =>
+      buildMapGuideOptions({
+        journey,
+        trip,
+        booking: normalized,
+        pgStatus: normalized?.pgStatus,
+      }),
+    [journey, trip, normalized],
+  )
+
+  const handleMapGuide = useCallback((next) => {
+    setMapGuideOpen((open) => (typeof next === 'boolean' ? next : !open))
+  }, [])
 
   const handleTabChange = useCallback((nextTabId) => {
     if (!skipTabFlipRef.current) {
@@ -829,7 +882,13 @@ export function TicketsPage({ booking, onBack, onCall, onCancelled, onDropServic
   if (!normalized) {
     return (
       <section className="mt-tickets">
-        <TicketsHeader onBack={onBack} onCall={onCall} />
+        <TicketsHeader
+          onBack={onBack}
+          onCall={onCall}
+          mapGuideOpen={mapGuideOpen}
+          onMapGuide={handleMapGuide}
+          mapGuideOptions={mapGuideOptions}
+        />
         <ModeTabs activeId="bus" enabledById={{ metro: false, bus: false, cab: false, other: false }} onChange={() => {}} />
         <p className="mt-ticket-empty">No active booking found.</p>
       </section>
@@ -841,7 +900,13 @@ export function TicketsPage({ booking, onBack, onCall, onCancelled, onDropServic
 
   return (
     <section className="mt-tickets">
-      <TicketsHeader onBack={onBack} onCall={onCall} />
+      <TicketsHeader
+        onBack={onBack}
+        onCall={onCall}
+        mapGuideOpen={mapGuideOpen}
+        onMapGuide={handleMapGuide}
+        mapGuideOptions={mapGuideOptions}
+      />
       {normalized.isPolling ? (
         <p className="mt-tickets__polling" role="status">
           Confirming your bookings…

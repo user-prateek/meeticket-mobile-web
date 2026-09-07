@@ -8,6 +8,7 @@ import {
   journeyStatusAtom,
   selectedJourneyAtom,
   selectedJourneyIdAtom,
+  selectedJourneySnapshotAtom,
   tripAtom,
 } from '../store/journey'
 
@@ -135,5 +136,9 @@ export function useJourneyOptionById(optionId) {
 
 export function useSelectJourney() {
   const setId = useSetAtom(selectedJourneyIdAtom)
-  return (option) => setId(option?.id ?? null)
+  const setSnapshot = useSetAtom(selectedJourneySnapshotAtom)
+  return (option) => {
+    setId(option?.id ?? null)
+    setSnapshot(option || null)
+  }
 }

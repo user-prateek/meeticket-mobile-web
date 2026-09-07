@@ -12,10 +12,12 @@ export function sanitizeReturnTo(value) {
   return path
 }
 
-/** Build /success?order=ORD-… (+ optional returnTo / from=checkout). */
+/** Build /success?order=ORD-… (+ optional returnTo for non-checkout entry points). */
 export function buildSuccessPath({ orderId, returnTo, fromCheckout } = {}) {
   const params = new URLSearchParams()
   if (orderId) params.set('order', String(orderId))
+  // After PG, success is order-id only — tickets/Map Guide come from pg/status.
+  // returnTo is still allowed for in-app opens (e.g. bookings list).
   const safeReturn = sanitizeReturnTo(returnTo)
   if (safeReturn) params.set('returnTo', safeReturn)
   if (fromCheckout) params.set('from', 'checkout')

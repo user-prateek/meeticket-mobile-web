@@ -7,8 +7,8 @@ import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useJourneyOptionById } from '../hooks/useJourneyOptions'
 import { PG_STATUS_POLL_MS, usePgStatusPolling } from '../hooks/usePgStatusPolling'
 import { withAppContext } from '../lib/appContext'
-import { buildSuccessPath, journeyReturnPath } from '../lib/successUrl'
-import { orderAtom, tripAtom } from '../store/journey'
+import { buildSuccessPath } from '../lib/successUrl'
+import { orderAtom } from '../store/journey'
 import '../components/PaymentRedirectScreen.css'
 
 const PAYTM_MESSAGE_SOURCE = 'meeticket-paytm'
@@ -26,7 +26,6 @@ export function PaymentCallbackPage() {
   const [params] = useSearchParams()
   const navigate = useAppNavigate()
   const storedOrder = useAtomValue(orderAtom)
-  const trip = useAtomValue(tripAtom)
   const setOrder = useSetAtom(orderAtom)
 
   const orderId = params.get('order_id') || params.get('orderId') || getOrderId(storedOrder)
@@ -58,13 +57,11 @@ export function PaymentCallbackPage() {
       navigate(
         buildSuccessPath({
           orderId: resolvedOrderId,
-          returnTo: journeyReturnPath(trip),
-          fromCheckout: true,
         }),
         { replace: true },
       )
     },
-    [journey?.id, journeyId, navigate, orderId, storedOrder, trip],
+    [navigate, orderId, storedOrder],
   )
 
   const goToFailed = useCallback(

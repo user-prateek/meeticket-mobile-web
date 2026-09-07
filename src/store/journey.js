@@ -28,6 +28,12 @@ export const journeyErrorAtom = atom('')
 /** Selected option id (number). */
 export const selectedJourneyIdAtom = persist('mt:selected-id:v2', null)
 
+/**
+ * Full selected journey option (segments, access/egress coords).
+ * Survives /success refresh when `journeyOptionsAtom` is empty.
+ */
+export const selectedJourneySnapshotAtom = persist('mt:selected-journey:v2', null)
+
 /** Raw API payload for the current in-memory fetch. */
 export const journeyRawAtom = atom([])
 
@@ -42,8 +48,11 @@ export const lastMileSelectionAtom = persist('mt:last-mile:v2', null)
 
 export const selectedJourneyAtom = atom((get) => {
   const id = get(selectedJourneyIdAtom)
-  if (id == null) return null
-  return get(journeyOptionsAtom).find((option) => option.id === Number(id)) ?? null
+  if (id != null) {
+    const live = get(journeyOptionsAtom).find((option) => option.id === Number(id))
+    if (live) return live
+  }
+  return get(selectedJourneySnapshotAtom)
 })
 
 export const journeyOptionByIdAtom = atom((get) => {

@@ -8,7 +8,7 @@ import { useAppNavigate } from '../hooks/useAppNavigate'
 import { PG_STATUS_POLL_MS, usePgStatusPolling } from '../hooks/usePgStatusPolling'
 import { withAppContext } from '../lib/appContext'
 import { buildSuccessPath, useSuccessBackNavigation } from '../lib/successUrl'
-import { orderAtom, tripAtom } from '../store/journey'
+import { orderAtom, selectedJourneyAtom, tripAtom } from '../store/journey'
 import './SuccessPage.css'
 
 /**
@@ -19,6 +19,7 @@ export function SuccessPage() {
   const [params] = useSearchParams()
   const navigate = useAppNavigate()
   const trip = useAtomValue(tripAtom)
+  const journey = useAtomValue(selectedJourneyAtom)
   const storedOrder = useAtomValue(orderAtom)
   const goBack = useSuccessBackNavigation(trip)
 
@@ -68,11 +69,12 @@ export function SuccessPage() {
     if (!pgStatus || !orderId) return null
     const order = { orderId, order_id: orderId, pgStatus }
     return buildBookingFromPgStatus({
+      journey,
       trip,
       order,
       pgStatus,
     })
-  }, [orderId, pgStatus, trip])
+  }, [journey, orderId, pgStatus, trip])
 
   async function handleCancelled({ legId, reason, reasonLabel }) {
     if (!orderId) {
@@ -115,6 +117,8 @@ export function SuccessPage() {
   return (
     <TicketsPage
       booking={displayBooking}
+      journey={journey}
+      trip={trip}
       onBack={goBack}
       onCall={() => window.alert('Calling support…')}
       onDropService={() => navigate('/gotohome', { replace: false })}
