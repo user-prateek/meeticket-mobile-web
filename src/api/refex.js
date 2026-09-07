@@ -464,16 +464,88 @@ function readCoord(value) {
   return Number.isFinite(n) ? n : null
 }
 
-export function resolveRefexTripEndpoints({ journey, trip, serviceId = 'pickup' } = {}) {
+/** Pull lat/lng echoed on pg/status (order-level pickup/drop + optional CAB leg_info). */
+export function coordsFromPgStatus(pgStatus) {
+  if (!pgStatus || typeof pgStatus !== 'object') return null
+
+  const bookings = Array.isArray(pgStatus.bookings) ? pgStatus.bookings : []
+  const cab = bookings.find((leg) => String(leg?.leg_type || '').toUpperCase() === 'CAB')
+  const info = cab?.leg_info && typeof cab.leg_info === 'object' ? cab.leg_info : {}
+  const details =
+    cab?.booking_details && typeof cab.booking_details === 'object' ? cab.booking_details : {}
+
+  // Prefer order-level pickup/drop (A/B) from create-order / pg/status.
+  const tripFromLat = readCoord(
+    pgStatus.pickup_lat ?? pgStatus.from_lat ?? pgStatus.origin_lat ?? pgStatus.fromLat,
+  )
+  const tripFromLon = readCoord(
+    pgStatus.pickup_lng ??
+      pgStatus.pickup_lon ??
+      pgStatus.from_lon ??
+      pgStatus.from_lng ??
+      pgStatus.origin_lon ??
+      pgStatus.origin_lng ??
+      pgStatus.fromLon,
+  )
+  const tripToLat = readCoord(
+    pgStatus.drop_lat ??
+      pgStatus.to_lat ??
+      pgStatus.destination_lat ??
+      pgStatus.dest_lat ??
+      pgStatus.toLat,
+  )
+  const tripToLon = readCoord(
+    pgStatus.drop_lng ??
+      pgStatus.drop_lon ??
+      pgStatus.to_lon ??
+      pgStatus.to_lng ??
+      pgStatus.destination_lon ??
+      pgStatus.destination_lng ??
+      pgStatus.dest_lng ??
+      pgStatus.toLon,
+  )
+
+  return {
+    tripFromLat,
+    tripFromLon,
+    tripToLat,
+    tripToLon,
+    pickupPlaceName: pgStatus.pickup_place_name || null,
+    dropPlaceName: pgStatus.drop_place_name || null,
+    // First-mile cab: pickup = user origin, drop = boarding station (not alighting).
+    cabPickupLat: readCoord(info.pickup_lat ?? details.pickup_lat) ?? tripFromLat,
+    cabPickupLng:
+      readCoord(info.pickup_lng ?? details.pickup_lng ?? info.pickup_lon) ?? tripFromLon,
+    cabDropLat: readCoord(info.drop_lat ?? details.drop_lat),
+    cabDropLng: readCoord(info.drop_lng ?? details.drop_lng ?? info.drop_lon),
+  }
+}
+
+export function resolveRefexTripEndpoints({
+  journey,
+  trip,
+  serviceId = 'pickup',
+  pgStatus,
+} = {}) {
   const isDrop = serviceId === 'drop'
   const mile = isDrop ? journey?.egress : journey?.access
   const raw = isDrop ? journey?.raw?.egress : journey?.raw?.access
+  const pgCoords = coordsFromPgStatus(pgStatus)
 
-  const tripFromLat = readCoord(trip?.fromLat)
-  const tripFromLon = readCoord(trip?.fromLon ?? trip?.fromLng)
-  const tripToLat = readCoord(trip?.toLat)
-  const tripToLon = readCoord(trip?.toLon ?? trip?.toLng)
+  const tripFromLat =
+    readCoord(trip?.fromLat) ?? pgCoords?.tripFromLat ?? pgCoords?.cabPickupLat ?? null
+  const tripFromLon =
+    readCoord(trip?.fromLon ?? trip?.fromLng) ??
+    pgCoords?.tripFromLon ??
+    pgCoords?.cabPickupLng ??
+    null
+  const tripToLat =
+    readCoord(trip?.toLat) ?? pgCoords?.tripToLat ?? null
+  const tripToLon =
+    readCoord(trip?.toLon ?? trip?.toLng) ?? pgCoords?.tripToLon ?? null
 
+  // Drop pickup = alighting station (egress.from). Never use first-mile cab drop
+  // (that is boarding). Destination = trip.to / pg destination.
   const pickUplat = isDrop
     ? readCoord(mile?.fromLat ?? raw?.from_lat)
     : readCoord(mile?.fromLat ?? raw?.from_lat) ?? tripFromLat
@@ -488,10 +560,14 @@ export function resolveRefexTripEndpoints({ journey, trip, serviceId = 'pickup' 
     : readCoord(mile?.toLon ?? raw?.to_lon)
 
   const pickUpAddress = String(
-    isDrop ? mile?.fromLabel : trip?.fromPlace ?? mile?.fromLabel ?? '',
+    isDrop
+      ? mile?.fromLabel || journey?.destinationStation || ''
+      : trip?.fromPlace ?? mile?.fromLabel ?? '',
   )
   const dropAddress = String(
-    isDrop ? trip?.toPlace ?? mile?.toLabel : mile?.toLabel ?? journey?.originStation ?? '',
+    isDrop
+      ? trip?.toPlace ?? mile?.toLabel ?? ''
+      : mile?.toLabel ?? journey?.originStation ?? '',
   )
 
   const hasCoords = [pickUplat, pickUplon, droplat, droplon].every((value) => value != null)
@@ -516,19 +592,40 @@ export function resolveRefexTripEndpoints({ journey, trip, serviceId = 'pickup' 
     dropCity: 'HYDERABAD',
     distance,
     hasCoords,
+    missing: {
+      pickUp: pickUplat == null || pickUplon == null,
+      drop: droplat == null || droplon == null,
+    },
   }
 }
 
 export async function searchRefexForJourney(
-  { journey, trip, serviceId = 'pickup' } = {},
+  { journey, trip, serviceId = 'pickup', pgStatus } = {},
   { signal } = {},
 ) {
-  const endpoints = resolveRefexTripEndpoints({ journey, trip, serviceId })
+  const endpoints = resolveRefexTripEndpoints({ journey, trip, serviceId, pgStatus })
   const startTime = refexPickupStartTime()
   const searchId = createRefexSearchId('Refex')
 
   if (!endpoints.hasCoords) {
-    throw new Error('Missing pickup or drop coordinates for Refex search')
+    const bits = []
+    if (endpoints.missing?.pickUp) {
+      bits.push(
+        serviceId === 'drop'
+          ? 'alighting station coords (journey egress)'
+          : 'pickup coords',
+      )
+    }
+    if (endpoints.missing?.drop) {
+      bits.push(
+        serviceId === 'drop'
+          ? 'destination coords (trip / pg status)'
+          : 'station drop coords',
+      )
+    }
+    throw new Error(
+      `Missing ${bits.join(' and ') || 'pickup or drop coordinates'} for Refex search`,
+    )
   }
 
   const mile = serviceId === 'drop' ? journey?.egress : journey?.access

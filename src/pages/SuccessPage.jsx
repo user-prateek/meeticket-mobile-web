@@ -3,25 +3,46 @@ import { Navigate, useSearchParams } from 'react-router-dom'
 import { useAtomValue } from 'jotai'
 import { cancelOrderLeg, fetchOrderPgStatus, getOrderId } from '../api/orders'
 import { buildBookingFromPgStatus } from '../constants/tickets'
+import { DropServiceSheet } from '../features/tickets/DropServiceSheet'
 import { TicketsPage } from '../features/tickets/TicketsPage'
 import { useAppNavigate } from '../hooks/useAppNavigate'
+import { useHydrateJourneyOptions, useSelectJourney } from '../hooks/useJourneyOptions'
 import { PG_STATUS_POLL_MS, usePgStatusPolling } from '../hooks/usePgStatusPolling'
 import { withAppContext } from '../lib/appContext'
 import { buildSuccessPath, useSuccessBackNavigation } from '../lib/successUrl'
-import { orderAtom, selectedJourneyAtom, tripAtom } from '../store/journey'
+import {
+  journeyOptionsAtom,
+  orderAtom,
+  selectedJourneyAtom,
+  selectedJourneyIdAtom,
+  tripAtom,
+} from '../store/journey'
 import './SuccessPage.css'
 
 /**
- * /success?order=ORD-20260901-500526&src=android&versionName=4.7
- * Loads ticket + QR data from pg/status using order id only.
+ * /success?order=ORD-…
+ * Loads ticket + QR + Map Guide from pg/status using order id only.
+ * Drop Service opens operator sheet → /cab?service=drop (new last-mile order).
  */
 export function SuccessPage() {
   const [params] = useSearchParams()
   const navigate = useAppNavigate()
   const trip = useAtomValue(tripAtom)
-  const journey = useAtomValue(selectedJourneyAtom)
   const storedOrder = useAtomValue(orderAtom)
+  const journey = useAtomValue(selectedJourneyAtom)
+  const selectedJourneyId = useAtomValue(selectedJourneyIdAtom)
+  const journeyOptions = useAtomValue(journeyOptionsAtom)
+  const selectJourney = useSelectJourney()
   const goBack = useSuccessBackNavigation(trip)
+
+  // Rehydrate journey options after refresh so Drop Service → /cab has egress.
+  useHydrateJourneyOptions(trip)
+
+  useEffect(() => {
+    if (!journeyOptions.length) return
+    if (journeyOptions.some((option) => Number(option.id) === Number(selectedJourneyId))) return
+    selectJourney(journeyOptions[0])
+  }, [journeyOptions, selectedJourneyId, selectJourney])
 
   const urlOrderId = params.get('order') || params.get('order_id')
   const orderId = urlOrderId || getOrderId(storedOrder)
@@ -29,18 +50,13 @@ export function SuccessPage() {
   const [pgStatus, setPgStatus] = useState(null)
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
+  const [dropOpen, setDropOpen] = useState(false)
+  const [dropFromLabel, setDropFromLabel] = useState('')
 
   useEffect(() => {
     if (urlOrderId || !orderId) return
-    navigate(
-      buildSuccessPath({
-        orderId,
-        returnTo: params.get('returnTo'),
-        fromCheckout: params.get('from') === 'checkout',
-      }),
-      { replace: true },
-    )
-  }, [navigate, orderId, params, urlOrderId])
+    navigate(buildSuccessPath({ orderId }), { replace: true })
+  }, [navigate, orderId, urlOrderId])
 
   const onPgUpdate = useCallback((status) => {
     setPgStatus(status)
@@ -76,7 +92,9 @@ export function SuccessPage() {
     })
   }, [journey, orderId, pgStatus, trip])
 
-  async function handleCancelled({ legId, reason, reasonLabel }) {
+  const journeyId = journey?.id ?? selectedJourneyId ?? displayBooking?.journeyId ?? storedOrder?.journeyId
+
+  async function handleCancelled({ legId, reason, reasonLabel, reasonNote }) {
     if (!orderId) {
       throw new Error('Missing order id')
     }
@@ -84,14 +102,43 @@ export function SuccessPage() {
       throw new Error('Missing cab leg id')
     }
 
+    const cancelReason =
+      reasonNote || reason || reasonLabel || 'Customer cancelled'
+
     await cancelOrderLeg(orderId, legId, {
       cancelled_by: 'Customer',
-      reason: reason || reasonLabel || 'Customer cancelled',
+      reason: cancelReason,
     })
 
     const status = await fetchOrderPgStatus(orderId)
     setPgStatus(status)
     setFetchError('')
+  }
+
+  function handleDropService(ticket) {
+    setDropFromLabel(
+      ticket?.to ||
+        journey?.egress?.fromLabel ||
+        journey?.destinationStation ||
+        pgStatus?.bookings?.find((b) => String(b.leg_type).toUpperCase() !== 'CAB')?.ToLocName ||
+        '',
+    )
+    setDropOpen(true)
+  }
+
+  function handleDropConfirm({ providerId, modeId, vehicleId }) {
+    if (!journeyId) return
+    const next = new URLSearchParams({
+      id: String(journeyId),
+      service: 'drop',
+    })
+    // Parent transit order — used for back nav only; drop creates a new order id.
+    if (orderId) next.set('order', String(orderId))
+    if (providerId) next.set('provider', providerId)
+    if (modeId) next.set('mode', modeId)
+    if (vehicleId) next.set('vehicle', vehicleId)
+    setDropOpen(false)
+    navigate(`/cab?${next.toString()}`)
   }
 
   if (!orderId) {
@@ -115,14 +162,25 @@ export function SuccessPage() {
   }
 
   return (
-    <TicketsPage
-      booking={displayBooking}
-      journey={journey}
-      trip={trip}
-      onBack={goBack}
-      onCall={() => window.alert('Calling support…')}
-      onDropService={() => navigate('/gotohome', { replace: false })}
-      onCancelled={handleCancelled}
-    />
+    <>
+      <TicketsPage
+        booking={displayBooking}
+        journey={journey}
+        trip={trip}
+        onBack={goBack}
+        onCall={() => window.alert('Calling support…')}
+        onDropService={handleDropService}
+        onCancelled={handleCancelled}
+      />
+      <DropServiceSheet
+        open={dropOpen}
+        fromLabel={dropFromLabel}
+        journey={journey}
+        trip={trip}
+        pgStatus={pgStatus}
+        onClose={() => setDropOpen(false)}
+        onConfirm={handleDropConfirm}
+      />
+    </>
   )
 }

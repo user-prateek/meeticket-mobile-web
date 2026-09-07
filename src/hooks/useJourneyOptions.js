@@ -142,3 +142,53 @@ export function useSelectJourney() {
     setSnapshot(option || null)
   }
 }
+
+/**
+ * If journey options were wiped (e.g. success page refresh) but trip + selected id
+ * still exist in session, refetch once. Does not clear existing in-memory options.
+ */
+export function useHydrateJourneyOptions(trip) {
+  const [options, setOptions] = useAtom(journeyOptionsAtom)
+  const [status, setStatus] = useAtom(journeyStatusAtom)
+  const setError = useSetAtom(journeyErrorAtom)
+  const setRaw = useSetAtom(journeyRawAtom)
+  const tripKey = trip ? tripCacheKey(trip) : ''
+
+  useEffect(() => {
+    if (!trip || options.length > 0) return undefined
+
+    const controller = new AbortController()
+    setStatus('loading')
+    setError('')
+
+    fetchJourneyOptions(
+      {
+        fromLat: trip.fromLat,
+        fromLon: trip.fromLon,
+        toLat: trip.toLat,
+        toLon: trip.toLon,
+        accessMode: trip.accessMode,
+        egressMode: trip.egressMode,
+        candidates: trip.candidates,
+        fromPlace: trip.fromPlace,
+        toPlace: trip.toPlace,
+      },
+      { signal: controller.signal },
+    )
+      .then(({ data, options: next }) => {
+        setRaw(data)
+        setOptions(next)
+        setStatus('ready')
+        setError('')
+      })
+      .catch((err) => {
+        if (err.name === 'AbortError') return
+        setStatus('error')
+        setError(err.message || 'Could not load journey options')
+      })
+
+    return () => controller.abort()
+  }, [tripKey, trip, options.length, setError, setOptions, setRaw, setStatus])
+
+  return { hydrating: Boolean(trip) && options.length === 0 && status !== 'error' && status !== 'ready' }
+}

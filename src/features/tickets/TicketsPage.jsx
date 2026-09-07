@@ -457,7 +457,7 @@ function MetroTicket({ ticket, onDropService, qrFlipDirection }) {
 
       <MetroQrPanel ticket={ticket} flipDirection={qrFlipDirection} />
 
-      <button type="button" className="mt-bus-drop" onClick={onDropService}>
+      <button type="button" className="mt-bus-drop" onClick={() => onDropService?.(ticket)}>
         Drop Service
       </button>
     </div>
@@ -643,7 +643,7 @@ function BusTicket({ ticket, onDropService, qrFlipDirection }) {
         </div>
       </article>
 
-      <button type="button" className="mt-bus-drop" onClick={onDropService}>
+      <button type="button" className="mt-bus-drop" onClick={() => onDropService?.(ticket)}>
         Drop Service
       </button>
 
@@ -674,7 +674,9 @@ function EmptyTabPanel({ tabLabel }) {
 function CancelTripModal({
   open,
   reasonId,
+  reasonNote = '',
   onReason,
+  onReasonNote,
   onClose,
   onSkip,
   onConfirm,
@@ -682,6 +684,12 @@ function CancelTripModal({
   error = '',
 }) {
   if (!open) return null
+
+  const otherSelected = reasonId === 'other'
+  const canConfirm =
+    Boolean(reasonId) &&
+    (!otherSelected || String(reasonNote || '').trim()) &&
+    !confirming
 
   return (
     <div className="mt-cancel-modal" role="dialog" aria-modal="true" aria-labelledby="mt-cancel-title">
@@ -712,21 +720,37 @@ function CancelTripModal({
         <p className="mt-cancel-modal__prompt">Why do you want to cancel?</p>
 
         <ul className="mt-cancel-modal__list">
-          {CANCEL_REASONS.map((reason) => (
-            <li key={reason.id}>
-              <label className={`mt-cancel-modal__option${reasonId === reason.id ? ' is-selected' : ''}`}>
-                <input
-                  type="radio"
-                  name="cancel-reason"
-                  value={reason.id}
-                  checked={reasonId === reason.id}
-                  onChange={() => onReason(reason.id)}
-                  disabled={confirming}
-                />
-                <span>{reason.label}</span>
-              </label>
-            </li>
-          ))}
+          {CANCEL_REASONS.map((reason) => {
+            const selected = reasonId === reason.id
+            return (
+              <li key={reason.id} className="mt-cancel-modal__item">
+                <label className={`mt-cancel-modal__option${selected ? ' is-selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="cancel-reason"
+                    value={reason.id}
+                    checked={selected}
+                    onChange={() => onReason(reason.id)}
+                    disabled={confirming}
+                  />
+                  <span className="mt-cancel-modal__radio" aria-hidden="true" />
+                  <span className="mt-cancel-modal__label">{reason.label}</span>
+                </label>
+                {reason.id === 'other' && selected ? (
+                  <textarea
+                    className="mt-cancel-modal__note"
+                    value={reasonNote}
+                    onChange={(event) => onReasonNote?.(event.target.value)}
+                    placeholder="Please tell us more…"
+                    rows={3}
+                    maxLength={300}
+                    aria-label="Other cancellation reason"
+                    disabled={confirming}
+                  />
+                ) : null}
+              </li>
+            )
+          })}
         </ul>
 
         {error ? (
@@ -739,7 +763,7 @@ function CancelTripModal({
           type="button"
           className="mt-cancel-modal__cta"
           onClick={onConfirm}
-          disabled={!reasonId || confirming}
+          disabled={!canConfirm}
         >
           {confirming ? 'Cancelling…' : 'Cancel Ride'}
         </button>
@@ -815,6 +839,7 @@ export function TicketsPage({
   const [journeyIndex, setJourneyIndex] = useState(0)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [reasonId, setReasonId] = useState('find-driver')
+  const [reasonNote, setReasonNote] = useState('')
   const [cancelLoading, setCancelLoading] = useState(false)
   const [cancelError, setCancelError] = useState('')
   const [tabFlipDirection, setTabFlipDirection] = useState(null)
@@ -939,10 +964,13 @@ export function TicketsPage({
       <CancelTripModal
         open={cancelOpen}
         reasonId={reasonId}
+        reasonNote={reasonNote}
         onReason={(nextId) => {
           setReasonId(nextId)
+          if (nextId !== 'other') setReasonNote('')
           setCancelError('')
         }}
+        onReasonNote={setReasonNote}
         onClose={() => {
           if (cancelLoading) return
           setCancelOpen(false)
@@ -958,19 +986,22 @@ export function TicketsPage({
         onConfirm={async () => {
           if (cancelLoading) return
           const reason = CANCEL_REASONS.find((item) => item.id === reasonId)
+          const note = reasonId === 'other' ? String(reasonNote || '').trim() : ''
           const payload = {
             orderId: normalized?.orderId || normalized?.id,
             legId: ticket?.legId,
             legType: ticket?.legType || ticket?.type,
             reasonId,
             reasonLabel: reason?.label || reasonId,
-            reason: reason?.label || reasonId,
+            reason: note || reason?.label || reasonId,
+            reasonNote: note,
           }
           setCancelLoading(true)
           setCancelError('')
           try {
             await onCancelled?.(payload)
             setCancelOpen(false)
+            setReasonNote('')
           } catch (error) {
             setCancelError(error?.message || 'Could not cancel this ride.')
           } finally {

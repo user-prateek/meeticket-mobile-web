@@ -1,0 +1,63 @@
+.mt-drop-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.mt-drop-sheet__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(17, 17, 17, 0.45);
+}
+
+.mt-drop-sheet__panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 430px);
+  max-height: min(88vh, 720px);
+  overflow: auto;
+  padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
+  border-radius: 16px 16px 0 0;
+  background: #fff;
+  box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.12);
+}
+
+.mt-drop-sheet__title {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.mt-drop-sheet__mile {
+  margin: 0;
+}
+
+.mt-drop-sheet__hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #8a9099;
+  text-align: center;
+}
+
+.mt-drop-sheet__cta {
+  width: 100%;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--mt-navy, #060496);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.mt-drop-sheet__cta:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

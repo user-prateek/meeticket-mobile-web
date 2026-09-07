@@ -116,10 +116,11 @@ function resolveTransitLegTimes(segment, trip, chainStartDate) {
 
 async function resolveCabLegTimes({ journey, trip, lastMile, selectedVehicle }) {
   const legInfo = buildCabLegInfo({ journey, trip, lastMile })
+  const isDrop = lastMile?.serviceId === 'drop'
   const start = new Date()
   let durationMin =
     Number(selectedVehicle?.etaMin) ||
-    Number(journey?.access?.durationMin) ||
+    Number(isDrop ? journey?.egress?.durationMin : journey?.access?.durationMin) ||
     null
 
   const hasCoords = [legInfo.pickup_lat, legInfo.pickup_lng, legInfo.drop_lat, legInfo.drop_lng].every(
@@ -251,13 +252,28 @@ function resolveTransitStopCoords(journey, index, transitCount) {
 }
 
 function buildCabLegInfo({ journey, trip, lastMile }) {
-  const mile = journey?.access
-  const accessRaw = journey?.raw?.access
+  const isDrop = lastMile?.serviceId === 'drop'
+  const mile = isDrop ? journey?.egress : journey?.access
+  const mileRaw = isDrop ? journey?.raw?.egress : journey?.raw?.access
 
-  const pickup_lat = coord(mile?.fromLat ?? trip?.fromLat ?? accessRaw?.from_lat)
-  const pickup_lng = coord(mile?.fromLon ?? trip?.fromLon ?? accessRaw?.from_lon)
-  const drop_lat = coord(mile?.toLat ?? accessRaw?.to_lat)
-  const drop_lng = coord(mile?.toLon ?? accessRaw?.to_lon)
+  // Pickup: access = user origin A; drop = alighting station M′.
+  const pickup_lat = coord(
+    mile?.fromLat ?? (isDrop ? null : trip?.fromLat) ?? mileRaw?.from_lat,
+  )
+  const pickup_lng = coord(
+    mile?.fromLon ??
+      (isDrop ? null : trip?.fromLon ?? trip?.fromLng) ??
+      mileRaw?.from_lon,
+  )
+  // Drop: access = boarding station M; drop = destination B.
+  const drop_lat = coord(
+    mile?.toLat ?? (isDrop ? trip?.toLat : null) ?? mileRaw?.to_lat,
+  )
+  const drop_lng = coord(
+    mile?.toLon ??
+      (isDrop ? trip?.toLon ?? trip?.toLng : null) ??
+      mileRaw?.to_lon,
+  )
 
   return {
     provider: lastMile?.providerId || 'internal_fleet',
@@ -265,8 +281,12 @@ function buildCabLegInfo({ journey, trip, lastMile }) {
     pickup_lng,
     drop_lat,
     drop_lng,
-    FromLocName: stringId(mile?.fromLabel ?? trip?.fromPlace),
-    ToLocName: stringId(mile?.toLabel ?? journey?.originStation),
+    FromLocName: stringId(
+      mile?.fromLabel ?? (isDrop ? journey?.destinationStation : trip?.fromPlace),
+    ),
+    ToLocName: stringId(
+      mile?.toLabel ?? (isDrop ? trip?.toPlace : journey?.originStation),
+    ),
   }
 }
 
@@ -546,6 +566,78 @@ export async function buildOrderPayload({ journey, trip, lastMile, selectedVehic
     platform: platform || undefined,
     ...pickupDrop,
     legs,
+  })
+}
+
+/**
+ * Last-mile Drop Service: CAB-only order from alighting station (M′) → destination B.
+ * Creates a new order id (does not append to the parent transit order).
+ */
+export async function buildDropOrderPayload({ journey, trip, lastMile, selectedVehicle, user }) {
+  const profile = user || getUserContext() || {}
+  const dropLastMile = { ...lastMile, serviceId: 'drop' }
+
+  if (!hasFirstMileLeg({ lastMile: dropLastMile, selectedVehicle })) {
+    throw new Error('Select a ride option with a valid fare')
+  }
+
+  const amount_paise = inrToPaise(selectedVehicle.fareInr ?? dropLastMile.fareInr)
+  const leg_info = buildCabLegInfo({ journey, trip, lastMile: dropLastMile })
+
+  if (
+    [leg_info.pickup_lat, leg_info.pickup_lng, leg_info.drop_lat, leg_info.drop_lng].some(
+      (value) => value == null,
+    )
+  ) {
+    throw new Error('Drop service pickup/drop coordinates are missing')
+  }
+
+  const cabTimes = await resolveCabLegTimes({
+    journey,
+    trip,
+    lastMile: dropLastMile,
+    selectedVehicle,
+  })
+  Object.assign(leg_info, cabTimes)
+
+  const leg = {
+    leg_type: 'CAB',
+    leg_info,
+    amount_paise,
+    payment_mode: PAYMENT_MODE,
+  }
+
+  const agg_specific_info = buildCabAggSpecificInfo({
+    lastMile: dropLastMile,
+    selectedVehicle,
+  })
+  if (agg_specific_info && Object.keys(agg_specific_info).length) {
+    leg.agg_specific_info = agg_specific_info
+  }
+
+  const pickupDrop = {
+    pickup_lat: leg_info.pickup_lat,
+    pickup_lng: leg_info.pickup_lng,
+    pickup_place_name: stringId(leg_info.FromLocName) || undefined,
+    drop_lat: leg_info.drop_lat,
+    drop_lng: leg_info.drop_lng,
+    drop_place_name: stringId(leg_info.ToLocName) || undefined,
+  }
+
+  if (!pickupDrop.pickup_place_name || !pickupDrop.drop_place_name) {
+    throw new Error('Missing pickup_place_name or drop_place_name for drop order')
+  }
+
+  let platform = String(getAppContext()?.src || '').trim()
+
+  return compactRecord({
+    user_id: resolveUserId(profile),
+    name: profile.name || import.meta.env.VITE_ORDER_USER_NAME || 'Test User',
+    mobile: profile.mobile || import.meta.env.VITE_ORDER_USER_MOBILE || '8755993810',
+    email: profile.email || import.meta.env.VITE_ORDER_USER_EMAIL || 'test@example.com',
+    platform: platform || undefined,
+    ...pickupDrop,
+    legs: [leg],
   })
 }
 
