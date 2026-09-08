@@ -9,8 +9,10 @@
     <!-- Warm DNS/TLS for journey engines while HTML + JS download. -->
     <link rel="preconnect" href="https://metrommdl.iamgds.com" crossorigin />
     <link rel="preconnect" href="https://tgsrtcengine.iamgds.com" crossorigin />
+    <link rel="preconnect" href="https://mntengine.iamgds.com" crossorigin />
     <link rel="dns-prefetch" href="https://metrommdl.iamgds.com" />
     <link rel="dns-prefetch" href="https://tgsrtcengine.iamgds.com" />
+    <link rel="dns-prefetch" href="https://mntengine.iamgds.com" />
     <!-- Critical boot UI: paints before any JS so WebView is never blank. -->
     <style>
       html, body { margin: 0; height: 100%; background: #e8e8ec; color: #111; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
@@ -171,6 +173,10 @@
                   tgsrtc: jsonFetch(
                     'https://tgsrtcengine.iamgds.com/journey?' +
                       buildQuery(Object.assign({}, common, { candidates: '2' })),
+                  ),
+                  mix: jsonFetch(
+                    'https://mntengine.iamgds.com/journey?' +
+                      buildQuery(Object.assign({}, common, { candidates: '1' })),
                   ),
                 },
               }

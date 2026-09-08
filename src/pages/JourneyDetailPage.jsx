@@ -212,7 +212,7 @@ function LegCard({
 }) {
   const title = segment.title || segment.detailTitle
   const isBus = segment.mode === 'bus'
-  const hasFareOptions = isBus && segment.fareOptions?.length > 1
+  const hasFareOptions = isBus && segment.fareOptions?.length > 0
   const selectedFareId =
     fareSelections?.[segment.id] ||
     cheapestFareOptionId(segment.fareOptions) ||
@@ -256,6 +256,7 @@ function LegCard({
       {hasFareOptions && fareExpanded ? (
         <FareClassPanel
           className="mt-leg__fare-panel"
+          groupId={segment.id}
           segmentId={segment.id}
           options={segment.fareOptions}
           selectedId={selectedFareId}

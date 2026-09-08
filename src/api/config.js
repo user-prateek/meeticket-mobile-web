@@ -1,5 +1,7 @@
 export const baseUrl = 'https://metrommdl.iamgds.com'
 export const tgsrtcBaseUrl = 'https://tgsrtcengine.iamgds.com'
+/** Multimodal mix engine (metro + bus in one itinerary). */
+export const mixBaseUrl = 'https://mntengine.iamgds.com'
 
 const ordersDirectBaseUrl = (import.meta.env.VITE_ORDERS_BASE_URL || 'https://mmts.iamgds.com').replace(
   /\/$/,
@@ -65,6 +67,7 @@ export const helplineNumber = String(import.meta.env.VITE_HELPLINE_NUMBER || '')
 export const urls = {
   journey: `${baseUrl}/journey?`,
   tgsrtcJourney: `${tgsrtcBaseUrl}/journey?`,
+  mixJourney: `${mixBaseUrl}/journey?`,
   orders: ordersBaseUrl ? `${ordersBaseUrl}/api/orders` : '',
   olaProducts: olaBaseUrl ? `${olaBaseUrl}/v1/products?` : '',
   refexSearch: refexApiRoot ? `${refexApiRoot}/search` : '',

@@ -69,10 +69,12 @@ function stopFrom(booking) {
     booking?.source_stop_lat ?? booking?.source_station_lat,
     booking?.source_stop_lng ?? booking?.source_station_lng,
     placeLabel(
+      d.from_stage_name,
+      booking?.from_stage_name,
       booking?.FromLocName,
       booking?.from_station_name,
-      d.from_stop_name,
       d.from_station_name,
+      d.from_stop_name,
     ),
   )
 }
@@ -84,10 +86,12 @@ function stopTo(booking) {
     booking?.destination_stop_lat ?? booking?.destination_station_lat,
     booking?.destination_stop_lng ?? booking?.destination_station_lng,
     placeLabel(
+      d.to_stage_name,
+      booking?.to_stage_name,
       booking?.ToLocName,
       booking?.to_station_name,
-      d.to_stop_name,
       d.to_station_name,
+      d.to_stop_name,
     ),
   )
 }
@@ -95,6 +99,8 @@ function stopTo(booking) {
 function boardLabel(booking) {
   const d = details(booking)
   return placeLabel(
+    d.from_stage_name,
+    booking?.from_stage_name,
     booking?.FromLocName,
     booking?.from_station_name,
     d.from_stop_name,
@@ -105,6 +111,8 @@ function boardLabel(booking) {
 function alightLabel(booking) {
   const d = details(booking)
   return placeLabel(
+    d.to_stage_name,
+    booking?.to_stage_name,
     booking?.ToLocName,
     booking?.to_station_name,
     d.to_stop_name,

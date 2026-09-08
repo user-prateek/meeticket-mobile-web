@@ -62,6 +62,38 @@ function readLegLocName(leg, role) {
   return String(leg?.ToLocName || leg?.to_loc_name || leg?.toLocName || '').trim()
 }
 
+/** Bus/RTC ticket UI: prefer stage names over directional stop names. */
+function readBusDisplayName(leg, details, role, fallback = '') {
+  const d = details && typeof details === 'object' ? details : {}
+  const info = leg?.leg_info && typeof leg.leg_info === 'object' ? leg.leg_info : {}
+  if (role === 'from') {
+    return String(
+      d.from_stage_name ||
+        info.from_stage_name ||
+        leg?.from_stage_name ||
+        readLegLocName(leg, 'from') ||
+        d.from_station_name ||
+        info.from_station_name ||
+        d.from_stop_name ||
+        info.from_stop_name ||
+        fallback ||
+        '',
+    ).trim()
+  }
+  return String(
+    d.to_stage_name ||
+      info.to_stage_name ||
+      leg?.to_stage_name ||
+      readLegLocName(leg, 'to') ||
+      d.to_station_name ||
+      info.to_station_name ||
+      d.to_stop_name ||
+      info.to_stop_name ||
+      fallback ||
+      '',
+  ).trim()
+}
+
 function readCabDriverInfo(leg, details) {
   const assignment = details?.driver_assignment
   const info =
@@ -529,8 +561,8 @@ function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
       pnr: bookingRef || defaults.pnr,
       fareInr: fareInr ?? defaults.fareInr,
       issuedOn: issuedOnFromLeg(leg, details, defaults.issuedOn),
-      from: readLegLocName(leg, 'from') || details?.from_stop_name || defaults.from,
-      to: readLegLocName(leg, 'to') || details?.to_stop_name || defaults.to,
+      from: readBusDisplayName(leg, details, 'from', defaults.from),
+      to: readBusDisplayName(leg, details, 'to', defaults.to),
       passengers: {
         adult: leg.adult_count ?? details?.adult_count ?? defaults.passengers.adult,
         child: leg.child_count ?? details?.child_count ?? defaults.passengers.child,

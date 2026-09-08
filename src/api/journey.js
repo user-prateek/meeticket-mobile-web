@@ -19,6 +19,7 @@ const DEFAULTS = {
   egressMode: 'walk',
   candidates: 2,
   tgsrtcCandidates: 2,
+  mixCandidates: 2,
 }
 
 /** Journey engines fetched in parallel; results merged in this order. */
@@ -28,6 +29,11 @@ const JOURNEY_SOURCES = [
     id: 'tgsrtc',
     urlKey: 'tgsrtcJourney',
     candidates: (trip) => trip.tgsrtcCandidates ?? DEFAULTS.tgsrtcCandidates,
+  },
+  {
+    id: 'mix',
+    urlKey: 'mixJourney',
+    candidates: (trip) => trip.mixCandidates ?? DEFAULTS.mixCandidates,
   },
 ]
 
@@ -95,35 +101,69 @@ function waitMinutes(arrival, depart) {
 }
 
 function lineLabel(mode, leg) {
-  const line = leg.route_id || leg.route_short_name || ''
-  if (mode === 'metro') return line ? `Metro ${line}` : 'Metro'
-  if (mode === 'bus') return line ? `Bus ${line}` : 'TGSRTC Bus'
-  return line || mode
+  if (mode === 'metro') {
+    const line = leg.route_short_name || leg.route_id || ''
+    return line ? `Metro ${line}` : 'Metro'
+  }
+  if (mode === 'bus') {
+    const line = leg.route_name || leg.route_short_name || leg.route_id || ''
+    return line ? `Bus ${line}` : 'TGSRTC Bus'
+  }
+  return leg.route_id || leg.route_short_name || mode
 }
 
-function buildCardSegments(metro, bus) {
-  const segments = []
+function buildTransferWalkSegment(metro, bus, transfer, { fromHop, toHop } = {}) {
+  const lastFrom =
+    fromHop ||
+    [...metro.hops].reverse().find((hop) => hop.mode === 'metro') ||
+    [...bus.hops].reverse().find((hop) => hop.mode === 'bus')
+  const firstTo =
+    toHop ||
+    bus.hops.find((hop) => hop.mode === 'bus') ||
+    metro.hops.find((hop) => hop.mode === 'metro')
+  const transferMin = Math.round(Number(transfer?.duration_minutes) || 0)
 
-  if (metro.hops.length) segments.push(...metro.hops)
+  return {
+    id: `walk-${lastFrom?.id || 'from'}-${firstTo?.id || 'to'}`,
+    mode: 'walk',
+    durationMin: transferMin > 0 ? transferMin : 5,
+    distanceM: roundMeters(transfer?.distance_m),
+    title: 'Walk',
+    subtitle: 'Walk',
+    from: lastFrom?.to,
+    to: firstTo?.from,
+    fromLat: readCoord(transfer?.from_lat),
+    fromLon: readCoord(transfer?.from_lon),
+    toLat: readCoord(transfer?.to_lat),
+    toLon: readCoord(transfer?.to_lon),
+  }
+}
 
+/**
+ * Card / detail order follows mix `sequence` when both modes are present.
+ * leadMode: first transit mode in the itinerary ('metro' | 'bus').
+ */
+function buildCardSegments(metro, bus, transfer, { leadMode } = {}) {
   const hasMetroTransit = metro.hops.some((hop) => hop.mode === 'metro')
   const hasBusTransit = bus.hops.some((hop) => hop.mode === 'bus')
+
   if (hasMetroTransit && hasBusTransit) {
-    const lastMetroHop = [...metro.hops].reverse().find((hop) => hop.mode === 'metro')
-    const firstBusHop = bus.hops.find((hop) => hop.mode === 'bus')
-    segments.push({
-      id: `walk-${lastMetroHop?.id || 'metro'}-${firstBusHop?.id || 'bus'}`,
-      mode: 'walk',
-      durationMin: 5,
-      title: 'Walk',
-      subtitle: 'Walk',
-      from: lastMetroHop?.to,
-      to: firstBusHop?.from,
-    })
+    const metroFirst = leadMode !== 'bus'
+    const fromHop = metroFirst
+      ? [...metro.hops].reverse().find((hop) => hop.mode === 'metro')
+      : [...bus.hops].reverse().find((hop) => hop.mode === 'bus')
+    const toHop = metroFirst
+      ? bus.hops.find((hop) => hop.mode === 'bus')
+      : metro.hops.find((hop) => hop.mode === 'metro')
+    const walk = buildTransferWalkSegment(metro, bus, transfer, { fromHop, toHop })
+    return metroFirst
+      ? [...metro.hops, walk, ...bus.hops]
+      : [...bus.hops, walk, ...metro.hops]
   }
 
-  if (bus.hops.length) segments.push(...bus.hops)
-  return segments.length ? segments : [...bus.hops, ...metro.hops]
+  if (metro.hops.length) return [...metro.hops]
+  if (bus.hops.length) return [...bus.hops]
+  return []
 }
 
 function readPositiveInr(...values) {
@@ -208,7 +248,10 @@ function mapTransitHops(block, mode, prefix) {
     if (index > 0) {
       const wait = waitMinutes(legs[index - 1].arrival_time, leg.depart_time)
       const transferName = stationName(
-        block.transfer_station_name || legs[index - 1].to_station_name || leg.from_station_name,
+        block.transfer_station_name ||
+          (mode === 'bus'
+            ? busDisplayToName(legs[index - 1]) || busDisplayFromName(leg)
+            : legs[index - 1].to_station_name || leg.from_station_name),
         mode,
       )
 
@@ -219,16 +262,29 @@ function mapTransitHops(block, mode, prefix) {
         title: 'Interchange',
         subtitle: 'Interchange',
         detailTitle: transferName ? `Interchange at ${transferName}` : 'Interchange',
-        from: stationName(legs[index - 1].to_station_name, mode),
-        to: stationName(leg.from_station_name, mode),
+        from: stationName(
+          mode === 'bus' ? busDisplayToName(legs[index - 1]) : legs[index - 1].to_station_name,
+          mode,
+        ),
+        to: stationName(
+          mode === 'bus' ? busDisplayFromName(leg) : leg.from_station_name,
+          mode,
+        ),
         transferName,
         stationId: block.transfer_station_id || legs[index - 1].to_station_id,
       })
     }
 
     const title = mode === 'metro' ? 'Metro' : 'TGSRTC'
-    const from = stationName(leg.from_station_name, mode)
-    const to = stationName(leg.to_station_name, mode)
+    // Bus/RTC UI: prefer stage names on journey + journey-detail screens.
+    const from = stationName(
+      mode === 'bus' ? busDisplayFromName(leg) : leg.from_station_name,
+      mode,
+    )
+    const to = stationName(
+      mode === 'bus' ? busDisplayToName(leg) : leg.to_station_name,
+      mode,
+    )
 
     const fareOptions = mapLegFareOptions(leg)
     const selectedFareOptionId = defaultFareOptionId(leg.route_id, fareOptions)
@@ -259,9 +315,13 @@ function mapTransitHops(block, mode, prefix) {
       toStationCode: leg.to_station_code || leg.destination_station_code || null,
       routeId: selectedFareOption?.routeId || leg.route_id,
       routeShortName: leg.route_short_name,
+      routeName: leg.route_name || null,
+      tripId: leg.trip_id || null,
+      tripInstanceId: leg.trip_instance_id || null,
       departTime: leg.depart_time,
       arrivalTime: leg.arrival_time,
       stopCount: 1,
+      sequence: Number(leg.sequence) || index + 1,
     })
 
     stops.push({
@@ -306,7 +366,24 @@ function mapTransitHops(block, mode, prefix) {
   }
 }
 
-function optionLabel(metro, bus) {
+function optionLabel(metro, bus, item) {
+  if (item?.mode_summary) {
+    const parts = String(item.mode_summary)
+      .split('+')
+      .map((part) => part.trim().toLowerCase())
+      .filter(Boolean)
+      .map((key) => {
+        if (key === 'metro') {
+          return metro.direct && metro.stops.length === 1 ? 'Direct Metro' : 'Metro'
+        }
+        if (key === 'bus') {
+          return bus.direct && bus.stops.length === 1 ? 'Direct Bus' : 'Bus'
+        }
+        return key
+      })
+    if (parts.length) return parts.join(' + ')
+  }
+
   const parts = []
   if (bus.stops.length) {
     parts.push(bus.direct && bus.stops.length === 1 ? 'Direct Bus' : 'Bus')
@@ -338,7 +415,149 @@ function normalizeJourneyList(data) {
 }
 
 /** TGSRTC engine returns top-level `legs` + `*_stop_*` fields; metro uses `bus`/`metro` blocks. */
+
+/** Mix engine leg_type: metro | RTC (also accepts mode / bus aliases). */
+function resolveMixLegMode(leg) {
+  const raw = String(leg?.leg_type || leg?.mode || '')
+    .trim()
+    .toLowerCase()
+  if (raw === 'metro') return 'metro'
+  if (raw === 'rtc' || raw === 'bus' || raw === 'tgsrtc') return 'bus'
+  return null
+}
+
+/** Bus UI labels prefer stage names; stop ids stay for booking. */
+function busDisplayFromName(leg) {
+  return (
+    leg?.from_stage_name ||
+    leg?.from_station_name ||
+    leg?.from_stop_name ||
+    leg?.from_name ||
+    null
+  )
+}
+
+function busDisplayToName(leg) {
+  return (
+    leg?.to_stage_name ||
+    leg?.to_station_name ||
+    leg?.to_stop_name ||
+    leg?.to_name ||
+    null
+  )
+}
+
+function normalizeMixLeg(leg) {
+  const mode = resolveMixLegMode(leg)
+  const isMetro = mode === 'metro'
+
+  const fromName = isMetro
+    ? leg.from_station_name || leg.from_name || leg.from_stop_name
+    : busDisplayFromName(leg)
+  const toName = isMetro
+    ? leg.to_station_name || leg.to_name || leg.to_stop_name
+    : busDisplayToName(leg)
+
+  const fromId = isMetro
+    ? leg.from_station_id || leg.from_stop_id
+    : leg.from_stop_id || leg.from_station_id
+  const toId = isMetro
+    ? leg.to_station_id || leg.to_stop_id
+    : leg.to_stop_id || leg.to_station_id
+
+  // Metro codes are often the station ids (NAM, AME). Bus keeps stop ids only.
+  const fromCode = isMetro
+    ? leg.from_station_code || leg.source_station_code || leg.from_station_id || null
+    : leg.from_station_code || null
+  const toCode = isMetro
+    ? leg.to_station_code || leg.destination_station_code || leg.to_station_id || null
+    : leg.to_station_code || null
+
+  return {
+    ...leg,
+    mode,
+    sequence: Number(leg.sequence) || 0,
+    from_station_name: fromName,
+    to_station_name: toName,
+    from_station_id: fromId || null,
+    to_station_id: toId || null,
+    from_stop_id: !isMetro ? fromId || null : leg.from_stop_id || null,
+    to_stop_id: !isMetro ? toId || null : leg.to_stop_id || null,
+    from_station_code: fromCode,
+    to_station_code: toCode,
+    route_id: leg.route_id,
+    // Metro: route_short_name (e.g. C1_RED). Bus/RTC: route_name for display.
+    route_short_name: isMetro
+      ? leg.route_short_name || leg.route_name || leg.route_id
+      : leg.route_name || leg.route_short_name || leg.route_id,
+    route_name: leg.route_name || null,
+    fare: leg.fare,
+    fare_options: Array.isArray(leg.fare_options) ? leg.fare_options : undefined,
+    trip_id: leg.trip_id || null,
+    trip_instance_id: leg.trip_instance_id || null,
+    duration_minutes: leg.duration_minutes,
+    depart_time: leg.depart_time,
+    arrival_time: leg.arrival_time,
+  }
+}
+
+function sumLegDuration(legs) {
+  return legs.reduce((sum, leg) => sum + (Number(leg.duration_minutes) || 0), 0)
+}
+
+function sumLegFare(legs) {
+  return legs.reduce((sum, leg) => sum + readPositiveInr(legFareInr(leg)), 0)
+}
+
+/**
+ * Mix engine (mntengine): sequenced legs with leg_type metro|RTC + optional transfer walk.
+ * Reshape into metro/bus blocks so mapJourneyOption / orders stay shared.
+ */
+function normalizeMixJourneyItem(item) {
+  const legs = (Array.isArray(item.legs) ? item.legs : [])
+    .map(normalizeMixLeg)
+    .filter((leg) => leg.mode === 'metro' || leg.mode === 'bus')
+    .sort((a, b) => (a.sequence || 0) - (b.sequence || 0))
+
+  const metroLegs = legs.filter((leg) => leg.mode === 'metro')
+  const busLegs = legs.filter((leg) => leg.mode === 'bus')
+  const first = legs[0]
+  const last = legs[legs.length - 1]
+
+  const metroFare = sumLegFare(metroLegs)
+  const busFare = sumLegFare(busLegs)
+
+  return {
+    ...item,
+    legs,
+    lead_mode: first?.mode || null,
+    origin_station_name:
+      item.origin_station_name || first?.from_station_name || 'Origin station',
+    destination_station_name:
+      item.destination_station_name || last?.to_station_name || 'Destination station',
+    metro: {
+      legs: metroLegs,
+      direct: metroLegs.length <= 1,
+      total_duration_minutes: sumLegDuration(metroLegs) || undefined,
+      total_fare: metroFare || undefined,
+    },
+    bus: {
+      legs: busLegs,
+      direct: busLegs.length <= 1,
+      total_duration_minutes: sumLegDuration(busLegs) || undefined,
+      total_fare: busFare || undefined,
+    },
+  }
+}
+
 function normalizeJourneyItem(item, source) {
+  if (
+    source === 'mix' ||
+    (item?.mode_summary && Array.isArray(item?.legs) && !item?.bus && !item?.metro)
+  ) {
+    return normalizeMixJourneyItem(item)
+  }
+
   const hasTgsrtcShape =
     source === 'tgsrtc' ||
     (Array.isArray(item?.legs) && !item?.bus && !item?.metro)
@@ -348,22 +567,31 @@ function normalizeJourneyItem(item, source) {
   const legs = (item.legs || []).map((leg) => {
     const normalized = {
       ...leg,
-      from_station_name: leg.from_station_name || leg.from_stop_name,
-      to_station_name: leg.to_station_name || leg.to_stop_name,
+      from_station_name: busDisplayFromName(leg),
+      to_station_name: busDisplayToName(leg),
       from_station_id: leg.from_station_id || leg.from_stop_id,
       to_station_id: leg.to_station_id || leg.to_stop_id,
       route_short_name: leg.route_short_name || leg.route_name,
+      route_name: leg.route_name || null,
     }
     const fare = legFareInr(normalized)
     return fare != null ? { ...normalized, fare } : normalized
   })
 
   const legFareSum = legs.reduce((sum, leg) => sum + readPositiveInr(legFareInr(leg)), 0)
+  const firstLeg = legs[0]
+  const lastLeg = legs[legs.length - 1]
 
   return {
     ...item,
-    origin_station_name: item.origin_station_name || item.origin_stop_name,
-    destination_station_name: item.destination_station_name || item.destination_stop_name,
+    origin_station_name:
+      item.origin_station_name ||
+      firstLeg?.from_station_name ||
+      item.origin_stop_name,
+    destination_station_name:
+      item.destination_station_name ||
+      lastLeg?.to_station_name ||
+      item.destination_stop_name,
     bus: {
       legs,
       direct: item.direct,
@@ -390,13 +618,14 @@ export function mapJourneyOption(item, trip, { id = 1, source } = {}) {
     ? formatMetroStationName(destRaw)
     : destRaw
 
-  const segments = [...bus.hops, ...metro.hops]
-  const cardSegments = buildCardSegments(metro, bus)
-  const stops = [...bus.stops, ...metro.stops]
+  const leadMode = item.lead_mode || resolveMixLegMode(item.legs?.[0]) || 'metro'
+  const cardSegments = buildCardSegments(metro, bus, item.transfer, { leadMode })
+  // Prefer card order so mix itineraries stay chronological for UI + orders.
+  const segments = cardSegments.length ? cardSegments : [...bus.hops, ...metro.hops]
+  const stops = [...metro.stops, ...bus.stops]
   const metroFareInr = metro.fare || 0
   const busFareInr = bus.fare || 0
-  const fare = busFareInr + metroFareInr
-  const walkM = roundMeters(item.access?.distance_m) + roundMeters(item.egress?.distance_m)
+  const fare = readPositiveInr(item.total_fare) || busFareInr + metroFareInr
 
   const access = mapMileLeg(item.access, {
     role: 'access',
@@ -414,7 +643,7 @@ export function mapJourneyOption(item, trip, { id = 1, source } = {}) {
   return {
     id,
     source,
-    label: optionLabel(metro, bus),
+    label: optionLabel(metro, bus, item),
     raw: item,
     ...SHARED,
     segments,
@@ -426,9 +655,9 @@ export function mapJourneyOption(item, trip, { id = 1, source } = {}) {
     // totalDistanceKm: kmFromMeters(walkM),
     totalDistanceKm: '--',
     totalTimeMin: Math.round(
-      Number(item.metro?.total_duration_minutes) ||
-        Number(item.bus?.total_duration_minutes) ||
-        Number(item.total_duration_minutes) ||
+      Number(item.total_duration_minutes) ||
+        (Number(item.metro?.total_duration_minutes) || 0) +
+          (Number(item.bus?.total_duration_minutes) || 0) ||
         0,
     ),
     metroFareInr,

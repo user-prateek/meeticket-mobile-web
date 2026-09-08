@@ -185,6 +185,11 @@ function buildRtcLegInfo(segment, trip, { stopCoords } = {}) {
     ToLocName: stringId(segment.to),
   }
 
+  const tripId = stringId(segment.tripId)
+  const tripInstanceId = stringId(segment.tripInstanceId)
+  if (tripId) leg.trip_id = tripId
+  if (tripInstanceId) leg.trip_instance_id = tripInstanceId
+
   const sourceLat = coord(stopCoords?.sourceLat)
   const sourceLng = coord(stopCoords?.sourceLng)
   const destLat = coord(stopCoords?.destLat)
@@ -218,13 +223,14 @@ function resolveOrderPickupDrop({ journey, trip }) {
 
 /**
  * Station/stop coords for a transit hop.
- * Journey API only gives access.to (board) and egress.from (alight) reliably.
+ * Prefer access.to / egress.from; for mix (2 hops) fill the middle from `raw.transfer`.
  */
 function resolveTransitStopCoords(journey, index, transitCount) {
   const access = journey?.access
   const egress = journey?.egress
   const accessRaw = journey?.raw?.access
   const egressRaw = journey?.raw?.egress
+  const transfer = journey?.raw?.transfer
 
   const boardLat = coord(access?.toLat ?? accessRaw?.to_lat)
   const boardLng = coord(access?.toLon ?? accessRaw?.to_lon)
@@ -243,11 +249,16 @@ function resolveTransitStopCoords(journey, index, transitCount) {
     }
   }
 
+  const transferFromLat = coord(transfer?.from_lat)
+  const transferFromLng = coord(transfer?.from_lon)
+  const transferToLat = coord(transfer?.to_lat)
+  const transferToLng = coord(transfer?.to_lon)
+
   return {
-    sourceLat: isFirst ? boardLat : null,
-    sourceLng: isFirst ? boardLng : null,
-    destLat: isLast ? alightLat : null,
-    destLng: isLast ? alightLng : null,
+    sourceLat: isFirst ? boardLat : transferToLat,
+    sourceLng: isFirst ? boardLng : transferToLng,
+    destLat: isLast ? alightLat : transferFromLat,
+    destLng: isLast ? alightLng : transferFromLng,
   }
 }
 

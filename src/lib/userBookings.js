@@ -25,19 +25,25 @@ function legCapsuleTitle(mode, leg) {
 }
 
 function readLegFrom(leg) {
+  const details = leg?.booking_details
   return (
+    details?.from_stage_name ||
+    leg?.from_stage_name ||
     leg?.from_station_name ||
     leg?.FromLocName ||
-    leg?.booking_details?.from_stop_name ||
+    details?.from_stop_name ||
     ''
   ).trim()
 }
 
 function readLegTo(leg) {
+  const details = leg?.booking_details
   return (
+    details?.to_stage_name ||
+    leg?.to_stage_name ||
     leg?.to_station_name ||
     leg?.ToLocName ||
-    leg?.booking_details?.to_stop_name ||
+    details?.to_stop_name ||
     ''
   ).trim()
 }

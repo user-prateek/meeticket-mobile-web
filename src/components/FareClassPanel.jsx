@@ -1,6 +1,8 @@
 /** Bus fare-tier picker — shared by SRP RouteCard and Journey Detail. */
 export function FareClassPanel({
   segmentId,
+  /** Scopes radio `name` per journey card so cards don't share one page-wide group. */
+  groupId,
   options = [],
   selectedId,
   onSelect,
@@ -10,6 +12,8 @@ export function FareClassPanel({
   onClick,
 }) {
   if (!options.length) return null
+
+  const radioName = `fare-${groupId ?? 'detail'}-${segmentId}`
 
   return (
     <div
@@ -27,7 +31,7 @@ export function FareClassPanel({
           >
             <input
               type="radio"
-              name={`fare-${segmentId}`}
+              name={radioName}
               checked={active}
               onChange={() => onSelect?.(option.id)}
             />

@@ -133,7 +133,7 @@ function CompactHeader({ segment }) {
   if (!segment) return null
 
   const edge = 'start'
-  const hasFareOptions = segment.mode === 'bus' && segment.fareOptions?.length > 1
+  const hasFareOptions = segment.mode === 'bus' && segment.fareOptions?.length > 0
 
   return (
     <div className="mt-compact">
@@ -267,6 +267,7 @@ function Timeline({
   expandedSegmentId,
   onToggleExpand,
   onSelectFare,
+  groupId,
 }) {
   const displaySegments = applyFareSelections(segments, fareSelections)
   const expandedSegment = displaySegments.find((segment) => segment.id === expandedSegmentId)
@@ -281,7 +282,7 @@ function Timeline({
           const edge = isWalk || isInterchange ? 'center' : getTransitEdge(displaySegments, segment.id)
           const itemLayout = getItemLayout(segment, displaySegments)
           const hasFareOptions =
-            segment.mode === 'bus' && segment.fareOptions?.length > 1
+            segment.mode === 'bus' && segment.fareOptions?.length > 0
           const expanded = expandedSegmentId === segment.id
 
           return (
@@ -323,14 +324,16 @@ function Timeline({
         })}
       </div>
 
-      {expandedSegment?.mode === 'bus' && expandedSegment.fareOptions?.length > 1 ? (
+      {expandedSegment?.mode === 'bus' && expandedSegment.fareOptions?.length > 0 ? (
         <FareClassPanel
           className="mt-transit-fare__panel"
+          groupId={groupId}
           segmentId={expandedSegment.id}
           options={expandedSegment.fareOptions}
           selectedId={
             fareSelections[expandedSegment.id] ||
-            cheapestFareOptionId(expandedSegment.fareOptions)
+            cheapestFareOptionId(expandedSegment.fareOptions) ||
+            expandedSegment.fareOptions[0]?.id
           }
           side={getTransitEdge(displaySegments, expandedSegment.id)}
           ariaLabel={`${expandedSegment.title} fare classes`}
@@ -406,9 +409,18 @@ export function RouteCard({
     : displayOption.segments
   const transitOnly = timeline.filter((seg) => seg.mode !== 'interchange')
   const compact = transitOnly.length === 1 && timeline.length === 1
-  const singleHasFareOptions = compact && displayTimeline[0]?.fareOptions?.length > 1
+  const singleHasFareOptions = compact && displayTimeline[0]?.fareOptions?.length > 0
   const pickupLabel = option.access?.fromLabel || 'Current location'
   const providers = option.lastMileProviders ?? []
+
+  // Fare shoutbox open by default for the first bus leg with fare_options.
+  useEffect(() => {
+    const segments = option.cardSegments?.length ? option.cardSegments : option.segments || []
+    const firstBusWithFares = segments.find(
+      (segment) => segment.mode === 'bus' && segment.fareOptions?.length > 0,
+    )
+    setExpandedFareSegmentId(firstBusWithFares?.id ?? null)
+  }, [option.id])
 
   const liveVehicles =
     selectedProviderId === 'refex'
@@ -611,6 +623,7 @@ export function RouteCard({
           expandedSegmentId={expandedFareSegmentId}
           onToggleExpand={setExpandedFareSegmentId}
           onSelectFare={selectFareClass}
+          groupId={option.id}
         />
       )}
 

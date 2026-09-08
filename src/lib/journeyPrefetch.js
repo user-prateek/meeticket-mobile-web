@@ -1,6 +1,6 @@
 /**
  * Early journey prefetch (started from index.html before React loads).
- * Lets metro + TGSRTC requests run in parallel with the JS download on slow networks.
+ * Lets metro + TGSRTC + mix requests run in parallel with the JS download on slow networks.
  */
 
 const PREFETCH_KEY = '__MT_JOURNEY_PREFETCH__'
