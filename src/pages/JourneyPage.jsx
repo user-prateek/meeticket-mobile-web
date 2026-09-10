@@ -41,9 +41,11 @@ function sortOptionsList(options, sortBy) {
 }
 
 function buildLastMilePayload(optionId, change) {
-  if (!change?.providerId && !change?.vehicleId) {
+  const needRide = Boolean(change?.needRide || change?.providerId || change?.vehicleId)
+  if (!needRide) {
     return {
       journeyId: optionId,
+      needRide: false,
       providerId: null,
       providerName: null,
       modeId: null,
@@ -60,6 +62,7 @@ function buildLastMilePayload(optionId, change) {
 
   return {
     journeyId: optionId,
+    needRide: true,
     providerId: change.providerId || null,
     providerName: provider?.name || change.providerId || null,
     modeId,
@@ -81,8 +84,9 @@ function buildDetailPath(option, lastMile) {
 }
 
 /**
- * /journey?from_lat&from_lon&to_lat&to_lon&from&to
- * Requires coords. Fetches options into Jotai and lists them.
+ * /journey?from_lat&from_lon&to_lat&to_lon&from&to&mode
+ * `mode` from Flutter WebView (not shown in UI): 1 metro, 2 TGSRTC, 3 multi (default).
+ * Affects journey search + first-mile on this flow only.
  */
 export function JourneyPage() {
   const location = useLocation()
@@ -175,14 +179,6 @@ export function JourneyPage() {
     return <JourneySkeleton subtitle={subtitle || undefined} />
   }
 
-  function openDetails(option) {
-    const lastMile = lastMileByOption[option.id] || buildLastMilePayload(option.id, null)
-    const enriched = journeyForNavigation(option)
-    persistJourneyOption(enriched)
-    setLastMileSelection(lastMile)
-    navigate(buildDetailPath(enriched, lastMile))
-  }
-
   function continueWith(option) {
     const lastMile = lastMileByOption[option.id] || buildLastMilePayload(option.id, null)
     const enriched = journeyForNavigation(option)
@@ -236,7 +232,6 @@ export function JourneyPage() {
                   handleFareSelectionsChange(option.id, selections)
                 }
                 onSelect={() => setSelectedId(option.id)}
-                onOpenDetails={() => openDetails(option)}
                 onLastMileChange={handleLastMileChange}
               />
             ))}

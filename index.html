@@ -157,6 +157,8 @@
               var accessMode = q.get('access_mode') || 'walk'
               var egressMode = q.get('egress_mode') || 'walk'
               var candidates = q.get('candidates') || '2'
+              var modeRaw = Number(q.get('mode'))
+              var mode = modeRaw === 1 || modeRaw === 2 || modeRaw === 3 ? modeRaw : 3
               var common = {
                 from_lat: fromLat,
                 from_lon: fromLon,
@@ -166,19 +168,25 @@
                 egress_mode: egressMode,
                 candidates: candidates,
               }
+              var sources = {}
+              if (mode === 1 || mode === 3) {
+                sources.metro = jsonFetch('https://metrommdl.iamgds.com/journey?' + buildQuery(common))
+              }
+              if (mode === 2 || mode === 3) {
+                sources.tgsrtc = jsonFetch(
+                  'https://tgsrtcengine.iamgds.com/journey?' +
+                    buildQuery(Object.assign({}, common, { candidates: '2' })),
+                )
+              }
+              if (mode === 3) {
+                sources.mix = jsonFetch(
+                  'https://mntengine.iamgds.com/journey?' +
+                    buildQuery(Object.assign({}, common, { candidates: '2' })),
+                )
+              }
               window.__MT_JOURNEY_PREFETCH__ = {
-                key: [fromLat, fromLon, toLat, toLon, accessMode, egressMode, candidates].join('|'),
-                sources: {
-                  metro: jsonFetch('https://metrommdl.iamgds.com/journey?' + buildQuery(common)),
-                  tgsrtc: jsonFetch(
-                    'https://tgsrtcengine.iamgds.com/journey?' +
-                      buildQuery(Object.assign({}, common, { candidates: '2' })),
-                  ),
-                  mix: jsonFetch(
-                    'https://mntengine.iamgds.com/journey?' +
-                      buildQuery(Object.assign({}, common, { candidates: '1' })),
-                  ),
-                },
+                key: [fromLat, fromLon, toLat, toLon, mode, accessMode, egressMode, candidates].join('|'),
+                sources: sources,
               }
             }
           } catch (e) {}

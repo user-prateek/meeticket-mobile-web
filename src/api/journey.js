@@ -5,6 +5,10 @@ import {
   LAST_MILE_PROVIDERS,
   JOURNEY_SERVICES,
 } from '../constants/journey'
+import {
+  JOURNEY_MODE,
+  parseJourneyMode,
+} from '../constants/journeyMode'
 import { defaultFareOptionId, mapLegFareOptions } from '../lib/fareClasses'
 import { takeJourneySourcePrefetches } from '../lib/journeyPrefetch'
 
@@ -37,12 +41,24 @@ const JOURNEY_SOURCES = [
   },
 ]
 
+function journeySourcesForTrip(trip) {
+  const mode = parseJourneyMode(trip?.mode)
+  if (mode === JOURNEY_MODE.METRO) {
+    return JOURNEY_SOURCES.filter((source) => source.id === 'metro')
+  }
+  if (mode === JOURNEY_MODE.TGSRTC) {
+    return JOURNEY_SOURCES.filter((source) => source.id === 'tgsrtc')
+  }
+  return JOURNEY_SOURCES
+}
+
 export function tripCacheKey(trip) {
   return [
     trip.fromLat,
     trip.fromLon,
     trip.toLat,
     trip.toLon,
+    parseJourneyMode(trip.mode),
     trip.accessMode ?? DEFAULTS.accessMode,
     trip.egressMode ?? DEFAULTS.egressMode,
     trip.candidates ?? DEFAULTS.candidates,
@@ -329,6 +345,8 @@ function mapTransitHops(block, mode, prefix) {
       to,
       mode,
       routeId: leg.route_id,
+      routeShortName: leg.route_short_name || null,
+      routeName: leg.route_name || null,
     })
   })
 
@@ -682,12 +700,13 @@ export function buildJourneyParams(trip, { candidates } = {}) {
   }
 }
 
-function mergeJourneyChunks(bySource) {
+function mergeJourneyChunks(bySource, trip) {
   const data = []
   const options = []
   let id = 1
+  const sources = journeySourcesForTrip(trip)
 
-  for (const source of JOURNEY_SOURCES) {
+  for (const source of sources) {
     const chunk = bySource.get(source.id)
     if (!chunk) continue
     for (let index = 0; index < chunk.raw.length; index += 1) {
@@ -728,13 +747,13 @@ async function fetchJourneySource(source, trip, { signal, bySource, onPartial, p
   const list = normalizeJourneyList(payload).map((item) => normalizeJourneyItem(item, source.id))
 
   bySource.set(source.id, { raw: list, trip })
-  const merged = mergeJourneyChunks(bySource)
+  const merged = mergeJourneyChunks(bySource, trip)
   onPartial?.(merged)
   return { source: source.id, ok: true, count: list.length }
 }
 
 /**
- * GET journey options from all engines in parallel.
+ * GET journey options from enabled engines in parallel (filtered by trip.mode).
  * Calls `onPartial` each time a source responds so the UI can render early results.
  * Returns { data: raw[], options: mapped[] }.
  *
@@ -747,10 +766,11 @@ export async function fetchJourneyOptions(trip, { signal, onPartial } = {}) {
 
   const bySource = new Map()
   const errors = []
+  const sources = journeySourcesForTrip(trip)
   const prefetches = takeJourneySourcePrefetches(tripCacheKey(trip))
 
   await Promise.all(
-    JOURNEY_SOURCES.map(async (source) => {
+    sources.map(async (source) => {
       try {
         return await fetchJourneySource(source, trip, { signal, bySource, onPartial, prefetches })
       } catch (error) {
@@ -762,7 +782,7 @@ export async function fetchJourneyOptions(trip, { signal, onPartial } = {}) {
     }),
   )
 
-  const merged = mergeJourneyChunks(bySource)
+  const merged = mergeJourneyChunks(bySource, trip)
   if (merged.options.length === 0) {
     throw errors[0]?.error || new Error('Could not load journey options')
   }

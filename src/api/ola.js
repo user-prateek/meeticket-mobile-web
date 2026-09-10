@@ -87,7 +87,9 @@ import { olaAccessToken, olaAppToken, urls } from './config'
  * }} OlaRideCategory
  *
  * @typedef {{
+ *   is_hotspot_zone?: boolean,
  *   is_hotpot_zone?: boolean,
+ *   name?: string,
  *   desc?: string,
  *   default_pickup_point_id?: number,
  *   hotspot_boundary?: number[][],
@@ -105,6 +107,8 @@ import { olaAccessToken, olaAppToken, urls } from './config'
  *   fareDisplay: string,
  *   fareId: string | null,
  *   isUpfront: boolean,
+ *   payAtPickup: boolean,
+ *   includeInOnlineTotal: boolean,
  *   etaMin: number | null,
  *   available: boolean,
  *   unavailable: boolean,
@@ -153,7 +157,7 @@ const OLA_MODE_ICON = {
 }
 
 export function isOlaLiveConfigured() {
-  return Boolean(urls.olaProducts && olaAppToken)
+  return Boolean(urls.olaProducts && olaAccessToken)
 }
 
 /** Docs: ride_estimate may be [] or {} when drop coords are omitted. */
@@ -163,62 +167,95 @@ export function asOlaEstimateList(rideEstimate) {
 }
 
 /**
- * Prefer upfront.fare when is_upfront_applicable; else amount_min – amount_max.
+ * Display fare from ride_estimate only: always amount_min – amount_max (never upfront exact).
+ * Ola is cash / pay-at-pickup — fare is estimate only, not charged online.
+ * Keep upfront.fare_id for future booking APIs.
  * @param {OlaRideEstimate | null | undefined} estimate
  */
 export function selectOlaDisplayFare(estimate) {
   if (!estimate) {
-    return { fareInr: null, fareMaxInr: null, fareDisplay: '', isUpfront: false, fareId: null }
-  }
-
-  const upfront = estimate.upfront
-  if (upfront?.is_upfront_applicable && upfront.fare != null && Number.isFinite(Number(upfront.fare))) {
-    const fare = Number(upfront.fare)
     return {
-      fareInr: fare,
+      fareInr: null,
       fareMaxInr: null,
-      fareDisplay: formatFare(fare),
-      isUpfront: true,
-      fareId: upfront.fare_id || null,
+      fareDisplay: '',
+      isUpfront: false,
+      fareId: null,
+      payAtPickup: true,
     }
   }
+
+  const fareId = estimate.upfront?.fare_id || null
 
   const min = estimate.amount_min != null ? Number(estimate.amount_min) : null
   const max = estimate.amount_max != null ? Number(estimate.amount_max) : null
   const hasMin = min != null && Number.isFinite(min)
   const hasMax = max != null && Number.isFinite(max)
 
-  if (hasMin && hasMax && min !== max) {
+  if (hasMin && hasMax) {
+    const low = Math.round(Math.min(min, max))
+    const high = Math.round(Math.max(min, max))
     return {
-      fareInr: min,
-      fareMaxInr: max,
-      fareDisplay: `${formatFare(min)} – ${formatFare(max)}`,
+      fareInr: low,
+      fareMaxInr: high,
+      fareDisplay: low === high ? formatFare(low) : `${formatFare(low)} – ${formatFare(high)}`,
       isUpfront: false,
-      fareId: null,
+      fareId,
+      payAtPickup: true,
     }
   }
 
   if (hasMin) {
+    const low = Math.round(min)
     return {
-      fareInr: min,
-      fareMaxInr: hasMax ? max : null,
-      fareDisplay: formatFare(min),
+      fareInr: low,
+      fareMaxInr: null,
+      fareDisplay: formatFare(low),
       isUpfront: false,
-      fareId: null,
+      fareId,
+      payAtPickup: true,
     }
   }
 
   if (hasMax) {
+    const high = Math.round(max)
     return {
-      fareInr: max,
+      fareInr: high,
       fareMaxInr: null,
-      fareDisplay: formatFare(max),
+      fareDisplay: formatFare(high),
       isUpfront: false,
-      fareId: null,
+      fareId,
+      payAtPickup: true,
     }
   }
 
-  return { fareInr: null, fareMaxInr: null, fareDisplay: '', isUpfront: false, fareId: null }
+  // Share: fares[].cost range (still estimate / cash).
+  const shareFares = Array.isArray(estimate.fares) ? estimate.fares : []
+  if (shareFares.length) {
+    const costs = shareFares
+      .map((row) => Number(row?.cost))
+      .filter((n) => Number.isFinite(n))
+    if (costs.length) {
+      const low = Math.round(Math.min(...costs))
+      const high = Math.round(Math.max(...costs))
+      return {
+        fareInr: low,
+        fareMaxInr: high !== low ? high : null,
+        fareDisplay: high !== low ? `${formatFare(low)} – ${formatFare(high)}` : formatFare(low),
+        isUpfront: false,
+        fareId,
+        payAtPickup: true,
+      }
+    }
+  }
+
+  return {
+    fareInr: null,
+    fareMaxInr: null,
+    fareDisplay: '',
+    isUpfront: false,
+    fareId,
+    payAtPickup: true,
+  }
 }
 
 export function olaCategoryToMode(categoryId) {
@@ -235,11 +272,18 @@ function readPeakLean(category) {
   }
 }
 
-function buildOlaSubtitle({ estimate, peak, lean, available }) {
+function buildOlaSubtitle({ estimate, peak, lean, available, needsHotspotPickup }) {
   if (!available) return 'Unavailable near pickup'
   const parts = []
-  if (estimate?.travel_time_in_minutes != null) {
-    parts.push(`${Math.round(Number(estimate.travel_time_in_minutes))} min trip`)
+  if (needsHotspotPickup) parts.push('Pick a hotspot point')
+  const tripMin =
+    estimate?.travel_time_in_minutes != null
+      ? Number(estimate.travel_time_in_minutes)
+      : estimate?.travel_time_min != null
+        ? Number(estimate.travel_time_min)
+        : null
+  if (tripMin != null && Number.isFinite(tripMin)) {
+    parts.push(`${Math.round(tripMin)} min trip`)
   }
   if (peak) parts.push('Peak pricing')
   else if (lean) parts.push('Lower than usual')
@@ -251,6 +295,7 @@ function buildOlaSubtitle({ estimate, peak, lean, available }) {
 
 /**
  * Map one Ola category (+ matching ride_estimate) → last-mile vehicle row.
+ * Hotspot responses often set eta=-1 while ride_estimate still has fares — treat those as available.
  * @param {OlaRideCategory} category
  * @param {OlaRideEstimate | null} estimate
  * @returns {OlaLastMileVehicle}
@@ -258,10 +303,28 @@ function buildOlaSubtitle({ estimate, peak, lean, available }) {
 export function mapOlaCategoryToVehicle(category, estimate = null) {
   const mode = olaCategoryToMode(category.id)
   const etaRaw = category.eta != null ? Number(category.eta) : null
-  // Docs: eta === -1 → category not available near pickup.
-  const available = etaRaw == null || etaRaw !== -1
   const fare = selectOlaDisplayFare(estimate)
+  const hasFare = fare.fareInr != null && Number.isFinite(fare.fareInr)
+  const etaOk = etaRaw != null && Number.isFinite(etaRaw) && etaRaw >= 0
+  // Docs: eta === -1 alone meant “no cabs at pin”; with a fare estimate (esp. hotspot) still offer it.
+  const available =
+    etaOk || hasFare || category.ride_now_allowed === true || category.ride_now_allowed === 'true'
+  const needsHotspotPickup = available && !etaOk && hasFare
   const { peak, lean } = readPeakLean(category)
+
+  const estimateDistance =
+    estimate?.distance != null ? Number(estimate.distance) : Number.NaN
+  const categoryDistance = category.distance != null ? Number(category.distance) : Number.NaN
+
+  const travelTimeMin = (() => {
+    if (estimate?.travel_time_in_minutes != null) {
+      return Math.round(Number(estimate.travel_time_in_minutes))
+    }
+    if (estimate?.travel_time_min != null) {
+      return Math.round(Number(estimate.travel_time_min))
+    }
+    return null
+  })()
 
   return {
     id: `ola_${category.id}`,
@@ -273,24 +336,25 @@ export function mapOlaCategoryToVehicle(category, estimate = null) {
     fareMaxInr: fare.fareMaxInr,
     fareDisplay: fare.fareDisplay,
     fareId: fare.fareId,
-    isUpfront: fare.isUpfront,
-    etaMin: available && etaRaw != null && etaRaw >= 0 ? Math.round(etaRaw) : null,
+    isUpfront: false,
+    /** Cash to driver — never add to Paytm / order online total. */
+    payAtPickup: true,
+    includeInOnlineTotal: false,
+    etaMin: etaOk ? Math.round(etaRaw) : null,
     available,
     unavailable: !available,
-    subtitle: buildOlaSubtitle({ estimate, peak, lean, available }),
+    needsHotspotPickup,
+    subtitle: buildOlaSubtitle({ estimate, peak, lean, available, needsHotspotPickup }),
     peak,
     lean,
-    faster: available && etaRaw != null && etaRaw >= 0 && etaRaw <= 2,
+    faster: etaOk && etaRaw <= 2,
     distanceKm:
-      estimate?.distance != null
-        ? Number(estimate.distance)
-        : category.distance != null
-          ? Number(category.distance)
+      Number.isFinite(estimateDistance) && estimateDistance >= 0
+        ? estimateDistance
+        : Number.isFinite(categoryDistance) && categoryDistance >= 0
+          ? categoryDistance
           : null,
-    travelTimeMin:
-      estimate?.travel_time_in_minutes != null
-        ? Math.round(Number(estimate.travel_time_in_minutes))
-        : null,
+    travelTimeMin,
     providerId: 'ola',
     categoryId: category.id,
     currency: category.currency || 'INR',
@@ -334,25 +398,33 @@ export function mapOlaCabsToMarkers(cabs = []) {
 export function normalizeOlaProductsResponse(payload, { includeUnavailable = false } = {}) {
   const categories = Array.isArray(payload?.categories) ? payload.categories : []
   const estimates = asOlaEstimateList(payload?.ride_estimate)
-  const estimateByCategory = new Map(
-    estimates.map((item) => [String(item.category || '').toLowerCase(), item]),
-  )
+  // First estimate wins when API duplicates a category (e.g. two `suv` rows).
+  const estimateByCategory = new Map()
+  for (const item of estimates) {
+    const key = String(item.category || '').toLowerCase()
+    if (!key || estimateByCategory.has(key)) continue
+    estimateByCategory.set(key, item)
+  }
 
   const vehicles = categories
     .map((category) => {
       const estimate = estimateByCategory.get(String(category.id || '').toLowerCase()) || null
       return mapOlaCategoryToVehicle(category, estimate)
     })
-    .filter((vehicle) => includeUnavailable || vehicle.available)
+    // SRP / cab / detail: only categories with ride_estimate (amount_min/max).
+    .filter((vehicle) => includeUnavailable || (vehicle.available && vehicle.rawEstimate))
 
   const hotspotZone = payload?.hotspot_zone || null
-  const hotspotActive = Boolean(hotspotZone?.is_hotpot_zone)
+  const hotspotActive = Boolean(
+    hotspotZone?.is_hotspot_zone ?? hotspotZone?.is_hotpot_zone,
+  )
 
   return {
     categories,
     estimates,
     hotspotZone,
     hotspotActive,
+    hotspotName: hotspotZone?.name || null,
     hotspotDesc: hotspotZone?.desc || null,
     defaultPickupPointId: hotspotZone?.default_pickup_point_id ?? null,
     hotspotPickupPoints: Array.isArray(hotspotZone?.pickup_points) ? hotspotZone.pickup_points : [],
@@ -408,34 +480,41 @@ function userFacingOlaMessage(code, fallback) {
   if (code === 'INVALID_CITY') return 'Ola is not available in this city.'
   if (code === 'INVALID_CITY_CAR_CATEGORY') return 'This Ola category is not available here.'
   if (code === 'OLA_TOKEN_MISSING') {
-    return 'Ola is not configured. Set VITE_OLA_APP_TOKEN in .env and restart the dev server.'
+    return 'Ola is not configured. Set VITE_OLA_ACCESS_TOKEN in .env and restart the dev server.'
   }
   if (code === 'invalid_partner_key') return 'Ola partner token is invalid. Check VITE_OLA_APP_TOKEN.'
+  if (code === 'invalid_token' || code === 'UNAUTHORIZED' || code === 'HTTP_401') {
+    return 'Ola access token is missing or expired. Refresh VITE_OLA_ACCESS_TOKEN.'
+  }
   return fallback || 'Could not load Ola ride estimates.'
+}
+
+/**
+ * TEMP: fixed Bangalore coords matching working curl — replace with live trip later.
+ * curl …/v1/products?pickup_lat=12.9502&pickup_lng=77.6417&drop_lat=13.0950287&drop_lng=77.6496671
+ */
+const OLA_HARDCODED_COORDS = {
+  pickupLat: 12.9502,
+  pickupLng: 77.6417,
+  dropLat: 13.0950287,
+  dropLng: 77.6496671,
 }
 
 /**
  * Resolve pickup/drop for last-mile estimate (access: user → station).
  */
 export function resolveOlaTripEndpoints({ journey, trip, serviceId = 'pickup' } = {}) {
-  const isDrop = serviceId === 'drop'
-  const mile = isDrop ? journey?.egress : journey?.access
-
-  const pickupLat = Number(isDrop ? mile?.fromLat : trip?.fromLat ?? mile?.fromLat)
-  const pickupLng = Number(isDrop ? mile?.fromLon : trip?.fromLon ?? mile?.fromLon)
-  const dropLat = Number(isDrop ? trip?.toLat ?? mile?.toLat : mile?.toLat)
-  const dropLng = Number(isDrop ? trip?.toLon ?? mile?.toLon : mile?.toLon)
-
-  const hasPickup = Number.isFinite(pickupLat) && Number.isFinite(pickupLng)
-  const hasDrop = Number.isFinite(dropLat) && Number.isFinite(dropLng)
-
+  // TEMP hardcode — ignore journey/trip until dynamic wiring is ready.
+  void journey
+  void trip
+  void serviceId
   return {
-    pickupLat: hasPickup ? pickupLat : null,
-    pickupLng: hasPickup ? pickupLng : null,
-    dropLat: hasDrop ? dropLat : null,
-    dropLng: hasDrop ? dropLng : null,
-    hasPickup,
-    hasDrop,
+    pickupLat: OLA_HARDCODED_COORDS.pickupLat,
+    pickupLng: OLA_HARDCODED_COORDS.pickupLng,
+    dropLat: OLA_HARDCODED_COORDS.dropLat,
+    dropLng: OLA_HARDCODED_COORDS.dropLng,
+    hasPickup: true,
+    hasDrop: true,
   }
 }
 
@@ -447,31 +526,35 @@ export async function getRideEstimate(params, { signal } = {}) {
   if (!urls.olaProducts) {
     throw createOlaError('OLA_NOT_CONFIGURED', 'Ola API URL is not configured')
   }
-  if (!olaAppToken) {
-    throw createOlaError('OLA_TOKEN_MISSING', userFacingOlaMessage('OLA_TOKEN_MISSING'))
-  }
 
-  const pickupLat = Number(params.pickupLat)
-  const pickupLng = Number(params.pickupLng)
-  if (!Number.isFinite(pickupLat) || !Number.isFinite(pickupLng)) {
-    throw createOlaError('INVALID_PICKUP', 'Pickup latitude and longitude are required')
+  // TEMP: force working-curl lat/lng regardless of caller.
+  const pickupLat = OLA_HARDCODED_COORDS.pickupLat
+  const pickupLng = OLA_HARDCODED_COORDS.pickupLng
+  const dropLat = OLA_HARDCODED_COORDS.dropLat
+  const dropLng = OLA_HARDCODED_COORDS.dropLng
+
+  const bearer = String(params.accessToken || olaAccessToken || '').trim()
+  if (!bearer) {
+    throw createOlaError('OLA_TOKEN_MISSING', userFacingOlaMessage('OLA_TOKEN_MISSING'))
   }
 
   const query = buildOlaProductsQuery({
     ...params,
     pickupLat,
     pickupLng,
+    dropLat,
+    dropLng,
+    serviceType: params.serviceType || 'p2p',
   })
 
+  // Match working curl: accept + Authorization Bearer only.
   const headers = {
-    Accept: 'application/json',
-    'X-APP-TOKEN': olaAppToken,
-    'x-app-token': olaAppToken,
+    accept: 'application/json',
+    Authorization: `Bearer ${bearer}`,
   }
-
-  const bearer = params.accessToken || olaAccessToken
-  if (bearer) {
-    headers.Authorization = `Bearer ${bearer}`
+  // Optional legacy header — only if configured.
+  if (olaAppToken) {
+    headers['x-app-token'] = olaAppToken
   }
 
   const search = new URLSearchParams()
@@ -480,8 +563,10 @@ export async function getRideEstimate(params, { signal } = {}) {
   }
 
   const url = `${urls.olaProducts.replace(/\?$/, '')}?${search}`
-  console.info('[ola] products request', {
+  console.info('[ola] products request (hardcoded lat/lng)', {
     url,
+    hasBearer: true,
+    hasAppToken: Boolean(olaAppToken),
     pickup_lat: query.pickup_lat,
     pickup_lng: query.pickup_lng,
     drop_lat: query.drop_lat,

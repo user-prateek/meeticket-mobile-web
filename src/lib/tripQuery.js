@@ -4,15 +4,22 @@
  * Preferred order (lat/lon first, short place names after):
  *   from_lat, from_lon, to_lat, to_lon,
  *   from, to,
- *   access_mode, egress_mode, candidates
+ *   mode, access_mode, egress_mode, candidates
+ *
+ * `mode` — product mode: 1 metro only, 2 TGSRTC only, 3 multi-mode (default).
  *
  * `from` / `to` should be a short place name (first line / landmark), not the full
  * address with area, city, state, and pincode.
  *
  * Example:
  *   /journey?from_lat=…&from_lon=…&to_lat=…&to_lon=…
- *     &from=…&to=…&access_mode=walk&egress_mode=walk&candidates=2
+ *     &from=…&to=…&mode=3&access_mode=walk&egress_mode=walk&candidates=2
  */
+
+import {
+  JOURNEY_MODE_DEFAULT,
+  parseJourneyMode,
+} from '../constants/journeyMode'
 
 const DEFAULT_ACCESS_MODE = 'walk'
 const DEFAULT_EGRESS_MODE = 'walk'
@@ -88,6 +95,7 @@ export function parseTripQuery(source) {
   const candidates = parseCandidates(
     firstParam(params, ['candidates']) ?? DEFAULT_CANDIDATES,
   )
+  const mode = parseJourneyMode(firstParam(params, ['mode']))
 
   return {
     fromPlace,
@@ -98,6 +106,7 @@ export function parseTripQuery(source) {
     toLat,
     toLon,
     toLng: toLon,
+    mode,
     accessMode,
     egressMode,
     candidates,
@@ -117,6 +126,7 @@ export function tripToSearchParams(trip) {
   }
   if (trip.fromPlace) params.set('from', shortPlaceLabel(trip.fromPlace))
   if (trip.toPlace) params.set('to', shortPlaceLabel(trip.toPlace))
+  params.set('mode', String(parseJourneyMode(trip.mode ?? JOURNEY_MODE_DEFAULT)))
   params.set('access_mode', trip.accessMode || DEFAULT_ACCESS_MODE)
   params.set('egress_mode', trip.egressMode || DEFAULT_EGRESS_MODE)
   params.set('candidates', String(trip.candidates === 2 ? 2 : 1))

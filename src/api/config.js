@@ -12,18 +12,18 @@ export const ordersBaseUrl = ordersDirectBaseUrl
 export const ordersApiKey = import.meta.env.VITE_ORDERS_API_KEY || ''
 
 /**
- * Ola Ride Availability / Estimate API.
- * Sandbox: https://devapi-stg.olacabs-dev.in/mock  (default for local)
- * Prod/dev API: https://devapi.olacabs.com
- * Always uses the direct base URL (no Vite proxy) — set VITE_OLA_BASE_URL.
- * Set VITE_OLA_APP_TOKEN (+ optional VITE_OLA_ACCESS_TOKEN).
- * Restart `npm run dev` after changing Ola env vars.
+ * Ola Ride Availability / Estimate API (via iamgds gateway).
+ * Working: https://olaapi.iamgds.com/v1/products
+ * Auth: Authorization: Bearer {VITE_OLA_ACCESS_TOKEN}
+ * Optional: VITE_OLA_APP_TOKEN → x-app-token (only if set).
+ * Direct browser calls (CORS on server). Restart `npm run dev` after env changes.
  */
-export const olaBaseUrl = (
-  import.meta.env.VITE_OLA_BASE_URL || 'https://devapi-stg.olacabs-dev.in/mock'
-).replace(/\/$/, '')
+export const olaBaseUrl = (import.meta.env.VITE_OLA_BASE_URL || 'https://olaapi.iamgds.com').replace(
+  /\/$/,
+  '',
+)
 export const olaAppToken = import.meta.env.VITE_OLA_APP_TOKEN || ''
-/** Optional user Bearer token — only sent when set. */
+/** Bearer token — required. */
 export const olaAccessToken = import.meta.env.VITE_OLA_ACCESS_TOKEN || ''
 
 /**

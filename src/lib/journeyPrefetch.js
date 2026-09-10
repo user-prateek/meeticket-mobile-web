@@ -26,9 +26,10 @@ export function journeyPrefetchKeyFromParts({
   fromLon,
   toLat,
   toLon,
+  mode = 3,
   accessMode = 'walk',
   egressMode = 'walk',
   candidates = 2,
 }) {
-  return [fromLat, fromLon, toLat, toLon, accessMode, egressMode, candidates].join('|')
+  return [fromLat, fromLon, toLat, toLon, mode, accessMode, egressMode, candidates].join('|')
 }

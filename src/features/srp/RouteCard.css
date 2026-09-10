@@ -1,21 +1,38 @@
 @import '../../styles/fare-classes.css';
 
+.mt-route {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.mt-route.is-not-suggested {
+  opacity: 0.92;
+}
+
 .mt-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
   background: #fff;
   border: 1px solid #e2e5ea;
   border-radius: 14px;
-  padding: 14px 12px 0;
+  padding: 0;
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
   cursor: pointer;
+  overflow: visible;
+}
+
+.mt-card__body {
+  padding: 12px 12px 10px;
+  border-radius: 14px;
+  overflow: visible;
 }
 
 .mt-card.is-selected {
   border-color: var(--mt-primary);
   box-shadow: 0 0 0 1px var(--mt-primary);
-}
-
-.mt-card.is-not-suggested {
-  opacity: 0.92;
 }
 
 .mt-card__hint {
@@ -33,12 +50,266 @@
   transform: scale(0.997);
 }
 
+.mt-card__access {
+  --mt-access-accent: var(--mt-navy);
+  margin-bottom: 2px;
+}
+
+.mt-card__access.is-bus {
+  --mt-access-accent: var(--mt-bus);
+}
+
+.mt-card__from {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  min-width: 0;
+}
+
+.mt-card__from-pin {
+  flex-shrink: 0;
+  color: var(--mt-access-accent);
+}
+
+.mt-card__from-label {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Ride row + optional providers + timeline. */
+.mt-card__access-path {
+  position: relative;
+  padding-bottom: 2px;
+}
+
+/*
+ * Fixed SVGs (small 13×25 / big 20×51). Absolute so they overlay and
+ * do not reserve layout space (SVG viewBoxes include empty margin).
+ * Unchecked → small; checked (providers open) → big.
+ */
+.mt-card__access-arrow {
+  position: absolute;
+  left: -6px;
+  top: 12px;
+  z-index: 1;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+  color: var(--mt-access-accent);
+  overflow: visible;
+}
+
+.mt-card__access-arrow.is-small {
+  width: 13px;
+  height: 25px;
+}
+
+.mt-card__access-arrow.is-big {
+  width: 20px;
+  height: 51px;
+  top: 12px;
+  left: -10px;
+}
+
+.mt-card__ride-row {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  min-height: 26px;
+}
+
+.mt-card__access-km {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  min-width: 32px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--mt-access-accent);
+  white-space: nowrap;
+}
+
+.mt-card__access-km.is-empty {
+  min-width: 32px;
+  min-height: 1em;
+}
+
+.mt-card__ride-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+}
+
+.mt-card__ride-check input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--mt-access-accent);
+  flex-shrink: 0;
+}
+
+.mt-card__ride-check span {
+  min-width: 0;
+  line-height: 1.25;
+  background: #fff;
+  padding: 0 2px;
+}
+
+.mt-card__ride-modes {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  margin-left: auto;
+  width: 100%;
+}
+
+.mt-card__ride-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #fff;
+  padding: 0 2px;
+}
+
+.mt-card__ride-mode+.mt-card__ride-mode {
+  border-left: 1px solid #e5e7eb;
+  padding-left: 8px;
+}
+
+.mt-card__ride-mode.is-selected {
+  color: var(--mt-access-accent);
+}
+
+.mt-card__ride-mode-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.mt-card__ride-check-container {
+  width: 100%;
+  position: relative;
+
+}
+
+.mt-card__ride-check-container.checked {
+  border-radius: 8px;
+  border: 1.5px dashed var(--mt-access-accent);
+  border-radius: 8px;
+  border: 1.5px dashed var(--mt-access-accent);
+  padding-left: 5px;
+  margin-top: 4px;
+  margin-bottom: 10px;
+}
+.mt-card__ride-check-container .mt-card__ride-modes{
+  position: absolute;
+  top:-9px;
+  width: calc(100% - 14px);
+}
+.mt-card__ride-check-container.checked .mt-card__ride-modes{
+  top:-14px;
+}
+.mt-card__ride-check-input{
+  line-height: 0 !important;
+  position: relative;
+  top: 2px;
+}
+.mt-card__providers {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  width: fit-content;
+  max-width: 100%;
+  background: #fff;
+}
+
+.mt-card__provider {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0.9;
+}
+
+.mt-card__provider.is-selected {
+  opacity: 1;
+}
+
+.mt-card__provider.is-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.mt-card__provider-logo,
+.mt-card__provider .mt-brand {
+  max-width: 40px;
+  max-height: 18px;
+  object-fit: contain;
+}
+
+.mt-card__providers-next {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--mt-access-accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.mt-card__access-path .mt-provider-options {
+  margin: 0 0 10px;
+}
+
+.mt-card__access-path .mt-timeline {
+  padding-top: 0;
+}
+
+.mt-card__access-path .mt-compact {
+  padding-top: 0;
+}
+
 .mt-compact {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
-  padding: 4px 4px 12px;
+  padding: 2px 0 8px;
   color: #111827;
 }
 
@@ -73,6 +344,11 @@
   color: #fff;
 }
 
+.mt-capsule.is-metro .mt-capsule__icon,
+.mt-capsule.is-bus .mt-capsule__icon {
+  color: #fff;
+}
+
 .mt-capsule__label {
   font-size: 13px;
   font-weight: 700;
@@ -80,7 +356,12 @@
 }
 
 .mt-capsule__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   margin: 0;
+  width: max-content;
+  max-width: none;
   font-size: 12px;
   font-weight: 700;
   line-height: 1.2;
@@ -96,15 +377,6 @@
 .mt-capsule__meta.is-bus,
 .mt-timeline__step.is-bus .mt-capsule__meta {
   color: var(--mt-bus);
-}
-
-.mt-capsule__meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  width: max-content;
-  max-width: 148px;
 }
 
 .mt-capsule__meta.is-edge-start {
@@ -146,14 +418,36 @@
 }
 
 .mt-transit-fare__panel {
-  margin: 0 2px 10px;
+  margin: 0 2px 8px;
+}
+
+.mt-transit-fare__panel.mt-fare-classes,
+.mt-fare-classes.mt-transit-fare__panel {
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.mt-transit-fare__panel .mt-fare-classes__row {
+  min-height: 26px;
+  padding: 2px 4px;
+  gap: 8px;
+}
+
+.mt-transit-fare__panel .mt-fare-classes__label,
+.mt-transit-fare__panel .mt-fare-classes__fare {
+  font-size: 12px;
+}
+
+.mt-transit-fare__panel .mt-fare-classes__row input {
+  width: 14px;
+  height: 14px;
 }
 
 .mt-timeline {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 2px 2px 12px;
+  padding: 2px 0 10px;
 }
 
 .mt-timeline__item {
@@ -179,7 +473,8 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 0;
+  flex-shrink: 0;
+  min-width: max-content;
 }
 
 .mt-timeline__step.is-align-start {
@@ -215,9 +510,10 @@
 
 .mt-stops {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 8px;
-  margin-bottom: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 4px 0 2px;
+  padding-top: 10px;
 }
 
 .mt-stops.is-single {
@@ -225,13 +521,46 @@
 }
 
 .mt-stop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  min-height: 72px;
+  padding: 12px 10px 10px;
+  background: #fff;
+  border: 1.5px solid #e6e9ee;
+  border-radius: 8px;
+}
+
+.mt-stop.has-line {
+  padding-top: 16px;
+}
+
+.mt-stop__line-title {
+  position: absolute;
+  top: -9px;
+  left: 10px;
+  z-index: 1;
+  max-width: calc(100% - 20px);
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-transform: lowercase;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: #fff;
+}
+
+.mt-stop__inner {
   display: flex;
   gap: 8px;
-  padding: 10px 10px;
-  background: #fff;
-  border: 1px solid #e6e9ee;
-  border-radius: 8px;
   min-width: 0;
+  flex: 1;
 }
 
 .mt-stop__rail {
@@ -252,7 +581,7 @@
 .mt-stop__line {
   width: 1.5px;
   flex: 1;
-  min-height: 16px;
+  min-height: 18px;
   background: #d5dae2;
 }
 
@@ -273,12 +602,18 @@
   background: var(--mt-bus);
 }
 
+.mt-stop.is-bus {
+  border-color: color-mix(in srgb, var(--mt-bus) 55%, #e6e9ee);
+  background: color-mix(in srgb, var(--mt-bus) 6%, #fff);
+}
+
 .mt-stop__copy {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
+  flex: 1;
 }
 
 .mt-stop__copy span {
@@ -286,9 +621,10 @@
   font-weight: 500;
   color: #1f2937;
   line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .mt-mile {
@@ -405,7 +741,7 @@
   cursor: pointer;
 }
 
-.mt-mile__mode + .mt-mile__mode {
+.mt-mile__mode+.mt-mile__mode {
   border-left: 1px solid #d7dce3;
 }
 
@@ -448,7 +784,7 @@
   cursor: not-allowed;
 }
 
-.mt-providers__cell + .mt-providers__cell {
+.mt-providers__cell+.mt-providers__cell {
   border-left: 1px solid #e6e9ee;
 }
 
@@ -615,36 +951,49 @@
 }
 
 .mt-metrics {
+  position: relative;
+  z-index: 0;
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  margin-top: 12px;
-  border-top: 1px solid #eceff3;
+  width: calc(100% - 22px);
+  margin: -1px 0 0;
+  padding: 0;
+  border: 1px solid #e2e5ea;
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.03);
+  pointer-events: none;
 }
 
-.mt-metrics > div {
+.mt-metrics>div {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 12px 4px 14px;
+  padding: 10px 4px 12px;
   text-align: center;
 }
 
-.mt-metrics > div + div {
-  border-left: 1px solid #eceff3;
+.mt-metrics>div+div {
+  border-left: 1px solid #e8eaed;
 }
 
 .mt-metrics span {
+  display: block;
   font-size: 11px;
   font-weight: 500;
-  color: #8a9099;
+  color: #6b7280;
   line-height: 1.2;
+  white-space: nowrap;
 }
 
 .mt-metrics strong {
-  font-size: 16px;
+  display: block;
+  font-size: 15px;
   font-weight: 700;
   color: #111827;
   line-height: 1.2;
+  white-space: nowrap;
 }
 
 .mt-metrics .is-fare {

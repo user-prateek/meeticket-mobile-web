@@ -27,6 +27,7 @@ export function useJourneyOptions(trip) {
     candidates,
     fromPlace,
     toPlace,
+    mode,
   } = trip || {}
 
   const key = trip ? tripCacheKey(trip) : ''
@@ -64,6 +65,7 @@ export function useJourneyOptions(trip) {
         candidates,
         fromPlace,
         toPlace,
+        mode,
       },
       {
         signal: controller.signal,
@@ -105,6 +107,7 @@ export function useJourneyOptions(trip) {
     candidates,
     fromPlace,
     toPlace,
+    mode,
     setError,
     setOptions,
     setRaw,

@@ -9,8 +9,8 @@ Multimodal booking platform: **Place A → Place B**. Most UI exists; work is **
 
 ## User journey
 
-1. **Search** — user picks origin/destination; app calls **three journey APIs in parallel**: metro, TGSRTC (bus), and mix (`mntengine`).
-2. **SRP** — show all bus + metro + mix options (direct or connecting). User may add **first-mile** cab/auto/bike to reach the station.
+1. **Search** — Flutter picks product mode and opens WebView `/journey?…&mode=`. Web never shows the mode. `1` metro API only, `2` TGSRTC API only, `3` multi (metro + TGSRTC + mix). Mode only controls which search APIs run.
+2. **SRP / detail** — options for that mode. First-mile is always opt-in (checkbox on the card), independent of mode. Payment and success ignore mode.
 3. **Journey detail** — review plan; allow last-minute changes (better bus fare class, different taxi/provider from same pickup).
 4. **Payment** — single checkout via own backend + Paytm.
 5. **Success** — all tickets in one place; user shows tickets for first-mile cab, metro, bus; can book **last-mile** from destination.
@@ -31,7 +31,7 @@ Multimodal booking platform: **Place A → Place B**. Most UI exists; work is **
 
 ## Implementation pointers
 
-- Journey search: `src/api/journey.js` — three engines in parallel: metro (`metrommdl`), TGSRTC bus (`tgsrtcengine`), mix (`mntengine`).
+- Journey search: `src/api/journey.js` — engines filtered by `trip.mode` (`src/constants/journeyMode.js`): metro (`metrommdl`), TGSRTC (`tgsrtcengine`), mix (`mntengine`).
 - Fare tiers: `src/lib/fareClasses.js`, bus `fare_options` on legs.
 - Last mile: Ola live API, Refex mock fallback when unconfigured, Rapido static catalog.
 - Payment: `PaymentPage`, `PaymentCallbackPage`, `usePgStatusPolling`, `src/api/orders.js`.

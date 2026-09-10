@@ -1,5 +1,6 @@
 import { PostRequest } from './client'
 import { ordersApiKey, ordersBaseUrl, urls } from './config'
+import { isPayAtPickupVehicle } from '../constants/lastMile'
 import { getAppContext } from '../lib/appContext'
 import { getUserContext } from '../lib/userContext'
 import { dedupeInFlight } from '../lib/dedupeRequest'
@@ -16,6 +17,7 @@ const LEG_TYPE = {
 const FIRST_MILE_MODES = new Set(['cab', 'auto', 'bike'])
 
 const PAYMENT_MODE = 'ONLINE'
+const PAYMENT_MODE_CASH = 'CASH'
 
 function ordersAuthHeaders() {
   if (!ordersApiKey) {
@@ -345,13 +347,18 @@ function buildCabAggSpecificInfo({ lastMile, selectedVehicle }) {
   }
 
   if (providerId === 'ola') {
+    const min = readPositiveInr(selectedVehicle.fareInr, lastMile?.fareInr)
+    const max = readPositiveInr(selectedVehicle.fareMaxInr, min)
     return compactRecord({
       distance: Number.isFinite(distance) && distance > 0 ? distance : undefined,
-      base_fare: baseFare || undefined,
-      total_fare: totalFare || undefined,
+      amount_min: min || undefined,
+      amount_max: max || undefined,
+      // Estimate only — cash to driver; not charged via Paytm.
+      total_fare: undefined,
       search_id: stringId(selectedVehicle.fareId) || undefined,
       vehicle_type: selectedVehicle.categoryId || selectedVehicle.mode || undefined,
       model: selectedVehicle.label || undefined,
+      payment_mode: 'CASH',
     })
   }
 
@@ -387,17 +394,21 @@ function journeyTransitFareInr(journey) {
 
 /**
  * Optional first mile (cab/auto/bike) — always leg 1 when selected.
+ * Cash providers (Ola) still count as a selected first-mile leg for UX / cab review.
  */
 export function hasFirstMileLeg({ lastMile, selectedVehicle }) {
   if (!lastMile?.providerId || !selectedVehicle) return false
   if (!FIRST_MILE_MODES.has(selectedVehicle.mode)) return false
+  if (isPayAtPickupVehicle(selectedVehicle)) return true
   return inrToPaise(selectedVehicle.fareInr ?? lastMile.fareInr) > 0
 }
 
 function buildFirstMileLeg({ journey, trip, lastMile, selectedVehicle }) {
   if (!hasFirstMileLeg({ lastMile, selectedVehicle })) return null
 
-  const amount_paise = inrToPaise(selectedVehicle.fareInr ?? lastMile.fareInr)
+  const payAtPickup = isPayAtPickupVehicle(selectedVehicle)
+  // Cash rides are not collected online — amount_paise stays 0 for Paytm.
+  const amount_paise = payAtPickup ? 0 : inrToPaise(selectedVehicle.fareInr ?? lastMile.fareInr)
   const leg_info = buildCabLegInfo({ journey, trip, lastMile })
 
   if ([leg_info.pickup_lat, leg_info.pickup_lng, leg_info.drop_lat, leg_info.drop_lng].some((v) => v == null)) {
@@ -410,7 +421,7 @@ function buildFirstMileLeg({ journey, trip, lastMile, selectedVehicle }) {
     leg_type: 'CAB',
     leg_info,
     amount_paise,
-    payment_mode: PAYMENT_MODE,
+    payment_mode: payAtPickup ? PAYMENT_MODE_CASH : PAYMENT_MODE,
   }
 
   if (agg_specific_info && Object.keys(agg_specific_info).length) {
@@ -551,9 +562,19 @@ export async function buildOrderPayload({ journey, trip, lastMile, selectedVehic
     throw new Error('Add a bus or metro journey, or select a first-mile ride')
   }
 
-  const invalidLeg = legs.find((leg) => !leg.amount_paise || leg.amount_paise <= 0)
+  const invalidLeg = legs.find((leg) => {
+    if (leg.payment_mode === PAYMENT_MODE_CASH) return false
+    return !leg.amount_paise || leg.amount_paise <= 0
+  })
   if (invalidLeg) {
     throw new Error(`Invalid fare for ${invalidLeg.leg_type} leg`)
+  }
+
+  const hasOnlineLeg = legs.some(
+    (leg) => leg.payment_mode !== PAYMENT_MODE_CASH && leg.amount_paise > 0,
+  )
+  if (!hasOnlineLeg) {
+    throw new Error('No online-payable legs for this order')
   }
 
   const pickupDrop = resolveOrderPickupDrop({ journey, trip })
@@ -592,7 +613,8 @@ export async function buildDropOrderPayload({ journey, trip, lastMile, selectedV
     throw new Error('Select a ride option with a valid fare')
   }
 
-  const amount_paise = inrToPaise(selectedVehicle.fareInr ?? dropLastMile.fareInr)
+  const payAtPickup = isPayAtPickupVehicle(selectedVehicle)
+  const amount_paise = payAtPickup ? 0 : inrToPaise(selectedVehicle.fareInr ?? dropLastMile.fareInr)
   const leg_info = buildCabLegInfo({ journey, trip, lastMile: dropLastMile })
 
   if (
@@ -615,7 +637,7 @@ export async function buildDropOrderPayload({ journey, trip, lastMile, selectedV
     leg_type: 'CAB',
     leg_info,
     amount_paise,
-    payment_mode: PAYMENT_MODE,
+    payment_mode: payAtPickup ? PAYMENT_MODE_CASH : PAYMENT_MODE,
   }
 
   const agg_specific_info = buildCabAggSpecificInfo({
@@ -1068,6 +1090,12 @@ export function isOrderPaymentComplete(order) {
 /** Create order then POST …/pg/initiate — used on Confirm Multi Model. */
 export async function createOrderAndInitiatePg(payload, { signal, journeyId } = {}) {
   const order = await createOrder(payload, { signal, journeyId })
+  const needsPg = (payload?.legs || []).some(
+    (leg) => leg.payment_mode !== PAYMENT_MODE_CASH && Number(leg.amount_paise) > 0,
+  )
+  if (!needsPg) {
+    return { ...order, pgInitiate: null, payAtPickupOnly: true }
+  }
   const pgInitiate = await initiateOrderPg(getOrderId(order), { signal })
   return { ...order, pgInitiate }
 }

@@ -530,6 +530,20 @@ function JourneyDetailView({
           {journey.notSuggested && journey.note ? (
             <p className="mt-details-page__hint">{journey.note}</p>
           ) : null}
+          <PickupServiceCard
+            destinationLabel={destinationLabel}
+            modeId={modeId}
+            providerId={lastMile.providerId}
+            selectedVehicleId={selectedVehicleId}
+            slots={slots}
+            status={slotStatus}
+            error={slotError}
+            showProviders={showProviders}
+            onSelectMode={onSelectMode}
+            onSelectVehicle={onSelectVehicle}
+            onSelectProvider={onSelectProvider}
+            onCheckOthers={onCheckOthers}
+          />
 
           {blocks.map((block) =>
             block.type === 'walk' ? (
@@ -551,21 +565,6 @@ function JourneyDetailView({
               />
             ),
           )}
-
-          <PickupServiceCard
-            destinationLabel={destinationLabel}
-            modeId={modeId}
-            providerId={lastMile.providerId}
-            selectedVehicleId={selectedVehicleId}
-            slots={slots}
-            status={slotStatus}
-            error={slotError}
-            showProviders={showProviders}
-            onSelectMode={onSelectMode}
-            onSelectVehicle={onSelectVehicle}
-            onSelectProvider={onSelectProvider}
-            onCheckOthers={onCheckOthers}
-          />
         </div>
       </div>
 

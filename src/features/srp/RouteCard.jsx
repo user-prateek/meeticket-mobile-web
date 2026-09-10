@@ -44,15 +44,88 @@ const BRAND_LOGO = {
   refex: refexLogo,
 }
 
-function BrandLogo({ id, name }) {
+function BrandLogo({ id, name, className = '' }) {
   const src = BRAND_LOGO[id]
-  if (!src) return <span className={`mt-brand mt-brand--${id}`}>{name}</span>
-  return <img className={`mt-brand mt-brand--${id}`} src={src} alt={name} draggable={false} />
+  if (!src) return <span className={`mt-brand mt-brand--${id}${className ? ` ${className}` : ''}`}>{name}</span>
+  return (
+    <img
+      className={`mt-brand mt-brand--${id}${className ? ` ${className}` : ''}`}
+      src={src}
+      alt={name}
+      draggable={false}
+    />
+  )
 }
 
 function displayStationName(name, mode) {
   if (mode !== 'metro') return name
   return formatMetroStationName(name)
+}
+
+function hexToRgba(hex, alpha = 0.08) {
+  if (!hex) return `rgba(6, 4, 150, ${alpha})`
+  const raw = String(hex).replace('#', '')
+  const full =
+    raw.length === 3
+      ? raw
+        .split('')
+        .map((ch) => ch + ch)
+        .join('')
+      : raw
+  const n = Number.parseInt(full, 16)
+  if (!Number.isFinite(n)) return `rgba(6, 4, 150, ${alpha})`
+  const r = (n >> 16) & 255
+  const g = (n >> 8) & 255
+  const b = n & 255
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+function metroLineCardTitle(routeId) {
+  const line = metroLineFromRouteId(routeId)
+  if (!line?.id) return 'metro'
+  return `${line.id} line metro`
+}
+
+function stopCardTitle(stop) {
+  if (stop.mode === 'metro') return metroLineCardTitle(stop.routeId)
+  // if (stop.mode === 'bus') {
+  //   if (stop.routeShortName) return `route ${stop.routeShortName}`
+  //   if (stop.routeName) return String(stop.routeName).toLowerCase()
+  //   return 'tgsrtc'
+  // }
+  return null
+}
+
+function formatAccessKm(distanceM) {
+  const meters = Number(distanceM)
+  if (!Number.isFinite(meters) || meters <= 0) return null
+  const km = Math.round(meters / 100) / 10
+  return km > 0 ? `${km} KM` : null
+}
+
+function firstTransitHop(segments = []) {
+  return segments.find((segment) => segment.mode === 'metro' || segment.mode === 'bus') || null
+}
+
+function firstTransitMode(segments = []) {
+  return firstTransitHop(segments)?.mode || 'metro'
+}
+
+/** Accent for access pin/arrow + first boarding: metro line color, else bus orange / navy. */
+function transitAccentHex(segment) {
+  if (!segment) return null
+  if (segment.mode === 'bus') return null // use CSS --mt-bus
+  if (segment.mode === 'metro') {
+    return (
+      metroLineFromRouteId(segment.routeId || segment.routeShortName)?.hex || null
+    )
+  }
+  return null
+}
+
+function metroSegmentLine(segment) {
+  if (segment?.mode !== 'metro') return null
+  return metroLineFromRouteId(segment.routeId || segment.routeShortName)
 }
 
 function vehicleMetaParts(vehicle) {
@@ -144,7 +217,7 @@ function CompactHeader({ segment }) {
           edge={edge}
           hasFareOptions={hasFareOptions}
           expanded={false}
-          onToggle={() => {}}
+          onToggle={() => { }}
         />
       ) : (
         <p className={`mt-capsule__meta is-${segment.mode} is-edge-start`}>
@@ -196,10 +269,13 @@ function ModeCapsule({ segment, edge = 'start' }) {
     )
   }
 
+  const line = metroSegmentLine(segment)
+  const capsuleStyle =
+    segment.mode === 'metro' && line?.hex ? { background: line.hex } : undefined
   const icon = <CapsuleGlyph mode={segment.mode} className="mt-capsule__icon" />
   const iconFirst = edge !== 'end'
   return (
-    <div className={`mt-capsule is-${segment.mode}`}>
+    <div className={`mt-capsule is-${segment.mode}`} style={capsuleStyle}>
       {iconFirst ? icon : null}
       <span className="mt-capsule__label">{segment.title}</span>
       {!iconFirst ? icon : null}
@@ -258,7 +334,13 @@ function TransitMeta({
     )
   }
 
-  return <p className={`mt-capsule__meta is-metro ${edgeClass}`}>{durationFare}</p>
+  const line = metroSegmentLine(segment)
+  const metaStyle = line?.hex ? { color: line.hex } : undefined
+  return (
+    <p className={`mt-capsule__meta is-metro ${edgeClass}`} style={metaStyle}>
+      {durationFare}
+    </p>
+  )
 }
 
 function Timeline({
@@ -268,13 +350,33 @@ function Timeline({
   onToggleExpand,
   onSelectFare,
   groupId,
+  includePanel = true,
 }) {
   const displaySegments = applyFareSelections(segments, fareSelections)
   const expandedSegment = displaySegments.find((segment) => segment.id === expandedSegmentId)
   const hideMetroFare = hasMetroInterchange(displaySegments)
 
+  const panel =
+    expandedSegment?.mode === 'bus' && expandedSegment.fareOptions?.length > 0 ? (
+      <FareClassPanel
+        className="mt-transit-fare__panel"
+        groupId={groupId}
+        segmentId={expandedSegment.id}
+        options={expandedSegment.fareOptions}
+        selectedId={
+          fareSelections[expandedSegment.id] ||
+          cheapestFareOptionId(expandedSegment.fareOptions) ||
+          expandedSegment.fareOptions[0]?.id
+        }
+        side={getTransitEdge(displaySegments, expandedSegment.id)}
+        ariaLabel={`${expandedSegment.title} fare classes`}
+        onClick={(event) => event.stopPropagation()}
+        onSelect={(optionId) => onSelectFare?.(expandedSegment.id, optionId)}
+      />
+    ) : null
+
   return (
-    <div className="mt-transit-fare">
+    <>
       <div className="mt-timeline">
         {displaySegments.map((segment, index) => {
           const isInterchange = segment.mode === 'interchange'
@@ -323,52 +425,100 @@ function Timeline({
           )
         })}
       </div>
-
-      {expandedSegment?.mode === 'bus' && expandedSegment.fareOptions?.length > 0 ? (
-        <FareClassPanel
-          className="mt-transit-fare__panel"
-          groupId={groupId}
-          segmentId={expandedSegment.id}
-          options={expandedSegment.fareOptions}
-          selectedId={
-            fareSelections[expandedSegment.id] ||
-            cheapestFareOptionId(expandedSegment.fareOptions) ||
-            expandedSegment.fareOptions[0]?.id
-          }
-          side={getTransitEdge(displaySegments, expandedSegment.id)}
-          ariaLabel={`${expandedSegment.title} fare classes`}
-          onClick={(event) => event.stopPropagation()}
-          onSelect={(optionId) => onSelectFare?.(expandedSegment.id, optionId)}
-        />
-      ) : null}
-    </div>
+      {includePanel ? panel : null}
+    </>
   )
 }
 
-function AccessCurve() {
+function TimelineFarePanel({
+  segments,
+  fareSelections,
+  expandedSegmentId,
+  onSelectFare,
+  groupId,
+}) {
+  const displaySegments = applyFareSelections(segments, fareSelections)
+  const expandedSegment = displaySegments.find((segment) => segment.id === expandedSegmentId)
+  if (!(expandedSegment?.mode === 'bus' && expandedSegment.fareOptions?.length > 0)) {
+    return null
+  }
+
+  return (
+    <FareClassPanel
+      className="mt-transit-fare__panel"
+      groupId={groupId}
+      segmentId={expandedSegment.id}
+      options={expandedSegment.fareOptions}
+      selectedId={
+        fareSelections[expandedSegment.id] ||
+        cheapestFareOptionId(expandedSegment.fareOptions) ||
+        expandedSegment.fareOptions[0]?.id
+      }
+      side={getTransitEdge(displaySegments, expandedSegment.id)}
+      ariaLabel={`${expandedSegment.title} fare classes`}
+      onClick={(event) => event.stopPropagation()}
+      onSelect={(optionId) => onSelectFare?.(expandedSegment.id, optionId)}
+    />
+  )
+}
+
+/** Fixed decorative access arrows (place → first boarding). Absolute — no layout space. */
+function AccessArrow({ size = 'small' }) {
+  if (size === 'big') {
+    return (
+      <svg
+        className="mt-card__access-arrow is-big"
+        width="20"
+        height="51"
+        viewBox="0 0 20 51"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M7.64209 0.27402C1.13329 10.2123 -6.80744 32.8603 13.5 43.9463"
+          stroke="currentColor"
+          strokeDasharray="2 2"
+        />
+        <path
+          d="M17.311 45.9352L15.534 39.0342L10.41 47.7122L17.311 45.9352Z"
+          fill="currentColor"
+        />
+      </svg>
+    )
+  }
+
   return (
     <svg
-      className="mt-mile__curve"
-      width="40"
-      height="34"
-      viewBox="0 0 40 34"
+      className="mt-card__access-arrow is-small"
+      width="13"
+      height="25"
+      viewBox="0 0 13 25"
       fill="none"
       aria-hidden="true"
     >
       <path
-        d="M10 32C10 18 12 5 32 2"
+        d="M4.34574 0.325195C0.841003 4.42135 -3.43477 13.756 7.5 18.3252"
         stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeDasharray="2.2 2.8"
+        strokeDasharray="2 2"
       />
       <path
-        d="M28 1 L32.5 2.2 L29.2 5.6"
-        stroke="currentColor"
+        d="M10.311 19.9821L8.53394 13.0811L3.40999 21.7591L10.311 19.9821Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
+/** Cab page / detail “check others” — reserved for provider strip overflow. */
+function ProvidersNextIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+      <path
+        d="M3.2 1.5 6.8 5 3.2 8.5"
+        stroke="#fff"
         strokeWidth="1.6"
         strokeLinecap="round"
         strokeLinejoin="round"
-        fill="none"
       />
     </svg>
   )
@@ -381,10 +531,10 @@ export function RouteCard({
   fareSelections,
   onFareSelectionsChange,
   onSelect,
-  onOpenDetails,
   onLastMileChange,
 }) {
   const [lastMile, setLastMile] = useState(LAST_MILE_MODE_DEFAULT)
+  const [needRide, setNeedRide] = useState(false)
   const [providerExpanded, setProviderExpanded] = useState(false)
   const [selectedProviderId, setSelectedProviderId] = useState(null)
   const [selectedVehicleId, setSelectedVehicleId] = useState(null)
@@ -410,8 +560,17 @@ export function RouteCard({
   const transitOnly = timeline.filter((seg) => seg.mode !== 'interchange')
   const compact = transitOnly.length === 1 && timeline.length === 1
   const singleHasFareOptions = compact && displayTimeline[0]?.fareOptions?.length > 0
-  const pickupLabel = option.access?.fromLabel || 'Current location'
+  const fromPlaceLabel = trip?.fromPlace || option.access?.fromLabel || 'Current location'
+  const accessKmLabel = formatAccessKm(option.access?.distanceM)
+  const firstHop = firstTransitHop(displayTimeline)
+  const rideTarget = firstHop?.mode === 'bus' ? 'bus station' : 'metro station'
+  const accessLineHex = transitAccentHex(firstHop)
+  const accessAccent =
+    firstHop?.mode === 'bus' ? 'var(--mt-bus)' : accessLineHex || 'var(--mt-navy)'
   const providers = option.lastMileProviders ?? []
+  const rideModes = (option.lastMileOptions ?? []).filter(
+    (item) => item.id === 'cab' || item.id === 'auto',
+  )
 
   // Fare shoutbox open by default for the first bus leg with fare_options.
   useEffect(() => {
@@ -509,6 +668,7 @@ export function RouteCard({
   // Collapse last-mile provider view when another journey card is selected.
   useEffect(() => {
     if (selected) return
+    setNeedRide(false)
     setProviderExpanded(false)
     setSelectedProviderId(null)
     setSelectedVehicleId(null)
@@ -521,8 +681,21 @@ export function RouteCard({
 
   useEffect(() => {
     if (!selected) return
+    if (!needRide) {
+      onLastMileChange?.({
+        journeyId: option.id,
+        needRide: false,
+        providerId: null,
+        modeId: null,
+        vehicleId: null,
+        vehicle: null,
+        providerExpanded: false,
+      })
+      return
+    }
     onLastMileChange?.({
       journeyId: option.id,
+      needRide: true,
       providerId: selectedProviderId,
       modeId: selectedVehicle?.mode || lastMile,
       vehicleId: selectedVehicleId,
@@ -531,6 +704,7 @@ export function RouteCard({
     })
   }, [
     selected,
+    needRide,
     option.id,
     selectedProviderId,
     selectedVehicleId,
@@ -551,9 +725,24 @@ export function RouteCard({
     onSelect?.(option)
   }
 
+  function toggleNeedRide(event) {
+    event.stopPropagation()
+    selectCard()
+    setNeedRide((current) => {
+      const next = !current
+      if (!next) {
+        setProviderExpanded(false)
+        setSelectedProviderId(null)
+        setSelectedVehicleId(null)
+      }
+      return next
+    })
+  }
+
   function selectLastMile(event, id) {
     event.stopPropagation()
     selectCard()
+    setNeedRide(true)
     setLastMile(id)
     if (providerExpanded && isProviderDisabledForMode(selectedProviderId, id)) {
       setProviderExpanded(false)
@@ -564,6 +753,7 @@ export function RouteCard({
 
   function selectProvider(event, id) {
     event.stopPropagation()
+    if (!needRide) setNeedRide(true)
     if (!isProviderEnabled(id) || isProviderDisabledForMode(id, lastMile)) return
     selectCard()
     setSelectedProviderId(id)
@@ -576,9 +766,16 @@ export function RouteCard({
   function checkOthers(event) {
     event.stopPropagation()
     selectCard()
-    setProviderExpanded(false)
-    setSelectedProviderId(null)
+    const next = providers.find(
+      (provider) =>
+        isProviderEnabled(provider.id) && !isProviderDisabledForMode(provider.id, lastMile),
+    )
+    if (!next) return
+    setSelectedProviderId(next.id)
+    setProviderExpanded(true)
     setSelectedVehicleId(null)
+    setLiveStatus('idle')
+    setLiveError('')
   }
 
   function selectVehicleSlot(event, vehicleId) {
@@ -604,151 +801,237 @@ export function RouteCard({
   }
 
   return (
-    <article
-      className={`mt-card${selected ? ' is-selected' : ''}${option.notSuggested ? ' is-not-suggested' : ''}`}
-      onClick={() => onSelect?.(option)}
-      onDoubleClick={() => onOpenDetails?.(option)}
-      aria-pressed={selected}
-    >
-      {option.notSuggested && option.note ? (
-        <p className="mt-card__hint">{option.note}</p>
-      ) : null}
+    <div className={`mt-route${option.notSuggested ? ' is-not-suggested' : ''}`}>
+      <article
+        className={`mt-card${selected ? ' is-selected' : ''}`}
+        onClick={() => onSelect?.(option)}
+        aria-pressed={selected}
+      >
+        <div className="mt-card__body">
+          {option.notSuggested && option.note ? (
+            <p className="mt-card__hint">{option.note}</p>
+          ) : null}
 
-      {compact && !singleHasFareOptions ? (
-        <CompactHeader segment={displayTimeline[0]} />
-      ) : (
-        <Timeline
-          segments={displayTimeline}
-          fareSelections={resolvedFareSelections}
-          expandedSegmentId={expandedFareSegmentId}
-          onToggleExpand={setExpandedFareSegmentId}
-          onSelectFare={selectFareClass}
-          groupId={option.id}
-        />
-      )}
+          <div
+            className={`mt-card__access${firstHop?.mode === 'bus' ? ' is-bus' : ' is-metro'}${needRide ? ' is-need-ride' : ''}`}
+            style={{ '--mt-access-accent': accessAccent }}
+          >
+            <div className="mt-card__from">
+              <PinIcon size={16} className="mt-card__from-pin" />
+              <span className="mt-card__from-label">{fromPlaceLabel}</span>
+            </div>
 
-      {option.stops?.length > 0 ? (
-        <div className={`mt-stops${option.stops.length === 1 ? ' is-single' : ''}`}>
-          {option.stops.map((stop) => {
-            const line =
-              stop.mode === 'metro' ? metroLineFromRouteId(stop.routeId) : null
-            const lineStyle = line ? { background: line.hex } : undefined
-            const railStyle = line
-              ? { background: `color-mix(in srgb, ${line.hex} 35%, #d5dae2)` }
-              : undefined
+            <div className="mt-card__access-path">
+              <AccessArrow size={needRide ? 'big' : 'small'} />
 
-            return (
-              <div
-                key={`${stop.from}-${stop.to}-${stop.routeId || ''}`}
-                className={`mt-stop ${stop.mode ? MODE_CLASS[stop.mode] : ''}`.trim()}
-              >
-                <div className="mt-stop__rail" aria-hidden="true">
-                  <span className="mt-stop__dot" style={lineStyle} />
-                  <span className="mt-stop__line" style={railStyle} />
-                  <span className="mt-stop__sq" style={lineStyle} />
-                </div>
-                <div className="mt-stop__copy">
-                  <span>{displayStationName(stop.from, stop.mode)}</span>
-                  <span>{displayStationName(stop.to, stop.mode)}</span>
+              <div className="mt-card__ride-row">
+                {accessKmLabel ? (
+                  <span className="mt-card__access-km">{accessKmLabel}</span>
+                ) : (
+                  <span className="mt-card__access-km is-empty" aria-hidden="true" />
+                )}
+                <div className={`mt-card__ride-check-container${needRide ? ' checked' : ''}`}>
+                  <div className="mt-card__ride-modes" role="group" aria-label="First mile modes">
+                    <label
+                      className="mt-card__ride-check"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <span className='mt-card__ride-check-input'> 
+                      <input
+                        type="checkbox"
+                        checked={needRide}
+                        onChange={toggleNeedRide}
+                      />
+                      </span>
+                      <span>need ride to {rideTarget}</span>
+                    </label>
+                    <div>
+                      {rideModes.map((mileOption) => (
+                        <button
+                          key={mileOption.id}
+                          type="button"
+                          className={`mt-card__ride-mode${needRide && lastMile === mileOption.id ? ' is-selected' : ''}`}
+                          onClick={(event) => selectLastMile(event, mileOption.id)}
+                        >
+                          <ModeIcon
+                            mode={mileOption.mode}
+                            size={16}
+                            className="mt-card__ride-mode-icon"
+                          />
+                          {mileOption.label}
+                        </button>
+                      ))}
+                    </div>
+                    
+                  </div>
+                  {needRide ? (
+                      <div className="mt-card__providers-container">
+                        <div
+                          className="mt-card__providers"
+                          role="list"
+                          aria-label="Ride providers"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          {providers.map((provider) => {
+                            const disabled = isProviderDisabledForMode(provider.id, lastMile)
+                            return (
+                              <button
+                                key={provider.id}
+                                type="button"
+                                role="listitem"
+                                disabled={disabled}
+                                aria-disabled={disabled || undefined}
+                                title={providerDisabledReason(provider.id, lastMile)}
+                                className={`mt-card__provider${selectedProviderId === provider.id ? ' is-selected' : ''}${disabled ? ' is-disabled' : ''}`}
+                                onClick={(event) => selectProvider(event, provider.id)}
+                              >
+                                <BrandLogo
+                                  id={provider.id}
+                                  name={provider.name}
+                                  className="mt-card__provider-logo"
+                                />
+                              </button>
+                            )
+                          })}
+                          <button
+                            type="button"
+                            className="mt-card__providers-next"
+                            aria-label="More ride options"
+                            onClick={checkOthers}
+                          >
+                            <ProvidersNextIcon />
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
                 </div>
               </div>
-            )
-          })}
-        </div>
-      ) : null}
+              {needRide && providerExpanded ? (
+                <div
+                  className="mt-provider-options"
+                  role="region"
+                  aria-label={`${selectedProviderId} ride options`}
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  {!hasProviderOptions ? (
+                    <p className="mt-provider-options__empty">{providerEmptyMessage}</p>
+                  ) : (
+                    providerSlots.filter(Boolean).map((vehicle) => {
+                      const active = selectedVehicleId === vehicle.id
+                      const { eta, fare, peak } = vehicleMetaParts(vehicle)
 
-      <div className="mt-mile">
-        <div className="mt-mile__row">
-          <div className="mt-mile__origin">
-          <AccessCurve />
-            <PinIcon size={14} className="mt-mile__pin" />
-            <div className="mt-mile__places">
-              <span className="mt-mile__station">{pickupLabel}</span>
+                      return (
+                        <button
+                          key={vehicle.id}
+                          type="button"
+                          aria-pressed={active}
+                          className={`mt-provider-options__cell${active ? ' is-selected' : ''}${vehicle.unavailable ? ' is-unavailable' : ''}`}
+                          onClick={(event) => selectVehicleSlot(event, vehicle.id)}
+                          disabled={vehicle.unavailable || undefined}
+                        >
+                          {active ? <VehicleCheckBadge /> : null}
+                          <div className="mt-provider-options__row">
+                            <BrandLogo id={selectedProviderId} name={selectedProviderId} />
+                            <ModeIcon
+                              mode={vehicle.mode}
+                              size={16}
+                              className="mt-provider-options__mode-icon"
+                            />
+                          </div>
+                          <VehicleSlotMeta
+                            label={vehicle.label}
+                            eta={eta}
+                            fare={fare}
+                            peak={peak}
+                          />
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+              ) : null}
+
+              {compact && !singleHasFareOptions ? (
+                <CompactHeader segment={displayTimeline[0]} />
+              ) : (
+                <Timeline
+                  segments={displayTimeline}
+                  fareSelections={resolvedFareSelections}
+                  expandedSegmentId={expandedFareSegmentId}
+                  onToggleExpand={setExpandedFareSegmentId}
+                  onSelectFare={selectFareClass}
+                  groupId={option.id}
+                  includePanel={false}
+                />
+              )}
             </div>
+
+            {!(compact && !singleHasFareOptions) ? (
+              <TimelineFarePanel
+                segments={displayTimeline}
+                fareSelections={resolvedFareSelections}
+                expandedSegmentId={expandedFareSegmentId}
+                onSelectFare={selectFareClass}
+                groupId={option.id}
+              />
+            ) : null}
           </div>
 
-          {providerExpanded ? (
-            <button type="button" className="mt-mile__more" onClick={checkOthers}>
-              Check Others
-            </button>
-          ) : (
-            <div className="mt-mile__modes" role="group" aria-label="First mile modes">
-              {(option.lastMileOptions ?? []).map((mileOption) => (
-                <button
-                  key={mileOption.id}
-                  type="button"
-                  className={`mt-mile__mode${lastMile === mileOption.id ? ' is-selected' : ''}`}
-                  onClick={(event) => selectLastMile(event, mileOption.id)}
-                >
-                  <ModeIcon mode={mileOption.mode} size={18} className="mt-mile__mode-icon" />
-                  {mileOption.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {providerExpanded ? (
-          <div
-            className="mt-provider-options"
-            role="region"
-            aria-label={`${selectedProviderId} ride options`}
-          >
-            {!hasProviderOptions ? (
-              <p className="mt-provider-options__empty">{providerEmptyMessage}</p>
-            ) : (
-              providerSlots.filter(Boolean).map((vehicle) => {
-                const active = selectedVehicleId === vehicle.id
-                const { eta, fare, peak } = vehicleMetaParts(vehicle)
+          {option.stops?.length > 0 ? (
+            <div className={`mt-stops${option.stops.length === 1 ? ' is-single' : ''}`}>
+              {option.stops.map((stop) => {
+                const line =
+                  stop.mode === 'metro' ? metroLineFromRouteId(stop.routeId) : null
+                const title = stopCardTitle(stop)
+                const lineStyle = line ? { background: line.hex } : undefined
+                const railStyle = line
+                  ? { background: `color-mix(in srgb, ${line.hex} 35%, #d5dae2)` }
+                  : undefined
+                const cardStyle =
+                  stop.mode === 'metro' && line
+                    ? {
+                      borderColor: line.hex,
+                      background: hexToRgba(line.hex, 0.08),
+                    }
+                    : undefined
+                const titleStyle = line
+                  ? {
+                    color: line.hex,
+                    background: '#fff',
+                  }
+                  : undefined
 
                 return (
-                  <button
-                    key={vehicle.id}
-                    type="button"
-                    aria-pressed={active}
-                    className={`mt-provider-options__cell${active ? ' is-selected' : ''}${vehicle.unavailable ? ' is-unavailable' : ''}`}
-                    onClick={(event) => selectVehicleSlot(event, vehicle.id)}
-                    disabled={vehicle.unavailable || undefined}
+                  <div
+                    key={`${stop.from}-${stop.to}-${stop.routeId || ''}`}
+                    className={`mt-stop ${stop.mode ? MODE_CLASS[stop.mode] : ''}${title ? ' has-line' : ''}`.trim()}
+                    style={cardStyle}
                   >
-                    {active ? <VehicleCheckBadge /> : null}
-                    <div className="mt-provider-options__row">
-                      <BrandLogo id={selectedProviderId} name={selectedProviderId} />
-                      <ModeIcon
-                        mode={vehicle.mode}
-                        size={16}
-                        className="mt-provider-options__mode-icon"
-                      />
+                    {title ? (
+                      <span className="mt-stop__line-title" style={titleStyle}>
+                        {title}
+                      </span>
+                    ) : null}
+                    <div className="mt-stop__inner">
+                      <div className="mt-stop__rail" aria-hidden="true">
+                        <span className="mt-stop__dot" style={lineStyle} />
+                        <span className="mt-stop__line" style={railStyle} />
+                        <span className="mt-stop__sq" style={lineStyle} />
+                      </div>
+                      <div className="mt-stop__copy">
+                        <span>{displayStationName(stop.from, stop.mode)}</span>
+                        <span>{displayStationName(stop.to, stop.mode)}</span>
+                      </div>
                     </div>
-                    <VehicleSlotMeta label={vehicle.label} eta={eta} fare={fare} peak={peak} />
-                  </button>
+                  </div>
                 )
-              })
-            )}
-          </div>
-        ) : (
-          <div className="mt-providers" role="list" aria-label="Ride providers">
-            {providers.map((provider) => {
-              const disabled = isProviderDisabledForMode(provider.id, lastMile)
-              return (
-                <button
-                  key={provider.id}
-                  type="button"
-                  role="listitem"
-                  disabled={disabled}
-                  aria-disabled={disabled || undefined}
-                  title={providerDisabledReason(provider.id, lastMile)}
-                  className={`mt-providers__cell mt-providers__cell--${provider.id}${disabled ? ' is-disabled' : ''}`}
-                  onClick={(event) => selectProvider(event, provider.id)}
-                >
-                  <BrandLogo id={provider.id} name={provider.name} />
-                </button>
-              )
-            })}
-          </div>
-        )}
-      </div>
+              })}
+            </div>
+          ) : null}
+        </div>
+      </article>
 
-      <div className="mt-metrics">
+      <div className="mt-metrics" aria-label="Trip totals">
         <div>
           <span>Total Distance</span>
           <strong>{option.totalDistanceKm}</strong>
@@ -762,6 +1045,6 @@ export function RouteCard({
           <strong className="is-fare">₹{displayOption.totalFareInr}</strong>
         </div>
       </div>
-    </article>
+    </div>
   )
 }
