@@ -1,8 +1,8 @@
 @import '../styles/fare-classes.css';
 
 .mt-details-page {
-  /* pay row (~40) + gap + cta (48) + panel padding + safe area */
-  --mt-bottom-cta-space: calc(40px + 12px + 48px + 28px + env(safe-area-inset-bottom, 0px));
+  /* cash + online (~40 each) + gap + cta (48) + panel padding + safe area */
+  --mt-bottom-cta-space: calc(40px + 8px + 40px + 12px + 48px + 28px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -25,10 +25,10 @@
   padding: 12px 16px 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
-.mt-details-page__body > * {
+.mt-details-page__body>* {
   flex-shrink: 0;
 }
 
@@ -53,54 +53,66 @@
 /* —— Transit leg —— */
 .mt-leg {
   background: #fff;
-  border: 1px solid #e6e9ee;
-  border-radius: 12px;
+  border: 1.5px solid #e6e9ee;
+  border-radius: 14px;
   padding: 0;
   overflow: hidden;
+}
+
+.mt-leg.is-metro {
+  border-color: var(--leg-accent, var(--mt-metro));
+}
+
+.mt-leg.is-bus {
+  border-color: var(--mt-bus);
 }
 
 .mt-leg__head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  border-bottom: 1px solid #eceff3;
+  gap: 8px;
+  padding: 8px 12px;
+  min-width: 0;
+  background: #fff;
+  box-sizing: border-box;
 }
 
-.mt-leg__badge {
-  display: block;
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  object-fit: cover;
-  border-radius: 999px;
+.mt-leg.is-metro .mt-leg__head {
+  border-bottom: 1px solid color-mix(in srgb, var(--leg-accent, var(--mt-metro)) 18%, transparent);
 }
 
-.mt-leg__head strong {
+.mt-leg.is-bus .mt-leg__head {
+  border-bottom: 1px solid color-mix(in srgb, var(--mt-bus) 22%, transparent);
+}
+
+.mt-leg__line-name {
   flex: 1;
   min-width: 0;
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 700;
   line-height: 1.25;
-  color: #111827;
+  color: var(--mt-metro);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: lowercase;
+}
+
+.mt-leg__head-spacer {
+  flex: 1;
+  min-width: 0;
 }
 
 .mt-leg__fare {
   flex-shrink: 0;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
-  line-height: 1.25;
-  color: #111827;
+  line-height: 1.2;
+  color: var(--mt-metro);
 }
 
-.mt-leg.is-bus .mt-leg__head strong,
 .mt-leg.is-bus .mt-leg__fare {
   color: var(--mt-bus);
-}
-
-.mt-leg.is-metro .mt-leg__head strong,
-.mt-leg.is-metro .mt-leg__fare {
-  color: var(--mt-metro);
 }
 
 .mt-leg__fare-wrap {
@@ -108,33 +120,110 @@
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .mt-leg__fare-wrap .mt-fare-toggle {
-  width: 22px;
-  height: 22px;
-  font-size: 15px;
+  width: 18px;
+  height: 18px;
+  font-size: 14px;
 }
 
-.mt-leg__fare-panel {
-  margin: -4px 14px 10px;
+/* Capsules — match Journey / RouteCard language */
+.mt-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.mt-capsule.is-metro {
+  background: var(--mt-navy);
+}
+
+.mt-capsule.is-bus {
+  background: var(--mt-bus);
+}
+
+.mt-capsule__icon {
+  display: block;
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+  color: #fff;
+}
+
+.mt-capsule__label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* Compact fare shoutbox — same scale as SRP RouteCard */
+.mt-transit-fare__panel {
+  margin: 0 12px 8px;
+}
+
+.mt-transit-fare__panel+.mt-leg__body {
+  border-top: 1px solid color-mix(in srgb, var(--mt-bus) 22%, transparent);
+  padding-top: 10px;
+}
+
+.mt-transit-fare__panel.mt-fare-classes,
+.mt-fare-classes.mt-transit-fare__panel {
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.mt-transit-fare__panel .mt-fare-classes__row {
+  min-height: 26px;
+  padding: 2px 4px;
+  gap: 8px;
+}
+
+.mt-transit-fare__panel .mt-fare-classes__label,
+.mt-transit-fare__panel .mt-fare-classes__fare {
+  font-size: 12px;
+}
+
+.mt-transit-fare__panel .mt-fare-classes__row input {
+  width: 14px;
+  height: 14px;
 }
 
 .mt-leg__body {
   display: grid;
-  grid-template-columns: 52px 1fr;
-  gap: 8px;
-  align-items: center;
-  padding: 14px;
+  grid-template-columns: 48px 1fr;
+  column-gap: 12px;
+  align-items: start;
+  padding: 10px 12px 12px;
+  background: #fff;
+}
+
+.mt-leg.is-metro .mt-leg__body {
+  background: color-mix(in srgb, var(--leg-accent, var(--mt-metro)) 8%, #fff);
+}
+
+.mt-leg.is-bus .mt-leg__body {
+  background: color-mix(in srgb, var(--mt-bus) 8%, #fff);
 }
 
 .mt-leg__duration {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  align-self: center;
+  justify-content: flex-start;
+  gap: 4px;
+  padding-top: 2px;
   color: #6b7280;
   text-align: center;
 }
@@ -166,7 +255,7 @@
 }
 
 .mt-leg__stop--from .mt-leg__stop-text {
-  padding-bottom: 8px;
+  padding-bottom: 10px;
 }
 
 .mt-leg__icon-col {
@@ -183,10 +272,10 @@
 
 .mt-leg__icon-col .mt-stop__dot,
 .mt-leg__icon-col .mt-stop__sq {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   flex-shrink: 0;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .mt-leg__icon-col .mt-stop__dot {
@@ -215,85 +304,121 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .mt-leg__stop-text span {
   display: block;
   font-size: 13px;
   font-weight: 700;
-  line-height: 24px;
+  line-height: 1.25;
   color: #111827;
 }
 
 .mt-leg__stop-text small {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   line-height: 1.25;
   color: #8a9099;
 }
 
-/* —— Walk transfer —— */
+/* —— Walk transfer (own card between legs) —— */
 .mt-walk-card {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 14px;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
   background: #fff;
   border: 1px solid #e6e9ee;
   border-radius: 12px;
+  box-sizing: border-box;
+}
+
+.mt-walk-card__icon {
+  display: block;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
 }
 
 .mt-walk-card__copy {
   min-width: 0;
-  padding-top: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  justify-content: center;
 }
 
 .mt-walk-card__copy strong {
   display: block;
   font-size: 14px;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.2;
   color: #111827;
 }
 
 .mt-walk-card__copy p {
-  margin: 4px 0 0;
+  margin: 0;
   font-size: 12px;
   font-weight: 500;
-  line-height: 1.4;
+  line-height: 1.3;
   color: #8a9099;
 }
 
-/* —— Pickup service —— */
+/* —— First-mile pickup card (journey detail design) —— */
 .mt-pickup {
+  --mt-access-accent: var(--mt-navy);
+  position: relative;
   background: #fff;
   border: 1px solid #e6e9ee;
   border-radius: 12px;
   padding: 12px 12px 14px;
 }
 
-.mt-pickup__head {
+.mt-pickup__line1 {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 12px;
   min-height: 24px;
+  margin-bottom: 10px;
 }
 
-.mt-pickup__head strong {
-  font-size: 16px;
+.mt-pickup__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.25;
   color: #111827;
+  cursor: pointer;
+  user-select: none;
+}
+
+.mt-pickup__check-input {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+.mt-pickup__check-input input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--mt-access-accent);
+  cursor: pointer;
 }
 
 .mt-pickup__more {
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--mt-metro);
+  color: var(--mt-access-accent);
   font-size: 13px;
   font-weight: 700;
   line-height: 1.2;
@@ -303,40 +428,59 @@
   cursor: pointer;
 }
 
-.mt-pickup__dest {
+/* Line 2: pin + km under it · place name to the right */
+.mt-pickup__line2 {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-
-.mt-pickup__dest-title {
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1.25;
-  color: #111827;
-}
-
-.mt-pickup__dest-divider {
-  height: 1px;
-  background: #eceff3;
-}
-
-.mt-pickup__dest-row {
-  display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   min-width: 0;
 }
 
-.mt-pickup__pin {
+.mt-pickup__pin-col {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   flex-shrink: 0;
-  color: var(--mt-primary);
+  width: 28px;
+  min-height: 36px;
+  left: -10px;
 }
 
-.mt-pickup__dest-station {
+.mt-pickup__pin {
+  color: var(--mt-access-accent);
+}
+
+.mt-pickup__km {
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--mt-access-accent);
+  white-space: nowrap;
+  position: relative;
+  left: 11px;
+}
+
+.mt-pickup__arrow {
+  position: absolute;
+  left: -6px;
+  top: 4px;
+  z-index: 1;
+  width: 32px;
+  height: 225px;
+  pointer-events: none;
+  color: var(--mt-access-accent);
+  overflow: visible;
+}
+
+.mt-pickup__place {
+  flex: 1;
+  min-width: 0;
+  padding-top: 1px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.3;
   color: #111827;
   overflow: hidden;
@@ -344,8 +488,15 @@
   white-space: nowrap;
 }
 
+.mt-pickup__divider {
+  height: 1px;
+  margin: 0 0 12px;
+  background: #eceff3;
+}
+
 .mt-pickup__modes {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 12px;
 }
@@ -355,8 +506,8 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 30px;
-  padding: 0 8px;
+  height: 32px;
+  padding: 0 12px;
   border: 1px solid #d7dce3;
   border-radius: 8px;
   background: #fff;
@@ -370,6 +521,13 @@
   border-color: var(--mt-primary);
   color: var(--mt-primary);
   box-shadow: 0 0 0 1px var(--mt-primary);
+}
+
+.mt-pickup__mode:disabled,
+.mt-pickup.is-ride-off .mt-pickup__mode,
+.mt-pickup.is-options-open .mt-pickup__mode {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .mt-pickup__mode-icon {
@@ -398,7 +556,7 @@
   cursor: pointer;
 }
 
-.mt-pickup__provider + .mt-pickup__provider {
+.mt-pickup__provider+.mt-pickup__provider {
   border-left: 1px solid #e6e9ee;
 }
 
@@ -409,7 +567,8 @@
 }
 
 .mt-pickup__provider.is-disabled,
-.mt-pickup__provider:disabled {
+.mt-pickup__provider:disabled,
+.mt-pickup.is-ride-off .mt-pickup__provider {
   opacity: 0.4;
   cursor: not-allowed;
 }
@@ -446,13 +605,17 @@
   height: 16px;
 }
 
-/* Provider vehicle slots — match RouteCard */
+/* Provider vehicle slots — match RouteCard / SRP */
 .mt-provider-options {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   padding: 0;
   background: transparent;
+}
+
+.mt-provider-options.is-single .mt-provider-options__cell {
+  flex: 1 1 100%;
 }
 
 .mt-provider-options__cell {
@@ -462,7 +625,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  flex: 1 1 140px;
+  flex: 1 1 calc(50% - 3px);
   min-width: 0;
   min-height: 56px;
   padding: 10px 12px 8px;
@@ -608,6 +771,13 @@
   box-shadow: 0 -4px 16px rgba(16, 24, 40, 0.06);
 }
 
+.mt-pay-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
 .mt-pay {
   display: flex;
   align-items: center;
@@ -638,6 +808,10 @@
 .mt-pay__chevron {
   color: #c2c2c2;
   flex-shrink: 0;
+}
+
+.mt-pay--cash strong {
+  color: #047857;
 }
 
 .mt-details-page__cta {

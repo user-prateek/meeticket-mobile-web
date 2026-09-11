@@ -130,9 +130,15 @@ import { olaAccessToken, olaAppToken, urls } from './config'
  * }} OlaLastMileVehicle
  */
 
+/**
+ * ride_estimate[].category → cab | auto | bike.
+ * Docs: auto + erick (e-rickshaw) = auto; bike = bike (not offered in UI yet);
+ * everything else = cab/car.
+ */
 const OLA_CATEGORY_MODE = {
   auto: 'auto',
   erick: 'auto',
+  erisk: 'auto', // common typo / alias
   bike: 'bike',
   micro: 'cab',
   mini: 'cab',
@@ -149,6 +155,9 @@ const OLA_CATEGORY_MODE = {
   rental: 'cab',
   outstation: 'cab',
 }
+
+/** Categories we do not surface yet (bike; rental/outstation need other service_type). */
+const OLA_HIDDEN_CATEGORIES = new Set(['bike', 'rental', 'outstation'])
 
 const OLA_MODE_ICON = {
   auto: olaAuto,
@@ -407,12 +416,18 @@ export function normalizeOlaProductsResponse(payload, { includeUnavailable = fal
   }
 
   const vehicles = categories
+    .filter((category) => {
+      const id = String(category?.id || '').toLowerCase()
+      return id && !OLA_HIDDEN_CATEGORIES.has(id)
+    })
     .map((category) => {
       const estimate = estimateByCategory.get(String(category.id || '').toLowerCase()) || null
       return mapOlaCategoryToVehicle(category, estimate)
     })
-    // SRP / cab / detail: only categories with ride_estimate (amount_min/max).
+    // Only categories with a usable ride_estimate (amount_min/max or share fares).
     .filter((vehicle) => includeUnavailable || (vehicle.available && vehicle.rawEstimate))
+    // Product offers cab + auto for now — never surface bike in lists.
+    .filter((vehicle) => vehicle.mode !== 'bike')
 
   const hotspotZone = payload?.hotspot_zone || null
   const hotspotActive = Boolean(

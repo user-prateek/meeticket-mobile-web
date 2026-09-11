@@ -236,6 +236,128 @@ export function getProviderCardSlots(providerId, liveVehicles) {
   })
 }
 
+/**
+ * Journey detail — one summary card per mode (cab / auto), not per Ola category.
+ * Category-level fares live on the Cab page; here we only show min–max fare + time
+ * and a few popular category names (e.g. Mini · SUV · Share).
+ */
+const DETAIL_MODE_ORDER = ['cab', 'auto']
+
+/** Prefer these Ola category ids when picking 2–3 names for the cab summary. */
+const CAB_HIGHLIGHT_CATEGORY_IDS = ['mini', 'suv', 'share', 'micro', 'prime', 'prime_play']
+
+function pickHighlightLabels(vehicles, mode) {
+  if (mode === 'auto') {
+    const labels = vehicles.map((v) => v.label).filter(Boolean)
+    return [...new Set(labels)].slice(0, 2)
+  }
+  if (mode !== 'cab') return []
+
+  const byCategory = new Map()
+  for (const vehicle of vehicles) {
+    const id = String(vehicle.categoryId || vehicle.id || '')
+      .replace(/^ola_/, '')
+      .toLowerCase()
+    if (!id || byCategory.has(id)) continue
+    byCategory.set(id, vehicle.label || id)
+  }
+
+  const picked = []
+  for (const id of CAB_HIGHLIGHT_CATEGORY_IDS) {
+    if (!byCategory.has(id)) continue
+    picked.push(byCategory.get(id))
+    byCategory.delete(id)
+    if (picked.length >= 3) break
+  }
+  if (picked.length < 2) {
+    for (const label of byCategory.values()) {
+      picked.push(label)
+      if (picked.length >= 3) break
+    }
+  }
+  return picked
+}
+
+function formatSummaryTime(minMin, maxMin) {
+  if (minMin == null && maxMin == null) return null
+  if (minMin != null && maxMin != null && minMin !== maxMin) {
+    return `${minMin} – ${maxMin} Min`
+  }
+  const only = minMin ?? maxMin
+  return only != null ? `${only} Min` : null
+}
+
+/**
+ * @param {string} providerId
+ * @param {object[] | undefined} liveVehicles
+ * @returns {object[]} mode summary cards for journey detail
+ */
+export function summarizeProviderModes(providerId, liveVehicles) {
+  const list =
+    providerId === 'ola' || providerId === 'refex'
+      ? Array.isArray(liveVehicles)
+        ? liveVehicles
+        : []
+      : LAST_MILE_VEHICLES[providerId] ?? []
+
+  const available = list.filter((vehicle) => vehicle && !vehicle.unavailable)
+  const modes = providerId === 'refex' ? ['cab'] : DETAIL_MODE_ORDER
+
+  return modes
+    .map((mode) => {
+      const group = available.filter((vehicle) => vehicle.mode === mode)
+      if (!group.length) return null
+
+      const fareLows = group.map((v) => Number(v.fareInr)).filter(Number.isFinite)
+      const fareHighs = group
+        .map((v) => Number(v.fareMaxInr != null ? v.fareMaxInr : v.fareInr))
+        .filter(Number.isFinite)
+      const times = group
+        .map((v) => Number(v.travelTimeMin != null ? v.travelTimeMin : v.etaMin))
+        .filter(Number.isFinite)
+
+      if (!fareLows.length) return null
+
+      const low = Math.round(Math.min(...fareLows))
+      const high = Math.round(Math.max(...fareHighs.length ? fareHighs : fareLows))
+      const tLow = times.length ? Math.round(Math.min(...times)) : null
+      const tHigh = times.length ? Math.round(Math.max(...times)) : null
+      const highlights = pickHighlightLabels(group, mode)
+      const modeLabel = getLastMileMode(mode)?.label || mode
+      const label = highlights.length ? highlights.join(' · ') : modeLabel
+      const cheapest = cheapestInMode(group)
+
+      return {
+        id: `${providerId}_${mode}_summary`,
+        mode,
+        label,
+        modeLabel,
+        icon: cheapest?.icon || null,
+        fareInr: low,
+        fareMaxInr: high !== low ? high : null,
+        fareDisplay: high !== low ? `${formatFare(low)} – ${formatFare(high)}` : formatFare(low),
+        travelTimeMin: tLow,
+        travelTimeMax: tHigh,
+        timeDisplay: formatSummaryTime(tLow, tHigh),
+        etaMin: tLow,
+        providerId,
+        isModeSummary: true,
+        peak: group.some((v) => v.peak),
+        payAtPickup: group.every((v) => v.payAtPickup || v.providerId === 'ola' || providerId === 'ola'),
+        includeInOnlineTotal: providerId === 'ola' ? false : cheapest?.includeInOnlineTotal,
+        categoryCount: group.length,
+        representativeId: cheapest?.id || null,
+        unavailable: false,
+      }
+    })
+    .filter(Boolean)
+}
+
+/** @deprecated Prefer summarizeProviderModes for journey detail. */
+export function getProviderDetailOptions(providerId, liveVehicles) {
+  return summarizeProviderModes(providerId, liveVehicles)
+}
+
 export function getLastMileVehicles(providerId, modeId, liveVehicles) {
   const list =
     providerId === 'ola' || providerId === 'refex'
@@ -296,12 +418,13 @@ export function onlineFareInrFromVehicle(vehicle) {
   return Number.isFinite(fare) ? fare : 0
 }
 
-/** ETA label for provider slots — never shows negative ETA. */
+/** ETA label for provider slots — never shows negative ETA. Prefer trip time when ETA unknown. */
 export function formatVehicleEta(vehicle) {
   if (!vehicle) return null
   if (vehicle.unavailable) return 'Unavailable'
-  if (vehicle.etaMin == null) return null
-  return `${vehicle.etaMin} Min`
+  if (vehicle.etaMin != null) return `${vehicle.etaMin} Min`
+  if (vehicle.travelTimeMin != null) return `${vehicle.travelTimeMin} Min`
+  return null
 }
 
 /** Secondary line under vehicle name (trip time, peak, etc.). */

@@ -3,10 +3,9 @@ import { Navigate, useSearchParams } from 'react-router-dom'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { Header } from '../components/Header'
 import { FareClassPanel } from '../components/FareClassPanel'
-import { ChevronIcon, ClockIcon, ModeIcon, OnlinePayIcon, PinIcon } from '../components/icons'
+import { ChevronIcon, ClockIcon, CashBillIcon, ModeIcon, OnlinePayIcon, PinIcon, MetroGlyph, BusGlyph, WalkIcon } from '../components/icons'
 import {
   LAST_MILE_MODE_DEFAULT,
-  LAST_MILE_MODES,
   LAST_MILE_PROVIDERS,
   coerceEnabledProviderId,
   findLastMileVehicle,
@@ -14,12 +13,15 @@ import {
   formatVehicleFare,
   getLastMileMode,
   getLastMileProvider,
-  getProviderCardSlots,
+  isPayAtPickupVehicle,
   isProviderDisabledForMode,
   isProviderEnabled,
+  onlineFareInrFromVehicle,
   providerDisabledReason,
+  summarizeProviderModes,
 } from '../constants/lastMile'
 import { metroLineFromRouteId } from '../constants/metroLines'
+import { LAST_MILE_OPTIONS } from '../constants/journey'
 import { getOlaRideEstimateForJourneyCached } from '../api/ola'
 import { searchRefexForJourney } from '../api/refex'
 import { buildOrderPayload, createOrderAndInitiatePg, hasFirstMileLeg } from '../api/orders'
@@ -31,6 +33,7 @@ import {
   applyFareSelectionsToJourney,
   buildInitialFareSelections,
   cheapestFareOptionId,
+  formatSegmentFareRange,
 } from '../lib/fareClasses'
 import { tripToSearch } from '../lib/tripQuery'
 import { journeyOptionsAtom, lastMileSelectionAtom, orderAtom, tripAtom, userAtom } from '../store/journey'
@@ -45,10 +48,11 @@ const BRAND_LOGO = {
   refex: refexLogo,
 }
 
-function BrandLogo({ id, name }) {
+function BrandLogo({ id, name, className = '' }) {
   const src = BRAND_LOGO[id]
-  if (!src) return <span className={`mt-brand mt-brand--${id}`}>{name}</span>
-  return <img className={`mt-brand mt-brand--${id}`} src={src} alt={name} draggable={false} />
+  const classes = `mt-brand mt-brand--${id} ${className}`.trim()
+  if (!src) return <span className={classes}>{name}</span>
+  return <img className={classes} src={src} alt={name} draggable={false} />
 }
 
 function displayStationName(name, mode) {
@@ -57,9 +61,9 @@ function displayStationName(name, mode) {
 }
 
 function vehicleMetaParts(vehicle) {
-  const eta = formatVehicleEta(vehicle)
+  const eta = vehicle?.timeDisplay || formatVehicleEta(vehicle)
   const fare = formatVehicleFare(vehicle) || null
-  return { eta, fare, peak: Boolean(vehicle.peak) }
+  return { eta, fare, peak: Boolean(vehicle?.peak) }
 }
 
 function VehicleSlotMeta({ label, eta, fare, peak }) {
@@ -129,9 +133,13 @@ function resolveLastMileSelection(params, stored) {
   const journeyId = Number(params.get('id'))
   const rawProviderId = params.get('provider') || stored?.providerId || null
   const providerId = coerceEnabledProviderId(rawProviderId, { fallback: null })
-  const modeId = providerId
-    ? params.get('mode') || stored?.modeId || null
-    : null
+  const needRide = Boolean(
+    stored?.needRide || providerId || params.get('provider') || params.get('mode'),
+  )
+  const modeId =
+    params.get('mode') ||
+    (needRide ? stored?.modeId : null) ||
+    null
   const vehicleId = providerId
     ? params.get('vehicle') || stored?.vehicleId || null
     : null
@@ -145,6 +153,7 @@ function resolveLastMileSelection(params, stored) {
     if ((stored.vehicleId || null) === (vehicleId || null)) {
       return {
         journeyId,
+        needRide: true,
         providerId: stored.providerId,
         providerName: stored.providerName,
         modeId: stored.modeId,
@@ -156,9 +165,10 @@ function resolveLastMileSelection(params, stored) {
     }
   }
 
-  if (!providerId) {
+  if (!providerId && !needRide) {
     return {
       journeyId,
+      needRide: false,
       providerId: null,
       providerName: null,
       modeId: null,
@@ -175,6 +185,7 @@ function resolveLastMileSelection(params, stored) {
 
   return {
     journeyId,
+    needRide: true,
     providerId,
     providerName: provider?.name || providerId,
     modeId: vehicle?.mode || modeId,
@@ -185,22 +196,52 @@ function resolveLastMileSelection(params, stored) {
   }
 }
 
-function buildLastMilePayload(journeyId, { providerId, vehicle }) {
+function buildLastMilePayload(journeyId, { providerId, vehicle, needRide = false, modeId = null }) {
+  const wantsRide = Boolean(needRide || providerId || vehicle)
   const provider = getLastMileProvider(providerId)
-  const modeId = vehicle?.mode || null
-  const mode = getLastMileMode(modeId)
+  const isSummary = Boolean(vehicle?.isModeSummary)
+  const resolvedModeId = vehicle?.mode || modeId || null
+  const mode = getLastMileMode(resolvedModeId)
   return {
     journeyId,
-    providerId: providerId || null,
-    providerName: provider?.name || providerId || null,
-    modeId,
-    modeLabel: mode?.label || null,
-    vehicleId: vehicle?.id || null,
-    vehicleLabel: vehicle?.label || null,
-    fareInr: vehicle?.fareInr ?? null,
-    fareDisplay: vehicle?.fareDisplay || null,
-    refexSearchId: vehicle?.searchId || null,
+    needRide: wantsRide,
+    providerId: wantsRide ? providerId || null : null,
+    providerName: wantsRide ? provider?.name || providerId || null : null,
+    modeId: wantsRide ? resolvedModeId : null,
+    modeLabel: wantsRide ? mode?.label || null : null,
+    // Mode summaries are not a concrete category — Cab page lists categories.
+    vehicleId: wantsRide && vehicle && !isSummary ? vehicle.id : null,
+    vehicleLabel: wantsRide
+      ? isSummary
+        ? vehicle.modeLabel || mode?.label || vehicle.label || null
+        : vehicle?.label || null
+      : null,
+    fareInr: wantsRide ? vehicle?.fareInr ?? null : null,
+    fareMaxInr: wantsRide ? vehicle?.fareMaxInr ?? null : null,
+    fareDisplay: wantsRide ? vehicle?.fareDisplay || null : null,
+    payAtPickup: wantsRide ? Boolean(vehicle?.payAtPickup || providerId === 'ola') : false,
+    refexSearchId: wantsRide && !isSummary ? vehicle?.searchId || null : null,
   }
+}
+
+function metroLineTitle(line) {
+  if (!line?.id) return null
+  return `${line.id} line metro`
+}
+
+function LegModeCapsule({ segment, line }) {
+  const isBus = segment.mode === 'bus'
+  const label = isBus ? segment.title || 'TGSRTC' : 'Metro'
+  const capsuleStyle =
+    !isBus && line?.hex ? { background: line.hex } : undefined
+  const Glyph = isBus ? BusGlyph : MetroGlyph
+
+  return (
+    <div className={`mt-capsule is-${segment.mode}`} style={capsuleStyle}>
+      <Glyph size={13} className="mt-capsule__icon" />
+      <span className="mt-capsule__label">{label}</span>
+    </div>
+  )
 }
 
 function LegCard({
@@ -221,6 +262,11 @@ function LegCard({
     segment.mode === 'metro'
       ? metroLineFromRouteId(segment.routeId || segment.routeShortName || title)
       : null
+  const lineTitle = metroLineTitle(line)
+  const busFareRange = isBus ? formatSegmentFareRange(segment) : null
+  const metroFare =
+    !isBus && segment.fareInr != null ? `₹${segment.fareInr}` : null
+  const fareText = isBus ? busFareRange : metroFare
   const markerStyle = line
     ? { background: line.hex }
     : segment.mode === 'bus'
@@ -229,15 +275,36 @@ function LegCard({
   const railStyle = line
     ? { background: `color-mix(in srgb, ${line.hex} 35%, #d5dae2)` }
     : undefined
+  const fareColorStyle = line?.hex
+    ? { color: line.hex }
+    : isBus
+      ? { color: 'var(--mt-bus)' }
+      : undefined
+  const cardStyle = isBus
+    ? undefined
+    : line?.hex
+      ? {
+          borderColor: line.hex,
+          ['--leg-accent']: line.hex,
+        }
+      : undefined
 
   return (
-    <article className={`mt-leg is-${segment.mode}`}>
+    <article className={`mt-leg is-${segment.mode}`} style={cardStyle}>
       <div className="mt-leg__head">
-        <ModeIcon mode={segment.mode} size={32} className="mt-leg__badge" />
-        <strong>{title}</strong>
+        <LegModeCapsule segment={segment} line={line} />
+        {lineTitle ? (
+          <span className="mt-leg__line-name" style={fareColorStyle}>
+            {lineTitle}
+          </span>
+        ) : (
+          <span className="mt-leg__head-spacer" aria-hidden="true" />
+        )}
         <div className="mt-leg__fare-wrap">
-          {segment.fareInr != null ? (
-            <span className="mt-leg__fare">₹{segment.fareInr}</span>
+          {fareText ? (
+            <span className="mt-leg__fare" style={fareColorStyle}>
+              {fareText}
+            </span>
           ) : null}
           {hasFareOptions ? (
             <button
@@ -255,7 +322,7 @@ function LegCard({
 
       {hasFareOptions && fareExpanded ? (
         <FareClassPanel
-          className="mt-leg__fare-panel"
+          className="mt-transit-fare__panel"
           groupId={segment.id}
           segmentId={segment.id}
           options={segment.fareOptions}
@@ -304,7 +371,7 @@ function WalkCard({ from, to, durationMin, distanceM }) {
   const distancePart = distanceM != null ? ` (${distanceM} m)` : ''
   return (
     <article className="mt-walk-card">
-      <ModeIcon mode="walk" size={32} className="mt-leg__badge" />
+      <WalkIcon size={32} className="mt-walk-card__icon" />
       <div className="mt-walk-card__copy">
         <strong>
           Walk {durationMin || 0} Min{distancePart}
@@ -371,8 +438,62 @@ function detailBlocks(journey) {
   return blocks
 }
 
+function formatAccessKm(distanceM) {
+  const meters = Number(distanceM)
+  if (!Number.isFinite(meters) || meters <= 0) return null
+  const km = Math.round(meters / 100) / 10
+  return km > 0 ? `${km} KM` : null
+}
+
+function firstTransitHop(segments = []) {
+  return segments.find((segment) => segment.mode === 'metro' || segment.mode === 'bus') || null
+}
+
+function transitAccentHex(segment) {
+  if (!segment) return null
+  if (segment.mode === 'bus') return null
+  if (segment.mode === 'metro') {
+    return metroLineFromRouteId(segment.routeId || segment.routeShortName)?.hex || null
+  }
+  return null
+}
+
+/** Dashed connector from distance down toward first transit leg. */
+/** Journey-detail first-mile connector (same arrow checked or unchecked). */
+function AccessArrow() {
+  // Cubic end tangent ≈ (14, 42) → tip points down-right along the stroke.
+  return (
+    <svg
+      className="mt-pickup__arrow"
+      width="32"
+      height="160"
+      viewBox="0 0 32 160"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M13 1C3 45 0 100 14 142"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeDasharray="2.5 2.5"
+      />
+      <path d="M16.85 150.55 10.05 143.35 17.95 140.65Z" fill="currentColor" />
+    </svg>
+  )
+}
+
+/**
+ * First-mile box (design):
+ * 1) checkbox + "Need ride from" (+ Check Others when a provider is selected)
+ * 2) pin + km + from place
+ * then Cab/Auto/Bike + aggregators (always visible; disabled when unchecked)
+ * or vehicle slots after an aggregator is chosen
+ */
 function PickupServiceCard({
-  destinationLabel,
+  journey,
+  trip,
+  needRide,
   modeId,
   providerId,
   selectedVehicleId,
@@ -380,52 +501,144 @@ function PickupServiceCard({
   status,
   error,
   showProviders,
+  onToggleNeedRide,
   onSelectMode,
   onSelectVehicle,
   onSelectProvider,
   onCheckOthers,
 }) {
-  const hasProvider = Boolean(providerId)
   const hasSlots = slots.some(Boolean)
+  const showVehicleSlots = Boolean(needRide && providerId && !showProviders)
+  const controlsDisabled = !needRide
+  // When aggregator options are open, modes only hold layout — not interactive.
+  const modesDisabled = controlsDisabled || showVehicleSlots
 
-  if (showProviders) {
-    return (
-      <article className="mt-pickup mt-pickup--browse">
-        <div className="mt-pickup__dest">
-          <strong className="mt-pickup__dest-title">Need ride to</strong>
-          <div className="mt-pickup__dest-divider" aria-hidden="true" />
-          <div className="mt-pickup__dest-row">
-            <PinIcon size={16} className="mt-pickup__pin" />
-            <span className="mt-pickup__dest-station">{destinationLabel}</span>
-          </div>
+  const fromPlaceLabel = trip?.fromPlace || journey?.access?.fromLabel || 'Current location'
+  const accessKmLabel = formatAccessKm(journey?.access?.distanceM)
+  const firstHop = firstTransitHop(journey?.segments)
+  const accessLineHex = transitAccentHex(firstHop)
+  const accessAccent =
+    firstHop?.mode === 'bus' ? 'var(--mt-bus)' : accessLineHex || 'var(--mt-navy)'
+
+  const rideModes = journey?.lastMileOptions?.length
+    ? journey.lastMileOptions
+    : LAST_MILE_OPTIONS
+
+  let providerEmptyMessage = 'No options for this mode.'
+  if (providerId === 'refex') {
+    if (modeId !== 'cab') providerEmptyMessage = 'Refex is available for cab only.'
+    else if (status === 'loading') providerEmptyMessage = 'Searching Refex…'
+    else if (status === 'error') providerEmptyMessage = error || 'Refex search failed.'
+  } else if (providerId === 'ola') {
+    if (status === 'loading') providerEmptyMessage = 'Getting Ola estimates…'
+    else if (status === 'error') providerEmptyMessage = error || 'Could not load Ola estimates.'
+    else providerEmptyMessage = 'No Ola rides available near this pickup.'
+  } else if (status === 'loading') {
+    providerEmptyMessage = 'Searching options…'
+  } else if (status === 'error') {
+    providerEmptyMessage = error || 'Could not load options.'
+  }
+
+  return (
+    <article
+      className={`mt-pickup${needRide ? ' is-need-ride' : ''}${controlsDisabled ? ' is-ride-off' : ''}${showVehicleSlots ? ' is-options-open' : ''}`}
+      style={{ '--mt-access-accent': accessAccent }}
+    >
+      {/* Line 1: checkbox + label (+ Check Others when vehicles shown) */}
+      <div className="mt-pickup__line1">
+        <label className="mt-pickup__check">
+          <span className="mt-pickup__check-input">
+            <input type="checkbox" checked={needRide} onChange={onToggleNeedRide} />
+          </span>
+          <span>Need ride from</span>
+        </label>
+        {showVehicleSlots ? (
+          <button type="button" className="mt-pickup__more" onClick={onCheckOthers}>
+            Check Others
+          </button>
+        ) : null}
+      </div>
+
+      {/* Line 2: pin + km (left) · from place (right) · dashed arrow */}
+      <div className="mt-pickup__line2">
+        <div className="mt-pickup__pin-col">
+          <PinIcon size={16} className="mt-pickup__pin" />
+          {accessKmLabel ? <span className="mt-pickup__km">{accessKmLabel}</span> : null}
+          <AccessArrow />
         </div>
+        <span className="mt-pickup__place">{fromPlaceLabel}</span>
+      </div>
 
-        <div className="mt-pickup__modes" role="group" aria-label="Vehicle type">
-          {LAST_MILE_MODES.map((mode) => {
-            const active = modeId === mode.id
-            return (
-              <button
-                key={mode.id}
-                type="button"
-                className={`mt-pickup__mode${active ? ' is-selected' : ''}`}
-                onClick={() => onSelectMode(mode.id)}
-              >
-                <ModeIcon
-                  mode={mode.id}
-                  size={18}
-                  color={active ? 'var(--mt-primary)' : '#666666'}
-                  className="mt-pickup__mode-icon"
-                />
-                {mode.label}
-              </button>
-            )
-          })}
+      <div className="mt-pickup__divider" aria-hidden="true" />
+
+      {/* Cab / Auto / Bike — always visible; disabled when ride off or options open */}
+      <div className="mt-pickup__modes" role="group" aria-label="Vehicle type">
+        {rideModes.map((mode) => {
+          const active = needRide && !showVehicleSlots && modeId === mode.id
+          return (
+            <button
+              key={mode.id}
+              type="button"
+              className={`mt-pickup__mode${active ? ' is-selected' : ''}`}
+              disabled={modesDisabled}
+              aria-disabled={modesDisabled || undefined}
+              onClick={() => onSelectMode(mode.id)}
+            >
+              <ModeIcon
+                mode={mode.mode || mode.id}
+                size={16}
+                color={active ? 'var(--mt-primary)' : '#666666'}
+                className="mt-pickup__mode-icon"
+              />
+              {mode.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {showVehicleSlots ? (
+        <div
+          className={`mt-provider-options${slots.filter(Boolean).length === 1 ? ' is-single' : ''}`}
+          role="region"
+          aria-label={`${providerId} ride options`}
+        >
+          {!hasSlots ? (
+            <p className="mt-provider-options__empty">{providerEmptyMessage}</p>
+          ) : (
+            slots.filter(Boolean).map((vehicle) => {
+              const active = selectedVehicleId === vehicle.id
+              const { eta, fare, peak } = vehicleMetaParts(vehicle)
+
+              return (
+                <button
+                  key={vehicle.id}
+                  type="button"
+                  aria-pressed={active}
+                  className={`mt-provider-options__cell${active ? ' is-selected' : ''}${vehicle.unavailable ? ' is-unavailable' : ''}`}
+                  onClick={() => onSelectVehicle(vehicle)}
+                  disabled={vehicle.unavailable || undefined}
+                >
+                  {active ? <VehicleCheckBadge /> : null}
+                  <div className="mt-provider-options__row">
+                    <BrandLogo id={providerId} name={providerId} />
+                    <ModeIcon
+                      mode={vehicle.mode}
+                      size={16}
+                      className="mt-provider-options__mode-icon"
+                    />
+                  </div>
+                  <VehicleSlotMeta label={vehicle.label} eta={eta} fare={fare} peak={peak} />
+                </button>
+              )
+            })
+          )}
         </div>
-
+      ) : (
         <div className="mt-pickup__providers" role="list" aria-label="Ride providers">
           {LAST_MILE_PROVIDERS.map((provider) => {
-            const disabled = isProviderDisabledForMode(provider.id, modeId)
-            const active = providerId === provider.id
+            const modeBlocked = isProviderDisabledForMode(provider.id, modeId)
+            const disabled = controlsDisabled || modeBlocked
+            const active = needRide && providerId === provider.id
             return (
               <button
                 key={provider.id}
@@ -433,60 +646,15 @@ function PickupServiceCard({
                 role="listitem"
                 disabled={disabled}
                 aria-disabled={disabled || undefined}
-                title={providerDisabledReason(provider.id, modeId)}
+                title={
+                  controlsDisabled
+                    ? 'Enable “Need ride from” to choose a provider'
+                    : providerDisabledReason(provider.id, modeId)
+                }
                 className={`mt-pickup__provider${active ? ' is-selected' : ''}${disabled ? ' is-disabled' : ''}`}
                 onClick={() => onSelectProvider(provider.id)}
               >
                 <BrandLogo id={provider.id} name={provider.name} />
-              </button>
-            )
-          })}
-        </div>
-      </article>
-    )
-  }
-
-  return (
-    <article className="mt-pickup">
-      <div className="mt-pickup__head">
-        <strong>Pickup Service</strong>
-        {hasProvider ? (
-          <button type="button" className="mt-pickup__more" onClick={onCheckOthers}>
-            Check Others
-          </button>
-        ) : null}
-      </div>
-
-      {!hasProvider ? (
-        <p className="mt-pickup__empty">None selected</p>
-      ) : status === 'loading' ? (
-        <p className="mt-pickup__empty">Searching options…</p>
-      ) : status === 'error' ? (
-        <p className="mt-pickup__empty">{error || 'Could not load options.'}</p>
-      ) : !hasSlots ? (
-        <p className="mt-pickup__empty">No vehicles for this provider.</p>
-      ) : (
-        <div className="mt-provider-options" role="list" aria-label="Pickup vehicle options">
-          {slots.filter(Boolean).map((vehicle) => {
-            const active = selectedVehicleId === vehicle.id
-            const { eta, fare, peak } = vehicleMetaParts(vehicle)
-
-            return (
-              <button
-                key={vehicle.id}
-                type="button"
-                role="listitem"
-                aria-pressed={active}
-                className={`mt-provider-options__cell${active ? ' is-selected' : ''}${vehicle.unavailable ? ' is-unavailable' : ''}`}
-                onClick={() => onSelectVehicle(vehicle)}
-                disabled={vehicle.unavailable || undefined}
-              >
-                {active ? <VehicleCheckBadge /> : null}
-                <div className="mt-provider-options__row">
-                  <BrandLogo id={providerId} name={providerId} />
-                  <ModeIcon mode={vehicle.mode} size={16} className="mt-provider-options__mode-icon" />
-                </div>
-                <VehicleSlotMeta label={vehicle.label} eta={eta} fare={fare} peak={peak} />
               </button>
             )
           })}
@@ -498,15 +666,18 @@ function PickupServiceCard({
 
 function JourneyDetailView({
   journey,
+  trip,
   lastMile,
-  destinationLabel,
+  needRide,
   modeId,
   slots,
   slotStatus,
   slotError,
   selectedVehicleId,
   showProviders,
-  totalFareInr,
+  onlineFareInr,
+  cashFareDisplay,
+  cashRideLabel,
   confirmLoading,
   confirmError,
   fareSelections,
@@ -515,6 +686,7 @@ function JourneyDetailView({
   onSelectFare,
   onBack,
   onConfirm,
+  onToggleNeedRide,
   onCheckOthers,
   onSelectMode,
   onSelectProvider,
@@ -531,7 +703,9 @@ function JourneyDetailView({
             <p className="mt-details-page__hint">{journey.note}</p>
           ) : null}
           <PickupServiceCard
-            destinationLabel={destinationLabel}
+            journey={journey}
+            trip={trip}
+            needRide={needRide}
             modeId={modeId}
             providerId={lastMile.providerId}
             selectedVehicleId={selectedVehicleId}
@@ -539,6 +713,7 @@ function JourneyDetailView({
             status={slotStatus}
             error={slotError}
             showProviders={showProviders}
+            onToggleNeedRide={onToggleNeedRide}
             onSelectMode={onSelectMode}
             onSelectVehicle={onSelectVehicle}
             onSelectProvider={onSelectProvider}
@@ -569,12 +744,21 @@ function JourneyDetailView({
       </div>
 
       <div className="mt-details-page__panel">
-        <button type="button" className="mt-pay">
-          <OnlinePayIcon size={28} />
-          <span>{journey.payment?.method || 'Online'}</span>
-          <strong>₹{totalFareInr}</strong>
-          <ChevronIcon size={18} className="mt-pay__chevron" />
-        </button>
+        <div className="mt-pay-stack">
+          {cashFareDisplay ? (
+            <div className="mt-pay mt-pay--cash">
+              <CashBillIcon size={28} />
+              <span>Cash{cashRideLabel ? ` · ${cashRideLabel}` : ''}</span>
+              <strong>{cashFareDisplay}</strong>
+            </div>
+          ) : null}
+          <div className="mt-pay mt-pay--online">
+            <OnlinePayIcon size={28} />
+            <span>Online</span>
+            <strong>₹{onlineFareInr}</strong>
+            <ChevronIcon size={18} className="mt-pay__chevron" />
+          </div>
+        </div>
         <button
           type="button"
           className="mt-details-page__cta"
@@ -614,7 +798,12 @@ export function JourneyDetailPage() {
   const [modeId, setModeId] = useState(
     () => initialLastMile.modeId || LAST_MILE_MODE_DEFAULT,
   )
-  const [showProviders, setShowProviders] = useState(() => !initialLastMile.providerId)
+  const [needRide, setNeedRide] = useState(() =>
+    Boolean(initialLastMile.needRide || initialLastMile.providerId),
+  )
+  const [showProviders, setShowProviders] = useState(
+    () => !initialLastMile.providerId || !initialLastMile.needRide,
+  )
   const [refexVehicles, setRefexVehicles] = useState([])
   const [olaVehicles, setOlaVehicles] = useState([])
   const [slotStatus, setSlotStatus] = useState('idle')
@@ -639,24 +828,18 @@ export function JourneyDetailPage() {
     setProviderId(initialLastMile.providerId)
     setSelectedVehicleId(initialLastMile.vehicleId)
     setModeId(initialLastMile.modeId || LAST_MILE_MODE_DEFAULT)
-  }, [initialLastMile.providerId, initialLastMile.vehicleId, initialLastMile.modeId, journey?.id])
+    setNeedRide(Boolean(initialLastMile.needRide || initialLastMile.providerId))
+    setShowProviders(!initialLastMile.providerId || !initialLastMile.needRide)
+  }, [
+    initialLastMile.providerId,
+    initialLastMile.vehicleId,
+    initialLastMile.modeId,
+    initialLastMile.needRide,
+    journey?.id,
+  ])
 
   useEffect(() => {
-    setShowProviders(!initialLastMile.providerId)
-  }, [journey?.id])
-
-  const destinationLabel = useMemo(() => {
-    const raw =
-      journey?.access?.toLabel ||
-      journey?.originStation ||
-      journey?.stops?.[0]?.from ||
-      'Station'
-    const mode = journey?.stops?.[0]?.mode
-    return displayStationName(raw, mode)
-  }, [journey])
-
-  useEffect(() => {
-    if (providerId !== 'refex') {
+    if (!needRide || providerId !== 'refex') {
       return undefined
     }
 
@@ -677,10 +860,10 @@ export function JourneyDetailPage() {
       })
 
     return () => controller.abort()
-  }, [providerId, journey, trip])
+  }, [needRide, providerId, journey, trip])
 
   useEffect(() => {
-    if (providerId !== 'ola' || !isProviderEnabled('ola')) {
+    if (!needRide || providerId !== 'ola' || !isProviderEnabled('ola')) {
       return undefined
     }
 
@@ -709,34 +892,56 @@ export function JourneyDetailPage() {
       })
 
     return () => controller.abort()
-  }, [providerId, journey, trip])
+  }, [needRide, providerId, journey, trip])
 
   const liveVehicles =
     providerId === 'refex' ? refexVehicles : providerId === 'ola' ? olaVehicles : undefined
 
   const slots = useMemo(() => {
-    if (!providerId) return []
-    return getProviderCardSlots(providerId, liveVehicles)
-  }, [providerId, liveVehicles])
+    if (!needRide || !providerId) return []
+    return summarizeProviderModes(providerId, liveVehicles)
+  }, [needRide, providerId, liveVehicles])
 
   const selectedVehicle = useMemo(
-    () => slots.find((vehicle) => vehicle?.id === selectedVehicleId) || null,
-    [slots, selectedVehicleId],
+    () => (needRide ? slots.find((vehicle) => vehicle?.id === selectedVehicleId) || null : null),
+    [needRide, slots, selectedVehicleId],
   )
 
   const lastMile = useMemo(
-    () => buildLastMilePayload(Number(id), { providerId, vehicle: selectedVehicle }),
-    [id, providerId, selectedVehicle],
+    () =>
+      buildLastMilePayload(Number(id), {
+        providerId: needRide ? providerId : null,
+        vehicle: selectedVehicle,
+        needRide,
+        modeId,
+      }),
+    [id, needRide, providerId, selectedVehicle, modeId],
   )
 
-  const totalFareInr = useMemo(() => {
+  const onlineFareInr = useMemo(() => {
     const transit =
       Number(journeyWithFares?.payment?.amountInr) ||
       Number(journeyWithFares?.totalFareInr) ||
       0
-    const ride = selectedVehicle?.fareInr != null ? Number(selectedVehicle.fareInr) : 0
+    const ride = onlineFareInrFromVehicle(selectedVehicle)
     return Math.round(transit + ride)
   }, [journeyWithFares, selectedVehicle])
+
+  const cashFareDisplay = useMemo(() => {
+    if (!selectedVehicle || !isPayAtPickupVehicle(selectedVehicle)) return null
+    return formatVehicleFare(selectedVehicle) || null
+  }, [selectedVehicle])
+
+  const cashRideLabel = useMemo(() => {
+    if (!selectedVehicle || !isPayAtPickupVehicle(selectedVehicle)) return null
+    return (
+      selectedVehicle.modeLabel ||
+      getLastMileMode(selectedVehicle.mode)?.label ||
+      selectedVehicle.label ||
+      selectedVehicle.providerId ||
+      'Ride'
+    )
+  }, [selectedVehicle])
 
   function persistFareSelections(nextSelections) {
     if (!journey) return
@@ -770,20 +975,18 @@ export function JourneyDetailPage() {
     return <Navigate to={withAppContext(fallback)} replace />
   }
 
-  function syncSelection(nextProviderId, nextVehicle, nextModeId) {
+  function syncSelection(nextProviderId, nextVehicle, nextModeId, rideOn = needRide) {
     const payload = buildLastMilePayload(journey.id, {
-      providerId: nextProviderId,
-      vehicle: nextVehicle,
+      providerId: rideOn ? nextProviderId : null,
+      vehicle: rideOn ? nextVehicle : null,
+      needRide: rideOn,
+      modeId: rideOn ? nextModeId || nextVehicle?.mode || modeId : null,
     })
-    if (!payload.modeId && nextModeId) {
-      payload.modeId = nextModeId
-      payload.modeLabel = getLastMileMode(nextModeId)?.label || null
-    }
     setLastMileSelection(payload)
 
     const next = new URLSearchParams({ id: String(journey.id) })
     if (payload.providerId) next.set('provider', payload.providerId)
-    if (payload.modeId || nextModeId) next.set('mode', payload.modeId || nextModeId)
+    if (payload.modeId) next.set('mode', payload.modeId)
     if (payload.vehicleId) next.set('vehicle', payload.vehicleId)
     setParams(next, { replace: true })
   }
@@ -793,7 +996,22 @@ export function JourneyDetailPage() {
     const nextVehicle = nextId ? vehicle : null
     setSelectedVehicleId(nextId)
     if (nextVehicle?.mode) setModeId(nextVehicle.mode)
-    syncSelection(providerId, nextVehicle)
+    syncSelection(providerId, nextVehicle, nextVehicle?.mode || modeId, true)
+  }
+
+  function handleToggleNeedRide(event) {
+    const checked = event.target.checked
+    setNeedRide(checked)
+    if (!checked) {
+      // Keep filters/aggregators visible but reset any selection.
+      setProviderId(null)
+      setSelectedVehicleId(null)
+      setShowProviders(true)
+      syncSelection(null, null, modeId, false)
+      return
+    }
+    setShowProviders(true)
+    syncSelection(null, null, modeId, true)
   }
 
   function handleCheckOthers() {
@@ -801,26 +1019,28 @@ export function JourneyDetailPage() {
   }
 
   function handleSelectMode(nextModeId) {
-    if (nextModeId === modeId) return
+    if (!needRide || nextModeId === modeId) return
     setModeId(nextModeId)
     if (providerId && isProviderDisabledForMode(providerId, nextModeId)) {
       setProviderId(null)
       setSelectedVehicleId(null)
-      syncSelection(null, null, nextModeId)
+      setShowProviders(true)
+      syncSelection(null, null, nextModeId, true)
       return
     }
     setSelectedVehicleId(null)
-    syncSelection(providerId, null, nextModeId)
+    syncSelection(providerId, null, nextModeId, true)
   }
 
   function handleSelectProvider(nextProviderId) {
+    if (!needRide) return
     if (!isProviderEnabled(nextProviderId) || isProviderDisabledForMode(nextProviderId, modeId)) {
       return
     }
     setProviderId(nextProviderId)
     setSelectedVehicleId(null)
     setShowProviders(false)
-    syncSelection(nextProviderId, null, modeId)
+    syncSelection(nextProviderId, null, modeId, true)
   }
 
   function cabPath(serviceId = 'pickup') {
@@ -882,15 +1102,18 @@ export function JourneyDetailPage() {
   return (
     <JourneyDetailView
       journey={journeyWithFares}
+      trip={trip}
       lastMile={lastMile}
-      destinationLabel={destinationLabel}
+      needRide={needRide}
       modeId={modeId}
       slots={slots}
       slotStatus={slotStatus}
       slotError={slotError}
       selectedVehicleId={selectedVehicleId}
       showProviders={showProviders}
-      totalFareInr={totalFareInr}
+      onlineFareInr={onlineFareInr}
+      cashFareDisplay={cashFareDisplay}
+      cashRideLabel={cashRideLabel}
       confirmLoading={confirmLoading}
       confirmError={confirmError}
       fareSelections={fareSelections}
@@ -899,6 +1122,7 @@ export function JourneyDetailPage() {
       onSelectFare={handleSelectFare}
       onBack={backToJourney}
       onConfirm={handleConfirm}
+      onToggleNeedRide={handleToggleNeedRide}
       onCheckOthers={handleCheckOthers}
       onSelectMode={handleSelectMode}
       onSelectProvider={handleSelectProvider}

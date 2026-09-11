@@ -52,6 +52,7 @@ function readPositiveInr(...values) {
 }
 
 function coord(value) {
+  if (value == null || value === '') return null
   const n = Number(value)
   return Number.isFinite(n) ? n : null
 }
@@ -383,6 +384,34 @@ function transitSegments(journey) {
   return (journey?.segments || []).filter((segment) => segment.mode === 'bus' || segment.mode === 'metro')
 }
 
+/**
+ * Metro through-ticket: 2+ metro hops (e.g. NAM→AME, AME→HTC) book as one station-to-station
+ * METRO leg at metro.total_fare. Never merge cab or bus — those are separate operator tickets.
+ */
+function collapseThroughMetroHops(segments) {
+  if (segments.length < 2) return segments
+  if (!segments.every((segment) => segment.mode === 'metro')) return segments
+
+  const first = segments[0]
+  const last = segments[segments.length - 1]
+  const durationMin = segments.reduce(
+    (sum, segment) => sum + (Number(segment.durationMin) || 0),
+    0,
+  )
+
+  return [
+    {
+      ...first,
+      to: last.to,
+      toId: last.toId,
+      toStationCode: last.toStationCode || last.toId,
+      arrivalTime: last.arrivalTime,
+      durationMin: durationMin || first.durationMin,
+      fareInr: undefined,
+    },
+  ]
+}
+
 function isSingleTransitMode(journey) {
   const modes = new Set(transitSegments(journey).map((segment) => segment.mode))
   return modes.size === 1
@@ -460,8 +489,7 @@ function distributeRemainingFare(modeSegments, blockFareInr, assigned) {
   })
 }
 
-function resolveTransitFareMap(journey) {
-  const segments = transitSegments(journey)
+function resolveTransitFareMap(journey, segments = transitSegments(journey)) {
   const assigned = new Map()
 
   for (const mode of ['bus', 'metro']) {
@@ -501,12 +529,12 @@ function buildTransitLegInfo(segment, trip, { metroBearerToken, stopCoords } = {
 }
 
 /**
- * Bus / metro hops in journey order — each hop is one orders API leg.
- * First mile is handled separately and prepended.
+ * Bus / metro hops in journey order — each booked hop is one orders API leg.
+ * Consecutive metro hops collapse to one through-ticket. Cab is prepended separately.
  */
 function buildTransitLegs(journey, trip, { chainStart, metroBearerToken } = {}) {
-  const fareBySegmentId = resolveTransitFareMap(journey)
-  const segments = transitSegments(journey)
+  const segments = collapseThroughMetroHops(transitSegments(journey))
+  const fareBySegmentId = resolveTransitFareMap(journey, segments)
   const legs = []
   let nextChainStart = chainStart ? parseOrderDateTime(chainStart) : null
 
