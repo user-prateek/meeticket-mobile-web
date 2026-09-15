@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { useSetAtom } from 'jotai'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { AlertHost } from './components/Alert'
 import { MobileShell } from './components/MobileShell'
 import { BookingsSkeleton, JourneySkeleton } from './components/skeletons/PageSkeleton'
 import { captureAppContextFromSearch } from './lib/appContext'
@@ -99,6 +100,7 @@ export default function App() {
   return (
     <>
       <AppContextSync />
+      <AlertHost />
       <Suspense fallback={<RouteFallback />}>
         <Routes>
           {/* Bare pages for Paytm checkout / callback (no mobile chrome). */}

@@ -25,11 +25,14 @@ import {
   PRIMARY_TICKET_TABS,
   secondsUntilValidUntil,
 } from '../../constants/tickets'
+import { busStopRoleLabel } from '../../lib/busRoute'
 import { ExpiredQrFrame, TicketQrDisplay } from './TicketQrDisplay'
 import { TicketQrFlip } from './TicketQrFlip'
 import { MapGuidePopup } from './MapGuidePopup'
 import { OtpQrCode } from './OtpQrCode'
 import { QrCode } from './QrCode'
+import { CabMap } from '../../components/CabMap'
+import { preloadGoogleMaps, resolveCabMapPoints } from '../../lib/googleMaps'
 import { buildMapGuideOptions } from '../../lib/mapGuide'
 import './tickets.tokens.css'
 import './TicketsPage.css'
@@ -278,7 +281,138 @@ function CabTicket({ ticket, onCancel, qrFlipDirection }) {
   )
 }
 
-function BusRouteTimeline({ from, to, fromEditable = false }) {
+const CAB_SEARCH_EXTRAS = [10, 15, 20]
+
+function formatCabPrice(value) {
+  const amount = Number(value)
+  if (!Number.isFinite(amount) || amount < 0) return '—'
+  if (Number.isInteger(amount)) return `₹${amount}`
+  return `₹${amount.toFixed(2)}`
+}
+
+function ShieldChip() {
+  return (
+    <span className="mt-cab-searching__safety">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M12 3 5 6v5c0 4.5 2.8 7.8 7 9 4.2-1.2 7-4.5 7-9V6l-7-3Z"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinejoin="round"
+        />
+      </svg>
+      Safety
+    </span>
+  )
+}
+
+function PriceTagIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3.5" y="6.5" width="17" height="11" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="8" cy="12" r="1.1" fill="currentColor" />
+      <path d="M11 9.5h7M11 12h5M11 14.5h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function CabSearchingTicket({ ticket, journey, trip, onCancel }) {
+  const [extraInr, setExtraInr] = useState(0)
+
+  useEffect(() => {
+    preloadGoogleMaps()
+  }, [])
+
+  const mapPoints = useMemo(() => {
+    if (ticket.mapFrom && ticket.mapTo) {
+      return { from: ticket.mapFrom, to: ticket.mapTo }
+    }
+    return resolveCabMapPoints({
+      serviceId: 'pickup',
+      journey,
+      trip,
+      fromLabel: ticket.from,
+      toLabel: ticket.to,
+    })
+  }, [ticket.mapFrom, ticket.mapTo, ticket.from, ticket.to, journey, trip])
+
+  const extras = ticket.extraAmounts?.length ? ticket.extraAmounts : CAB_SEARCH_EXTRAS
+  const baseFare = Number(ticket.fareInr)
+  const totalFare = (Number.isFinite(baseFare) ? baseFare : 0) + extraInr
+  const pickupLabel = ticket.from || 'pickup'
+
+  return (
+    <div className="mt-ticket mt-ticket--cab mt-cab-searching">
+      <div className="mt-cab-searching__map" aria-label="Ride map">
+        <CabMap
+          from={mapPoints?.from}
+          to={mapPoints?.to}
+          searching
+          vehicleSrc={ticket.mapVehicleSrc}
+          distance={
+            journey?.access?.distanceM != null ? Number(journey.access.distanceM) / 1000 : undefined
+          }
+        />
+        <ShieldChip />
+      </div>
+
+      <div className="mt-cab-searching__sheet">
+        <div className="mt-cab-searching__status">
+          <h2>Ride Requested</h2>
+          <p>Finding drivers nearby</p>
+          <div className="mt-cab-searching__progress" role="progressbar" aria-label="Finding drivers">
+            <span />
+          </div>
+        </div>
+
+        <article className="mt-cab-bottom-card">
+          <p className="mt-cab-bottom-card__title">Trip Details</p>
+          <p className="mt-cab-bottom-card__body">
+            {ticket.tripDetails || `Meet at the pickup point for ${pickupLabel}`}
+          </p>
+          <div className="mt-cab-bottom-card__actions">
+            <span className="mt-cab-bottom-card__pay">
+              <CashBillIcon size={20} />
+              {ticket.paymentMethod || 'Cash'}
+            </span>
+            {ticket.canCancel ? (
+              <button type="button" className="mt-cab-bottom-card__cancel" onClick={onCancel}>
+                Cancel Ride
+              </button>
+            ) : null}
+          </div>
+        </article>
+
+        <article className="mt-cab-searching__boost">
+          <p className="mt-cab-searching__boost-title">Add extra to get a faster ride</p>
+          <div className="mt-cab-searching__boost-row">
+            {extras.map((amount) => {
+              const selected = extraInr === amount
+              return (
+                <button
+                  key={amount}
+                  type="button"
+                  className={`mt-cab-searching__boost-btn${selected ? ' is-selected' : ''}`}
+                  aria-pressed={selected}
+                  onClick={() => setExtraInr(selected ? 0 : amount)}
+                >
+                  +₹{amount}
+                </button>
+              )
+            })}
+          </div>
+          <p className="mt-cab-searching__boost-note">100% of the extra amount goes to your driver.</p>
+          <p className="mt-cab-searching__price">
+            <PriceTagIcon />
+            Current price: {formatCabPrice(totalFare)}
+          </p>
+        </article>
+      </div>
+    </div>
+  )
+}
+
+function BusRouteTimeline({ from, to, fromEditable = false, routeName }) {
   return (
     <div className="mt-bus-route">
       <div className="mt-bus-route__stop mt-bus-route__stop--from">
@@ -295,7 +429,7 @@ function BusRouteTimeline({ from, to, fromEditable = false }) {
               </button>
             ) : null}
           </div>
-          <span className="mt-bus-route__label">Boarding</span>
+          <span className="mt-bus-route__label">{busStopRoleLabel(routeName, 'Boarding')}</span>
         </div>
       </div>
       <div className="mt-bus-route__stop mt-bus-route__stop--to">
@@ -527,24 +661,34 @@ function BusTicket({ ticket, onDropService, qrFlipDirection }) {
   )
   const [qrKey, setQrKey] = useState(0)
   const [qrFailed, setQrFailed] = useState(false)
-  const expired = remaining != null && remaining <= 0
-  const unusable = expired || qrFailed
+  const [validated, setValidated] = useState(false)
+  const validatedRef = useRef(false)
+  validatedRef.current = validated
+  const expired = !validated && remaining != null && remaining <= 0
+  const unusable = expired || validated || qrFailed
 
   useEffect(() => {
-    if (remaining == null) return undefined
+    if (remaining == null || validated) return undefined
     const id = window.setInterval(() => {
       setRemaining((n) => (n > 0 ? n - 1 : 0))
     }, 1000)
     return () => window.clearInterval(id)
-  }, [remaining == null])
+  }, [remaining == null, validated])
 
   const handleValidUntil = useCallback((validUntil) => {
+    if (validatedRef.current) return
     const seconds = secondsUntilValidUntil(validUntil)
     if (seconds != null) setRemaining(seconds)
   }, [])
 
   const handleQrState = useCallback(({ status, error, consumed, expired: qrExpired }) => {
-    if (consumed || qrExpired) {
+    if (consumed) {
+      setValidated(true)
+      setQrFailed(false)
+      setRemaining((n) => (n == null ? 0 : n))
+      return
+    }
+    if (qrExpired) {
       setRemaining(0)
       setQrFailed(false)
       return
@@ -554,14 +698,18 @@ function BusTicket({ ticket, onDropService, qrFlipDirection }) {
 
   const clock = formatCountdown(remaining)
   const pax = ticket.passengers
-  const infoText = expired
-    ? 'This ticket cannot be used now. Validity has expired or booking has been used.'
-    : qrFailed
-      ? 'Ticket QR could not be loaded. Tap Refresh QR to try again.'
-      : ticket.instruction
+  const infoText = validated
+    ? 'This ticket has been validated and cannot be used again.'
+    : expired
+      ? 'This ticket cannot be used now. Validity has expired.'
+      : qrFailed
+        ? 'Ticket QR could not be loaded. Tap Refresh QR to try again.'
+        : ticket.instruction
+  const validityClass = validated ? ' is-validated' : expired ? ' is-expired' : ''
+  const infoClass = validated ? ' is-validated' : unusable && !validated ? ' is-expired' : ''
 
   return (
-    <div className={`mt-ticket mt-ticket--bus${unusable ? ' is-expired' : ''}`}>
+    <div className={`mt-ticket mt-ticket--bus${validated ? ' is-validated' : unusable ? ' is-expired' : ''}`}>
       <article className="mt-bus-card">
         <header className="mt-bus-card__banner">
           <span className="mt-bus-card__pnr">PNR: {ticket.pnr}</span>
@@ -578,15 +726,15 @@ function BusTicket({ ticket, onDropService, qrFlipDirection }) {
               <BusPassengerRow adult={pax.adult} child={pax.child} />
             </div>
           </div>
-          <BusRouteTimeline from={ticket.from} to={ticket.to} fromEditable />
+          <BusRouteTimeline from={ticket.from} to={ticket.to} fromEditable routeName={ticket.routeName} />
         </div>
       </article>
 
       <article className="mt-bus-qr-card">
         <div className="mt-bus-qr-card__top">
-          <div className={`mt-bus-validity${expired ? ' is-expired' : ''}`}>
+          <div className={`mt-bus-validity${validityClass}`}>
             <span className="mt-bus-validity__label">
-              {expired ? 'Ticket expired' : 'Ticket is Valid Till'}
+              {validated ? 'Ticket Validated' : expired ? 'Ticket expired' : 'Ticket is Valid Till'}
             </span>
             <BusCountdown clock={clock} />
           </div>
@@ -637,7 +785,7 @@ function BusTicket({ ticket, onDropService, qrFlipDirection }) {
           )}
         </div>
 
-        <div className={`mt-bus-info${unusable ? ' is-expired' : ''}`}>
+        <div className={`mt-bus-info${infoClass}`}>
           <InfoIcon size={24} className="mt-bus-info__icon" />
           <p>{infoText}</p>
         </div>
@@ -772,8 +920,14 @@ function CancelTripModal({
   )
 }
 
-function renderTicket(ticket, { onCancel, onDropService, busKey, qrFlipDirection }) {
+function renderTicket(ticket, { onCancel, onDropService, busKey, qrFlipDirection, journey, trip }) {
   if (!ticket) return <p className="mt-ticket-empty">No ticket for this journey.</p>
+
+  if (ticket.type === 'cab' && ticket.bookingState === 'searching') {
+    return (
+      <CabSearchingTicket ticket={ticket} journey={journey} trip={trip} onCancel={onCancel} />
+    )
+  }
 
   if (ticket.pending || ticket.bookingState === 'pending') {
     return (
@@ -932,7 +1086,7 @@ export function TicketsPage({
         onMapGuide={handleMapGuide}
         mapGuideOptions={mapGuideOptions}
       />
-      {normalized.isPolling ? (
+      {normalized.isPolling && ticket?.bookingState !== 'searching' ? (
         <p className="mt-tickets__polling" role="status">
           Confirming your bookings…
         </p>
@@ -948,13 +1102,18 @@ export function TicketsPage({
         </p>
       ) : null}
 
-      <div className="mt-tickets__body" role="tabpanel">
+      <div
+        className={`mt-tickets__body${ticket?.bookingState === 'searching' ? ' is-cab-searching' : ''}`}
+        role="tabpanel"
+      >
         {tabEnabled
           ? renderTicket(ticket, {
               onCancel: () => setCancelOpen(true),
               onDropService,
               busKey,
               qrFlipDirection: tabFlipDirection,
+              journey,
+              trip,
             })
           : (
             <EmptyTabPanel tabLabel={activeTab?.label ?? 'ticket'} />

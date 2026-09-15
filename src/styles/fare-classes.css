@@ -53,6 +53,18 @@
   border-top: 1.5px solid var(--mt-bus);
 }
 
+.mt-fare-classes.is-bus.is-side-end.mt-transit-fare__panel {
+  box-sizing: border-box;
+  width: 70%;
+  margin-left: auto;
+}
+
+.mt-fare-classes.is-bus.is-side-start.mt-transit-fare__panel {
+  box-sizing: border-box;
+  width: 70%;
+  margin-right: auto;
+}
+
 .mt-fare-classes__row {
   display: flex;
   align-items: center;

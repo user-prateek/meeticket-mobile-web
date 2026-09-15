@@ -62,6 +62,14 @@ export function isProviderDisabledForMode(providerId, modeId) {
   return !providerSupportsMode(providerId, modeId)
 }
 
+/** Map pin icon for the booked ride type — never default to bike. */
+export function mapVehicleIconForMode(mode) {
+  const key = String(mode || '').toLowerCase()
+  if (key === 'auto') return olaAuto
+  if (key === 'bike') return olaBike
+  return olaGoAc
+}
+
 /** Tooltip / title when a provider tile cannot be selected. */
 export function providerDisabledReason(providerId, modeId) {
   if (!isProviderEnabled(providerId)) {
@@ -219,20 +227,37 @@ function cheapestInMode(vehicles) {
   })
 }
 
+function liveOrCatalogVehicles(providerId, liveVehicles) {
+  if (providerId === 'ola' || providerId === 'refex') {
+    return Array.isArray(liveVehicles) ? liveVehicles : []
+  }
+  return LAST_MILE_VEHICLES[providerId] ?? []
+}
+
+function firstInMode(vehicles) {
+  return vehicles.find((vehicle) => !vehicle?.unavailable) || vehicles[0] || null
+}
+
 /** Route card — one cheapest option per mode (auto, cab, bike). */
 export function getProviderCardSlots(providerId, liveVehicles) {
   // Ola / Refex always use live API results (never static mocks once selected).
-  const list =
-    providerId === 'ola' || providerId === 'refex'
-      ? Array.isArray(liveVehicles)
-        ? liveVehicles
-        : []
-      : LAST_MILE_VEHICLES[providerId] ?? []
+  const list = liveOrCatalogVehicles(providerId, liveVehicles)
   const modes = providerId === 'refex' ? ['cab'] : CARD_MODE_ORDER
 
   return CARD_MODE_ORDER.map((mode) => {
     if (!modes.includes(mode)) return null
     return cheapestInMode(list.filter((vehicle) => vehicle.mode === mode))
+  })
+}
+
+/** Journey detail — first available category per mode. Missing modes stay null. */
+export function getFirstCategorySlots(providerId, liveVehicles) {
+  const list = liveOrCatalogVehicles(providerId, liveVehicles)
+  const modes = providerId === 'refex' ? ['cab'] : CARD_MODE_ORDER
+
+  return CARD_MODE_ORDER.map((mode) => {
+    if (!modes.includes(mode)) return null
+    return firstInMode(list.filter((vehicle) => vehicle.mode === mode))
   })
 }
 

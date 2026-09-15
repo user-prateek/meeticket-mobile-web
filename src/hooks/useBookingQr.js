@@ -4,7 +4,7 @@ import { generateBookingQr, peekCachedBookingQr } from '../api/qr'
 /**
  * Fetch ticket QR for a confirmed booking_reference_number from pg/status.
  * Serves cached QR first; Refresh QR forces a network call and updates the cache.
- * `is_consumed: true` from QR API → status `consumed` (treat as expired).
+ * `is_consumed: true` from QR API → status `consumed` (validated / already used).
  */
 export function useBookingQr(bookingReferenceNumber) {
   const cached = bookingReferenceNumber ? peekCachedBookingQr(bookingReferenceNumber) : null

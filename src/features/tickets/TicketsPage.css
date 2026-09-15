@@ -106,7 +106,7 @@
   display: flex;
   min-height: var(--tk-tab-h);
   background: var(--tk-surface);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--tk-card-shadow);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -203,7 +203,7 @@
 .mt-journey-tabs__chip.is-active {
   background: var(--tk-surface);
   color: var(--tk-primary);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--tk-card-shadow);
 }
 
 .mt-tickets__cancelled-banner {
@@ -217,16 +217,21 @@
   text-align: center;
 }
 
-.mt-tickets__body {
+.mt-tickets__body.is-cab-searching {
   flex: 1;
-  overflow: auto;
-  padding: var(--tk-body-pad) var(--tk-body-pad) calc(var(--tk-body-pad) + env(safe-area-inset-bottom));
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
 }
 
 .mt-ticket {
   display: flex;
   flex-direction: column;
   gap: var(--tk-body-gap);
+  padding: 10px;
 }
 
 .mt-ticket--empty {

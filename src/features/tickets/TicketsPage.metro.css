@@ -292,7 +292,7 @@
   border-radius: var(--tk-radius-9);
   padding: var(--tk-qr-pad);
   background: var(--tk-surface);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--tk-card-shadow);
 }
 
 .mt-qr--image.mt-qr--metro-framed {

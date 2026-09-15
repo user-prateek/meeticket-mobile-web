@@ -1,6 +1,21 @@
+@import '../../styles/fare-classes.css';
+
+/*
+ * Bookings cards keep the original SRP card layout (timeline, stops, booked
+ * first-mile bar, metrics). Do not import RouteCard.css here — journey cards
+ * have a different structure.
+ */
+
 .mt-booking-card {
-  cursor: default;
-  padding-bottom: 0;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  background: #fff;
+  border: 1px solid #e2e5ea;
+  border-radius: 14px;
+  padding: 14px 12px 0;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  overflow: visible;
 }
 
 .mt-booking-card:active {
@@ -8,7 +23,7 @@
 }
 
 .mt-booking-card__fare-strip {
-  margin: 0 2px 10px;
+  margin: 2px 2px 10px;
 }
 
 .mt-booking-card__fare-strip .mt-fare-classes__row {
@@ -19,8 +34,491 @@
   cursor: default;
 }
 
-.mt-booking-card__provider {
+.mt-booking-card .mt-compact {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 4px 4px 12px;
+  color: #111827;
+}
+
+.mt-booking-card .mt-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.mt-booking-card .mt-capsule.is-metro {
+  background: var(--mt-navy);
+}
+
+.mt-booking-card .mt-capsule.is-bus {
+  background: var(--mt-bus);
+}
+
+.mt-booking-card .mt-capsule__icon {
+  display: block;
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+  color: #fff;
+}
+
+.mt-booking-card .mt-capsule__label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.mt-booking-card .mt-capsule__meta {
+  display: block;
+  margin: 0;
+  width: max-content;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--mt-text);
+  white-space: nowrap;
+}
+
+.mt-booking-card .mt-capsule__meta.is-edge-start {
+  text-align: left;
+}
+
+.mt-booking-card .mt-capsule__meta.is-edge-end {
+  text-align: right;
+}
+
+.mt-booking-card .mt-capsule__meta-text {
+  min-width: 0;
+}
+
+.mt-booking-card .mt-capsule__meta.is-metro,
+.mt-booking-card .mt-timeline__step.is-metro .mt-capsule__meta {
+  color: var(--mt-metro);
+}
+
+.mt-booking-card .mt-capsule__meta.is-bus,
+.mt-booking-card .mt-timeline__step.is-bus .mt-capsule__meta {
+  color: var(--mt-bus);
+}
+
+.mt-booking-card .mt-walk-badge {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #e2e5ea;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+}
+
+.mt-booking-card .mt-walk-badge__icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.mt-booking-card .mt-walk__meta {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #111827;
+  white-space: nowrap;
+}
+
+.mt-booking-card .mt-timeline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 0 16px;
+  box-sizing: border-box;
+}
+
+.mt-booking-card .mt-timeline__item {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.mt-booking-card .mt-timeline__item.is-layout-center {
+  flex: 0 0 auto;
+}
+
+.mt-booking-card .mt-timeline__rail {
+  flex: 1 1 auto;
+  min-width: 12px;
+  height: 0;
+  margin: 14px 6px 0;
+  border-top: 1.5px dotted #c5cad3;
+  align-self: flex-start;
+}
+
+.mt-booking-card .mt-timeline__step {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mt-booking-card .mt-timeline__step.is-align-start {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.mt-booking-card .mt-timeline__step.is-align-end {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.mt-booking-card .mt-timeline__step.is-align-center {
+  align-items: center;
+  text-align: center;
+}
+
+.mt-booking-card .mt-stops {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.mt-booking-card .mt-stops.is-single {
   grid-template-columns: 1fr;
+}
+
+.mt-booking-card .mt-stop {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid #e6e9ee;
+  border-radius: 8px;
+  min-width: 0;
+  flex-direction: row;
+}
+
+.mt-booking-card .mt-stop__rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2px 0;
+}
+
+.mt-booking-card .mt-stop__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--mt-metro);
+  flex-shrink: 0;
+}
+
+.mt-booking-card .mt-stop__line {
+  width: 1.5px;
+  flex: 1;
+  min-height: 16px;
+  background: #d5dae2;
+}
+
+.mt-booking-card .mt-stop__sq {
+  width: 8px;
+  height: 8px;
+  background: var(--mt-metro);
+  flex-shrink: 0;
+}
+
+.mt-booking-card .mt-stop.is-metro .mt-stop__dot,
+.mt-booking-card .mt-stop.is-metro .mt-stop__sq {
+  background: var(--mt-metro);
+}
+
+.mt-booking-card .mt-stop.is-bus .mt-stop__dot,
+.mt-booking-card .mt-stop.is-bus .mt-stop__sq {
+  background: var(--mt-bus);
+}
+
+.mt-booking-card .mt-stop__copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mt-booking-card .mt-stop__copy span {
+  font-size: 12px;
+  font-weight: 500;
+  color: #1f2937;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mt-booking-card .mt-mile {
+  position: relative;
+  margin: 0 0 10px;
+}
+
+.mt-booking-card .mt-mile__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 0 2px 0 4px;
+  min-height: 28px;
+}
+
+.mt-booking-card .mt-mile__origin {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  padding-left: 2px;
+}
+
+.mt-booking-card .mt-mile__places {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mt-booking-card .mt-mile__curve {
+  position: absolute;
+  left: -6px;
+  bottom: 18px;
+  width: 40px;
+  height: 34px;
+  color: var(--mt-metro);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.mt-booking-card .mt-mile.is-bus .mt-mile__curve,
+.mt-booking-card .mt-mile.is-bus .mt-mile__pin {
+  color: var(--mt-bus);
+}
+
+.mt-booking-card .mt-mile__pin {
+  position: relative;
+  z-index: 2;
+  display: block;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  margin-top: 1px;
+  color: var(--mt-metro);
+}
+
+.mt-booking-card .mt-mile__station {
+  position: relative;
+  z-index: 2;
+  font-size: 12px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mt-booking-card .mt-mile__modes {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-top: -1px;
+}
+
+.mt-booking-card .mt-mile__mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 7px;
+  border: 0;
+  background: transparent;
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.mt-booking-card .mt-mile__mode + .mt-mile__mode {
+  border-left: 1px solid #d7dce3;
+}
+
+.mt-booking-card .mt-mile__mode-icon {
+  display: block;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: #666666;
+}
+
+.mt-booking-card .mt-mile__mode.is-selected {
+  color: var(--mt-primary);
+}
+
+.mt-booking-card .mt-mile__mode.is-selected .mt-mile__mode-icon {
+  color: var(--mt-primary);
+}
+
+.mt-booking-card .mt-booking-card__provider {
+  display: block;
+}
+
+.mt-booking-card .mt-booking-card__provider .mt-provider-options__cell {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px solid #e6e9ee;
+  border-radius: 8px;
+}
+
+.mt-booking-card .mt-booking-card__provider .mt-provider-options__cell.is-selected {
+  border-color: var(--mt-metro);
+  box-shadow: 0 0 0 1px var(--mt-metro);
+}
+
+.mt-booking-card .mt-booking-card__provider .mt-provider-options__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 20px;
+}
+
+.mt-booking-card .mt-brand {
+  display: block;
+  height: 18px;
+  width: auto;
+  max-width: 72px;
+  object-fit: contain;
+}
+
+.mt-booking-card .mt-brand--ola {
+  height: 16px;
+}
+
+.mt-booking-card .mt-brand--rapido {
+  height: 20px;
+}
+
+.mt-booking-card .mt-brand--refex {
+  height: 16px;
+}
+
+.mt-booking-card .mt-brand--text {
+  font-size: 11px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.mt-booking-card .mt-provider-options__mode-icon {
+  display: block;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: #666666;
+}
+
+.mt-booking-card .mt-booking-card__provider .mt-provider-options__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: #4b5563;
+}
+
+.mt-booking-card .mt-provider-options__eta {
+  color: #4b5563;
+}
+
+.mt-booking-card .mt-provider-options__dot {
+  color: #9ca3af;
+}
+
+.mt-booking-card .mt-provider-options__fare {
+  color: var(--mt-fare);
+}
+
+.mt-booking-card .mt-booking-card__provider .mt-provider-options__check {
+  position: static;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 2px;
+  border-radius: 999px;
+  background: var(--mt-metro);
+  flex-shrink: 0;
+}
+
+.mt-booking-card .mt-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  margin-top: 2px;
+  border-top: 1px solid #eceff3;
+}
+
+.mt-booking-card .mt-metrics > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 4px 14px;
+  text-align: center;
+}
+
+.mt-booking-card .mt-metrics > div + div {
+  border-left: 1px solid #eceff3;
+}
+
+.mt-booking-card .mt-metrics span {
+  font-size: 11px;
+  font-weight: 500;
+  color: #8a9099;
+  line-height: 1.2;
+}
+
+.mt-booking-card .mt-metrics strong {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.2;
+}
+
+.mt-booking-card .mt-metrics .is-fare {
+  color: var(--mt-fare);
 }
 
 .mt-booking-card__view {
@@ -28,8 +526,8 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  width: 100%;
-  margin-top: 0;
+  width: calc(100% + 24px);
+  margin: 0 -12px;
   padding: 14px 12px;
   border: 0;
   border-top: 1px solid #eceff3;
@@ -39,14 +537,9 @@
   font-size: 15px;
   font-weight: 600;
   line-height: 20px;
+  cursor: pointer;
 }
 
 .mt-booking-card__view:active {
   background: #f8f9fb;
-}
-
-.mt-brand--text {
-  font-size: 11px;
-  font-weight: 700;
-  color: #111827;
 }

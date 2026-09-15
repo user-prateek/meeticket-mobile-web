@@ -463,9 +463,9 @@
 
 .mt-timeline__rail {
   flex: 1;
-  min-width: 12px;
+  min-width: 0;
   height: 0;
-  margin: 14px 6px 0;
+  margin: 0;
   border-top: 1.5px dotted #c5cad3;
 }
 
@@ -545,7 +545,7 @@
   max-width: calc(100% - 20px);
   padding: 0 6px;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 700;
   line-height: 1.25;
   text-transform: lowercase;
@@ -554,6 +554,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   background: #fff;
+}
+
+.mt-stop.is-bus .mt-stop__line-title {
+  color: var(--mt-bus);
+  text-transform: none;
 }
 
 .mt-stop__inner {

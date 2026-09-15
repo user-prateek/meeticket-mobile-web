@@ -1,12 +1,13 @@
-import olaBike from '../assets/vehicles/ola_bike.png'
 import olaLogo from '../assets/brands/ola.png'
 import rapidoLogo from '../assets/brands/rapido.png'
 import refexLogo from '../assets/brands/refex.png'
 import {
   classifyLegBooking,
   getOrderId,
+  isOlaCabAwaitingDriver,
   shouldContinuePgPolling,
 } from '../api/orders'
+import { mapVehicleIconForMode } from './lastMile'
 
 const CAB_PROVIDER_LOGOS = {
   ola: olaLogo,
@@ -308,6 +309,38 @@ function createBusTicket(stop, index, journey) {
   }
 }
 
+function inferCabRideMode(leg, details, vehicleInfo, vehicleType, lastMile) {
+  const info = leg?.leg_info && typeof leg.leg_info === 'object' ? leg.leg_info : {}
+  const agg = leg?.agg_specific_info && typeof leg.agg_specific_info === 'object' ? leg.agg_specific_info : {}
+  const values = [
+    agg.category,
+    agg.vehicle_type,
+    info.vehicle_type,
+    details?.category,
+    details?.vehicle_type,
+    details?.service_name,
+    vehicleType,
+    vehicleInfo?.vehicle_type,
+    vehicleInfo?.type,
+    lastMile?.modeId,
+    lastMile?.modeLabel,
+  ]
+
+  for (const value of values) {
+    const key = String(value || '').trim().toLowerCase()
+    if (!key) continue
+    if (key === 'auto' || key === 'erick' || key === 'erisk' || key.includes('auto') || key.includes('rickshaw')) {
+      return 'auto'
+    }
+    if (key === 'bike' || key.includes('bike') || key.includes('scooter')) {
+      return 'bike'
+    }
+    if (key === 'cab' || key === 'car') return 'cab'
+  }
+
+  return 'cab'
+}
+
 function createCabTicket({ journey, trip, index = 0 }) {
   const mile = journey?.access
   return {
@@ -332,7 +365,7 @@ function createCabTicket({ journey, trip, index = 0 }) {
       rating: null,
       vehicleNo: '',
       vehicleModel: '',
-      vehicleImage: olaBike,
+      vehicleImage: mapVehicleIconForMode('cab'),
     },
     tripDetails: '',
     canCancel: true,
@@ -465,13 +498,47 @@ function ticketBaseFields(leg, { index, tabId, pgStatus }) {
   }
 }
 
-function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
+function readCoord(value) {
+  if (value == null || value === '') return null
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+}
+
+function cabMapPointsFromSources(leg, details, journey, trip, fromLabel, toLabel) {
+  const info = leg?.leg_info && typeof leg.leg_info === 'object' ? leg.leg_info : {}
+  const access = journey?.access || {}
+  const pickupLat = readCoord(
+    info.pickup_lat ?? details?.pickup_lat ?? access.fromLat ?? access.from_lat ?? trip?.fromLat,
+  )
+  const pickupLng = readCoord(
+    info.pickup_lng ??
+      info.pickup_lon ??
+      details?.pickup_lng ??
+      access.fromLon ??
+      access.from_lon ??
+      trip?.fromLon ??
+      trip?.fromLng,
+  )
+  const dropLat = readCoord(info.drop_lat ?? details?.drop_lat ?? access.toLat ?? access.to_lat)
+  const dropLng = readCoord(
+    info.drop_lng ?? info.drop_lon ?? details?.drop_lng ?? access.toLon ?? access.to_lon,
+  )
+  if (pickupLat == null || pickupLng == null || dropLat == null || dropLng == null) {
+    return { mapFrom: null, mapTo: null }
+  }
+  return {
+    mapFrom: { lat: pickupLat, lng: pickupLng, label: fromLabel || 'Pickup', lockLabel: false },
+    mapTo: { lat: dropLat, lng: dropLng, label: toLabel || 'Drop', lockLabel: true },
+  }
+}
+
+function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus, lastMile }) {
   const state = classifyLegBooking(leg)
   const base = ticketBaseFields(leg, { index, tabId, pgStatus })
   const ref = base.refId
   const fareInr = base.fareInr ?? 55
 
-  if (state === 'pending') {
+  if (state === 'pending' && tabId !== 'cab') {
     return {
       ...base,
       id: `${tabId}-pending-${leg.leg_id}`,
@@ -567,7 +634,7 @@ function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
         adult: leg.adult_count ?? details?.adult_count ?? defaults.passengers.adult,
         child: leg.child_count ?? details?.child_count ?? defaults.passengers.child,
       },
-      routeName: details?.route_name || null,
+      routeName: details?.route_name || leg.route_name || null,
       journeyDate: details?.journey_date || null,
       bookingReferenceNumber: bookingRef,
       qrPayload: bookingRef ? `MT-BUS-${bookingRef}` : `MT-BUS-${ref}`,
@@ -617,27 +684,36 @@ function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
     const expectedDurationMin = durationMinFromExpectedTimes(leg)
     const childCount = Number(leg.child_count ?? details?.child_count ?? 0) || 0
     const adultCount = leg.adult_count ?? details?.adult_count ?? defaults.pax
+    const from =
+      readLegLocName(leg, 'from') ||
+      details?.pickup_address ||
+      details?.from_stop_name ||
+      defaults.from
+    const to =
+      readLegLocName(leg, 'to') ||
+      details?.drop_address ||
+      details?.to_stop_name ||
+      defaults.to
+    const searching = isOlaCabAwaitingDriver(leg)
+    const bookingState = cancelled ? 'cancelled' : searching ? 'searching' : state === 'pending' ? 'pending' : 'confirmed'
+    const { mapFrom, mapTo } = cabMapPointsFromSources(leg, details, journey, trip, from, to)
+    const rideMode = inferCabRideMode(leg, details, vehicleInfo, vehicleType, lastMile)
+    const mapVehicleSrc =
+      vehicleInfo?.image || vehicleInfo?.image_url || mapVehicleIconForMode(rideMode)
     return {
       ...defaults,
       ...base,
       id: `cab-${leg.leg_id}`,
-      bookingState: cancelled ? 'cancelled' : 'confirmed',
+      bookingState,
+      pending: searching || state === 'pending',
       canCancel: !cancelled,
-      statusLabel: cancelled ? 'Cancelled' : null,
+      statusLabel: cancelled ? 'Cancelled' : searching ? 'Ride Requested' : null,
       fareInr: fareInr ?? defaults.fareInr,
       datetime: cabDatetimeFromLeg(leg, details, defaults.datetime),
       pax: adultCount + childCount || adultCount,
-      pin: cancelled ? '' : verificationCode || defaults.pin,
-      from:
-        readLegLocName(leg, 'from') ||
-        details?.pickup_address ||
-        details?.from_stop_name ||
-        defaults.from,
-      to:
-        readLegLocName(leg, 'to') ||
-        details?.drop_address ||
-        details?.to_stop_name ||
-        defaults.to,
+      pin: cancelled || searching ? '' : verificationCode || defaults.pin,
+      from,
+      to,
       durationMin:
         expectedDurationMin ??
         vehicleInfo?.duration_min ??
@@ -653,15 +729,24 @@ function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
         details?.pickup_instructions ||
         details?.trip_details ||
         details?.instructions ||
-        (bookingRef ? `Booking ref: ${bookingRef}` : defaults.tripDetails),
+        (from ? `Meet at the pickup point for ${from}` : defaults.tripDetails),
+      mapFrom,
+      mapTo,
+      rideMode,
+      mapVehicleSrc,
+      extraAmounts: searching ? [10, 15, 20] : [],
       driver: {
         ...defaults.driver,
-        name: driverName,
-        photoInitials: driverInitials,
-        rating: driverInfo?.rating || driverInfo?.driver_rating || details?.driver_rating || defaults.driver.rating,
-        vehicleNo,
-        vehicleModel,
-        vehicleImage: vehicleInfo?.image || vehicleInfo?.image_url || defaults.driver.vehicleImage,
+        name: searching ? '' : driverName,
+        photoInitials: searching ? '?' : driverInitials,
+        rating: searching
+          ? null
+          : driverInfo?.rating || driverInfo?.driver_rating || details?.driver_rating || defaults.driver.rating,
+        vehicleNo: searching ? '' : vehicleNo,
+        vehicleModel: searching ? '' : vehicleModel,
+        vehicleImage: searching
+          ? mapVehicleSrc
+          : vehicleInfo?.image || vehicleInfo?.image_url || mapVehicleSrc,
       },
     }
   }
@@ -675,7 +760,7 @@ function ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }) {
 }
 
 /** Sort pg/status bookings into primary tabs by leg_type. Preserves API order within each tab. */
-export function groupPgBookingsByTab(bookings = [], { journey, trip, pgStatus } = {}) {
+export function groupPgBookingsByTab(bookings = [], { journey, trip, pgStatus, lastMile } = {}) {
   const tickets = emptyTicketsByTab()
   const counters = { metro: 0, bus: 0, cab: 0, other: 0 }
 
@@ -684,7 +769,7 @@ export function groupPgBookingsByTab(bookings = [], { journey, trip, pgStatus } 
     const index = counters[tabId]
     counters[tabId] += 1
     tickets[tabId].journeys.push(
-      ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus }),
+      ticketFromPgLeg(leg, { journey, trip, index, tabId, pgStatus, lastMile }),
     )
   }
 
@@ -692,9 +777,9 @@ export function groupPgBookingsByTab(bookings = [], { journey, trip, pgStatus } 
 }
 
 /** Build tickets UI from pg/status `bookings` while legs confirm in background. */
-export function buildBookingFromPgStatus({ journey, trip, order, pgStatus }) {
+export function buildBookingFromPgStatus({ journey, trip, order, pgStatus, lastMile }) {
   const legs = Array.isArray(pgStatus?.bookings) ? pgStatus.bookings : []
-  const tickets = groupPgBookingsByTab(legs, { journey, trip, pgStatus })
+  const tickets = groupPgBookingsByTab(legs, { journey, trip, pgStatus, lastMile })
 
   if (!legs.length) {
     return {

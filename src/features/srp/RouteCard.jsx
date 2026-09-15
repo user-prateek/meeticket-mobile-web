@@ -15,6 +15,7 @@ import {
 } from '../../constants/lastMile'
 import { metroLineFromRouteId } from '../../constants/metroLines'
 import { formatMetroStationName } from '../../api/journey'
+import { busRouteLabel } from '../../lib/busRoute'
 import {
   applyFareSelections,
   applyFareSelectionsToJourney,
@@ -88,11 +89,7 @@ function metroLineCardTitle(routeId) {
 
 function stopCardTitle(stop) {
   if (stop.mode === 'metro') return metroLineCardTitle(stop.routeId)
-  // if (stop.mode === 'bus') {
-  //   if (stop.routeShortName) return `route ${stop.routeShortName}`
-  //   if (stop.routeName) return String(stop.routeName).toLowerCase()
-  //   return 'tgsrtc'
-  // }
+  if (stop.mode === 'bus') return busRouteLabel(stop)
   return null
 }
 

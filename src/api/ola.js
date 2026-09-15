@@ -119,6 +119,7 @@ import { olaAccessToken, olaAppToken, urls } from './config'
  *   travelTimeMin: number | null,
  *   providerId: 'ola',
  *   categoryId: string,
+ *   pickupMode: 'now' | 'later',
  *   currency: string,
  *   image: string | null,
  *   discountCode: string | null,
@@ -178,7 +179,7 @@ export function asOlaEstimateList(rideEstimate) {
 /**
  * Display fare from ride_estimate only: always amount_min – amount_max (never upfront exact).
  * Ola is cash / pay-at-pickup — fare is estimate only, not charged online.
- * Keep upfront.fare_id for future booking APIs.
+ * Keep upfront.fare_id so the order payload can hand it to backend bookings/create.
  * @param {OlaRideEstimate | null | undefined} estimate
  */
 export function selectOlaDisplayFare(estimate) {
@@ -366,6 +367,7 @@ export function mapOlaCategoryToVehicle(category, estimate = null) {
     travelTimeMin,
     providerId: 'ola',
     categoryId: category.id,
+    pickupMode: 'now',
     currency: category.currency || 'INR',
     image: category.image || null,
     discountCode: estimate?.discounts?.discount_code || null,
@@ -503,26 +505,40 @@ function userFacingOlaMessage(code, fallback) {
   }
   return fallback || 'Could not load Ola ride estimates.'
 }
-
-/**
- * TEMP: fixed Bangalore coords matching working curl — replace with live trip later.
- * curl …/v1/products?pickup_lat=12.9502&pickup_lng=77.6417&drop_lat=13.0950287&drop_lng=77.6496671
- */
 const OLA_HARDCODED_COORDS = {
   pickupLat: 12.9502,
   pickupLng: 77.6417,
   dropLat: 13.0950287,
   dropLng: 77.6496671,
 }
+function readOlaCoord(value) {
+  if (value == null || value === '') return null
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+}
 
 /**
- * Resolve pickup/drop for last-mile estimate (access: user → station).
+ * Resolve pickup/drop for last-mile estimate — same geometry as the CAB order leg.
+ * access: user → boarding station; drop: alighting station → destination.
  */
 export function resolveOlaTripEndpoints({ journey, trip, serviceId = 'pickup' } = {}) {
-  // TEMP hardcode — ignore journey/trip until dynamic wiring is ready.
-  void journey
-  void trip
-  void serviceId
+  const isDrop = serviceId === 'drop'
+  const mile = isDrop ? journey?.egress : journey?.access
+  const mileRaw = isDrop ? journey?.raw?.egress : journey?.raw?.access
+
+  const pickupLat = readOlaCoord(
+    mile?.fromLat ?? (isDrop ? null : trip?.fromLat) ?? mileRaw?.from_lat,
+  )
+  const pickupLng = readOlaCoord(
+    mile?.fromLon ?? (isDrop ? null : trip?.fromLon ?? trip?.fromLng) ?? mileRaw?.from_lon,
+  )
+  const dropLat = readOlaCoord(
+    mile?.toLat ?? (isDrop ? trip?.toLat : null) ?? mileRaw?.to_lat,
+  )
+  const dropLng = readOlaCoord(
+    mile?.toLon ?? (isDrop ? trip?.toLon ?? trip?.toLng : null) ?? mileRaw?.to_lon,
+  )
+
   return {
     pickupLat: OLA_HARDCODED_COORDS.pickupLat,
     pickupLng: OLA_HARDCODED_COORDS.pickupLng,
@@ -542,12 +558,13 @@ export async function getRideEstimate(params, { signal } = {}) {
     throw createOlaError('OLA_NOT_CONFIGURED', 'Ola API URL is not configured')
   }
 
-  // TEMP: force working-curl lat/lng regardless of caller.
-  const pickupLat = OLA_HARDCODED_COORDS.pickupLat
-  const pickupLng = OLA_HARDCODED_COORDS.pickupLng
-  const dropLat = OLA_HARDCODED_COORDS.dropLat
-  const dropLng = OLA_HARDCODED_COORDS.dropLng
+  const pickupLat = params.pickupLat
+  const pickupLng = params.pickupLng
+  if (pickupLat == null || pickupLng == null) {
+    throw createOlaError('INVALID_PICKUP', 'Pickup location is missing for this trip')
+  }
 
+  const pickupMode = params.pickupMode || 'now'
   const bearer = String(params.accessToken || olaAccessToken || '').trim()
   if (!bearer) {
     throw createOlaError('OLA_TOKEN_MISSING', userFacingOlaMessage('OLA_TOKEN_MISSING'))
@@ -557,8 +574,9 @@ export async function getRideEstimate(params, { signal } = {}) {
     ...params,
     pickupLat,
     pickupLng,
-    dropLat,
-    dropLng,
+    dropLat: params.dropLat,
+    dropLng: params.dropLng,
+    pickupMode,
     serviceType: params.serviceType || 'p2p',
   })
 
@@ -578,7 +596,7 @@ export async function getRideEstimate(params, { signal } = {}) {
   }
 
   const url = `${urls.olaProducts.replace(/\?$/, '')}?${search}`
-  console.info('[ola] products request (hardcoded lat/lng)', {
+  console.info('[ola] products request', {
     url,
     hasBearer: true,
     hasAppToken: Boolean(olaAppToken),
@@ -586,6 +604,7 @@ export async function getRideEstimate(params, { signal } = {}) {
     pickup_lng: query.pickup_lng,
     drop_lat: query.drop_lat,
     drop_lng: query.drop_lng,
+    pickup_mode: query.pickup_mode,
     service_type: query.service_type,
   })
 
@@ -627,6 +646,11 @@ export async function getRideEstimate(params, { signal } = {}) {
     ok: true,
     mock: false,
     ...normalized,
+    vehicles: (normalized.vehicles || []).map((vehicle) => ({
+      ...vehicle,
+      pickupMode,
+    })),
+    pickupMode,
     query,
   }
 }
@@ -635,7 +659,7 @@ export async function getRideEstimate(params, { signal } = {}) {
  * Journey-aware estimate using access/egress coords.
  */
 export async function getOlaRideEstimateForJourney(
-  { journey, trip, serviceId = 'pickup', category, pickupMode } = {},
+  { journey, trip, serviceId = 'pickup', category, pickupMode = 'now' } = {},
   { signal, accessToken } = {},
 ) {
   const endpoints = resolveOlaTripEndpoints({ journey, trip, serviceId })
@@ -651,7 +675,7 @@ export async function getOlaRideEstimateForJourney(
       dropLng: endpoints.dropLng,
       category,
       serviceType: 'p2p',
-      pickupMode,
+      pickupMode: pickupMode || 'now',
       accessToken,
     },
     { signal },
@@ -661,7 +685,7 @@ export async function getOlaRideEstimateForJourney(
 const olaEstimateCache = new Map()
 const olaEstimateInflight = new Map()
 
-function olaCacheKey({ journey, trip, serviceId = 'pickup', category }) {
+function olaCacheKey({ journey, trip, serviceId = 'pickup', category, pickupMode = 'now' }) {
   const endpoints = resolveOlaTripEndpoints({ journey, trip, serviceId })
   return [
     serviceId,
@@ -670,14 +694,15 @@ function olaCacheKey({ journey, trip, serviceId = 'pickup', category }) {
     endpoints.dropLat,
     endpoints.dropLng,
     category || '',
+    pickupMode || 'now',
   ].join('|')
 }
 
 /** In-session cache + inflight dedupe. Caller `signal` only ignores stale UI updates. */
 export function getOlaRideEstimateForJourneyCached(
-  { journey, trip, serviceId = 'pickup', category, signal, refresh = false } = {},
+  { journey, trip, serviceId = 'pickup', category, pickupMode = 'now', signal, refresh = false } = {},
 ) {
-  const key = olaCacheKey({ journey, trip, serviceId, category })
+  const key = olaCacheKey({ journey, trip, serviceId, category, pickupMode })
 
   let request
   if (!refresh && olaEstimateCache.has(key)) {
@@ -685,7 +710,10 @@ export function getOlaRideEstimateForJourneyCached(
   } else if (!refresh && olaEstimateInflight.has(key)) {
     request = olaEstimateInflight.get(key)
   } else {
-    request = getOlaRideEstimateForJourney({ journey, trip, serviceId, category }, {})
+    request = getOlaRideEstimateForJourney(
+      { journey, trip, serviceId, category, pickupMode },
+      {},
+    )
       .then((result) => {
         olaEstimateCache.set(key, result)
         return result

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import rapidoBike from '../assets/vehicles/rapido_bike.png'
+import olaGoAc from '../assets/vehicles/ola_go_ac.png'
 import {
   haversineKm,
   reverseGeocodeShortName,
@@ -9,6 +9,7 @@ import {
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_MAP_ID, loadGoogleMaps } from '../lib/googleMaps'
 import { DropMarker } from './map/DropMarker'
 import { PickupMarker } from './map/PickupMarker'
+import { SearchPulseMarker } from './map/SearchPulseMarker'
 import './CabMap.css'
 import './map/mapMarkers.css'
 
@@ -109,14 +110,14 @@ class HtmlOverlayMarker {
 /**
  * Google Map for cab first/last mile: custom pickup/drop HTML markers + driving path.
  */
-export function CabMap({ from, to, className, vehicleSrc, distance }) {
+export function CabMap({ from, to, className, vehicleSrc, distance, searching = false }) {
   const hostRef = useRef(null)
   const mapRef = useRef(null)
   const overlaysRef = useRef([])
   const [status, setStatus] = useState('loading')
   const [error, setError] = useState('')
 
-  const vehicle = vehicleSrc || rapidoBike
+  const vehicle = vehicleSrc || olaGoAc
 
   useEffect(() => {
     if (!from || !to || !hostRef.current) return undefined
@@ -202,6 +203,18 @@ export function CabMap({ from, to, className, vehicleSrc, distance }) {
           node: <DropMarker placeName={dropName} />,
         })
         overlaysRef.current.push(pickup, drop)
+
+        if (searching) {
+          overlaysRef.current.push(
+            mountHtmlMarker({
+              gmaps,
+              map,
+              position: origin,
+              zIndex: 0,
+              node: <SearchPulseMarker />,
+            }),
+          )
+        }
 
         // Only reverse-geocode user-side points. Station labels stay from the journey API.
         const geocodeJobs = []
@@ -294,7 +307,7 @@ export function CabMap({ from, to, className, vehicleSrc, distance }) {
       cancelled = true
       clearOverlays()
     }
-  }, [from?.lat, from?.lng, from?.label, to?.lat, to?.lng, to?.label, vehicle, distance])
+  }, [from?.lat, from?.lng, from?.label, to?.lat, to?.lng, to?.label, vehicle, distance, searching])
 
   if (!GOOGLE_MAPS_API_KEY) {
     return (

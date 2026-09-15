@@ -25,6 +25,8 @@ export const olaBaseUrl = (import.meta.env.VITE_OLA_BASE_URL || 'https://olaapi.
 export const olaAppToken = import.meta.env.VITE_OLA_APP_TOKEN || ''
 /** Bearer token — required. */
 export const olaAccessToken = import.meta.env.VITE_OLA_ACCESS_TOKEN || ''
+/** Optional Ola partner affiliate uid for bookings/create. Backend may also fill this. */
+export const olaAffiliateUid = String(import.meta.env.VITE_OLA_AFFILIATE_UID || '').trim()
 
 /**
  * Refex MeeTicket API host (staging/production).

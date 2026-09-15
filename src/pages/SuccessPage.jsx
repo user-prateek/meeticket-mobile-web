@@ -9,9 +9,11 @@ import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useHydrateJourneyOptions, useSelectJourney } from '../hooks/useJourneyOptions'
 import { PG_STATUS_POLL_MS, usePgStatusPolling } from '../hooks/usePgStatusPolling'
 import { withAppContext } from '../lib/appContext'
+import { OLA_SEARCHING_PREVIEW, buildOlaSearchingPreviewBooking } from '../lib/successPreview'
 import { buildSuccessPath, useSuccessBackNavigation } from '../lib/successUrl'
 import {
   journeyOptionsAtom,
+  lastMileSelectionAtom,
   orderAtom,
   selectedJourneyAtom,
   selectedJourneyIdAtom,
@@ -30,6 +32,7 @@ export function SuccessPage() {
   const trip = useAtomValue(tripAtom)
   const storedOrder = useAtomValue(orderAtom)
   const journey = useAtomValue(selectedJourneyAtom)
+  const lastMile = useAtomValue(lastMileSelectionAtom)
   const selectedJourneyId = useAtomValue(selectedJourneyIdAtom)
   const journeyOptions = useAtomValue(journeyOptionsAtom)
   const selectJourney = useSelectJourney()
@@ -45,6 +48,7 @@ export function SuccessPage() {
   }, [journeyOptions, selectedJourneyId, selectJourney])
 
   const urlOrderId = params.get('order') || params.get('order_id')
+  const isOlaSearchingPreview = params.get('preview') === OLA_SEARCHING_PREVIEW
   const orderId = urlOrderId || getOrderId(storedOrder)
 
   const [pgStatus, setPgStatus] = useState(null)
@@ -54,9 +58,10 @@ export function SuccessPage() {
   const [dropFromLabel, setDropFromLabel] = useState('')
 
   useEffect(() => {
+    if (isOlaSearchingPreview) return
     if (urlOrderId || !orderId) return
     navigate(buildSuccessPath({ orderId }), { replace: true })
-  }, [navigate, orderId, urlOrderId])
+  }, [isOlaSearchingPreview, navigate, orderId, urlOrderId])
 
   const onPgUpdate = useCallback((status) => {
     setPgStatus(status)
@@ -74,7 +79,7 @@ export function SuccessPage() {
   }, [navigate])
 
   usePgStatusPolling(orderId, {
-    enabled: Boolean(orderId),
+    enabled: Boolean(orderId) && !isOlaSearchingPreview,
     intervalMs: PG_STATUS_POLL_MS,
     onUpdate: onPgUpdate,
     onBookingFailed,
@@ -82,6 +87,9 @@ export function SuccessPage() {
   })
 
   const displayBooking = useMemo(() => {
+    if (isOlaSearchingPreview) {
+      return buildOlaSearchingPreviewBooking({ journey, trip, lastMile })
+    }
     if (!pgStatus || !orderId) return null
     const order = { orderId, order_id: orderId, pgStatus }
     return buildBookingFromPgStatus({
@@ -89,12 +97,14 @@ export function SuccessPage() {
       trip,
       order,
       pgStatus,
+      lastMile,
     })
-  }, [journey, orderId, pgStatus, trip])
+  }, [isOlaSearchingPreview, journey, lastMile, orderId, pgStatus, trip])
 
   const journeyId = journey?.id ?? selectedJourneyId ?? displayBooking?.journeyId ?? storedOrder?.journeyId
 
   async function handleCancelled({ legId, reason, reasonLabel, reasonNote }) {
+    if (isOlaSearchingPreview) return
     if (!orderId) {
       throw new Error('Missing order id')
     }
@@ -141,11 +151,11 @@ export function SuccessPage() {
     navigate(`/cab?${next.toString()}`)
   }
 
-  if (!orderId) {
+  if (!orderId && !isOlaSearchingPreview) {
     return <Navigate to={withAppContext('/journey')} replace />
   }
 
-  if (loading && !displayBooking) {
+  if (loading && !displayBooking && !isOlaSearchingPreview) {
     return (
       <div className="mt-success-loading" role="status">
         <p>Loading your tickets…</p>
@@ -153,7 +163,7 @@ export function SuccessPage() {
     )
   }
 
-  if (fetchError && !displayBooking) {
+  if (fetchError && !displayBooking && !isOlaSearchingPreview) {
     return (
       <div className="mt-success-loading mt-success-loading--error" role="alert">
         <p>{fetchError}</p>

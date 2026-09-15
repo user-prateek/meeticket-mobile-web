@@ -107,7 +107,12 @@ export function CabPage() {
       modeId: bookedMode || null,
       vehicleId: vehicle?.id || null,
       fareInr: vehicle?.fareInr ?? null,
+      fareMaxInr: vehicle?.fareMaxInr ?? null,
       fareDisplay: vehicle?.fareDisplay || null,
+      fareId: vehicle?.fareId || null,
+      categoryId: vehicle?.categoryId || null,
+      pickupMode: vehicle?.pickupMode || (bookedProvider === 'ola' ? 'now' : null),
+      couponCode: vehicle?.discountCode || null,
       refexSearchId: vehicle?.searchId || null,
       serviceId,
       // Parent transit order — UI back-nav only; payment uses the new order id.

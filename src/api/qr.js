@@ -73,7 +73,7 @@ function writeQrCache(bookingId, normalized) {
 /**
  * POST /qr/generate/v2 — returns qr_string and/or qrImage (data URL).
  * Cached by booking_id (memory + sessionStorage). Pass `forceRefresh: true` for Refresh QR.
- * `{ is_consumed: true }` means the ticket is expired / already used.
+ * `{ is_consumed: true }` means the ticket was scanned / validated, not expired.
  */
 export async function generateBookingQr(bookingId, { signal, forceRefresh = false } = {}) {
   if (!urls.qrGenerate) {

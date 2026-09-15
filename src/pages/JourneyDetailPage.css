@@ -98,6 +98,11 @@
   text-transform: lowercase;
 }
 
+.mt-leg.is-bus .mt-leg__line-name {
+  color: var(--mt-bus);
+  text-transform: none;
+}
+
 .mt-leg__head-spacer {
   flex: 1;
   min-width: 0;
@@ -376,24 +381,24 @@
   padding: 12px 12px 14px;
 }
 
-.mt-pickup__line1 {
+.mt-pickup__from {
+  position: relative;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-height: 24px;
-  margin-bottom: 10px;
+  align-items: flex-start;
+  left: -8px;
+
 }
 
 .mt-pickup__check {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
-  font-size: 14px;
-  font-weight: 700;
+  flex: 1 1 auto;
+  font-size: 12px;
+  font-weight: 600;
   line-height: 1.25;
-  color: #111827;
+  color: #374151;
   cursor: pointer;
   user-select: none;
 }
@@ -415,26 +420,20 @@
 }
 
 .mt-pickup__more {
-  padding: 0;
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 2px 0 0;
   border: 0;
   background: transparent;
   color: var(--mt-access-accent);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1.2;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  text-align: center;
+  text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
-}
-
-/* Line 2: pin + km under it · place name to the right */
-.mt-pickup__line2 {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  min-width: 0;
 }
 
 .mt-pickup__pin-col {
@@ -444,8 +443,6 @@
   align-items: center;
   flex-shrink: 0;
   width: 28px;
-  min-height: 36px;
-  left: -10px;
 }
 
 .mt-pickup__pin {
@@ -453,23 +450,37 @@
 }
 
 .mt-pickup__km {
-  margin-top: 4px;
-  font-size: 10px;
+  flex: 0 0 auto;
+  min-width: 32px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1.2;
   color: var(--mt-access-accent);
   white-space: nowrap;
-  position: relative;
-  left: 11px;
+}
+
+.mt-pickup__km.is-empty {
+  min-height: 1em;
 }
 
 .mt-pickup__arrow {
   position: absolute;
-  left: -6px;
-  top: 4px;
+  left: -8px;
+  top: 42px;
   z-index: 1;
-  width: 32px;
-  height: 225px;
+  width: 40px;
+  height: 110px;
+  pointer-events: none;
+  color: var(--mt-access-accent);
+  overflow: visible;
+}
+.mt-pickup__arrow.checked {
+  position: absolute;
+  left: -8px;
+  top: 42px;
+  z-index: 1;
+  width: 46px;
+  height: 165px;
   pointer-events: none;
   color: var(--mt-access-accent);
   overflow: visible;
@@ -488,46 +499,46 @@
   white-space: nowrap;
 }
 
-.mt-pickup__divider {
-  height: 1px;
-  margin: 0 0 12px;
-  background: #eceff3;
-}
-
-.mt-pickup__modes {
+.mt-pickup__ride-row {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  flex-wrap: nowrap;
   gap: 8px;
-  margin-bottom: 12px;
+  min-width: 0;
 }
 
-.mt-pickup__mode {
+.mt-pickup__check span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mt-pickup__mode-hints {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 12px;
-  border: 1px solid #d7dce3;
-  border-radius: 8px;
-  background: #fff;
-  color: #4b5563;
-  font-size: 13px;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.mt-pickup__mode-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 2px;
+  color: #6b7280;
+  font-size: 11px;
   font-weight: 600;
-  cursor: pointer;
+  background: #fff;
+  cursor: default;
+  user-select: none;
 }
 
-.mt-pickup__mode.is-selected {
-  border-color: var(--mt-primary);
-  color: var(--mt-primary);
-  box-shadow: 0 0 0 1px var(--mt-primary);
-}
-
-.mt-pickup__mode:disabled,
-.mt-pickup.is-ride-off .mt-pickup__mode,
-.mt-pickup.is-options-open .mt-pickup__mode {
-  opacity: 0.45;
-  cursor: not-allowed;
+.mt-pickup__mode-hint + .mt-pickup__mode-hint {
+  border-left: 1px solid #e5e7eb;
+  padding-left: 8px;
 }
 
 .mt-pickup__mode-icon {
@@ -535,9 +546,15 @@
   flex-shrink: 0;
 }
 
+.mt-pickup__options {
+  margin-top: 10px;
+  padding: 8px;
+  border-radius: 10px;
+}
 .mt-pickup__providers {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  margin-top: 10px;
   border: 1px solid #e6e9ee;
   border-radius: 8px;
   overflow: hidden;
@@ -567,8 +584,7 @@
 }
 
 .mt-pickup__provider.is-disabled,
-.mt-pickup__provider:disabled,
-.mt-pickup.is-ride-off .mt-pickup__provider {
+.mt-pickup__provider:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
@@ -608,14 +624,29 @@
 /* Provider vehicle slots — match RouteCard / SRP */
 .mt-provider-options {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
   padding: 0;
   background: transparent;
 }
 
-.mt-provider-options.is-single .mt-provider-options__cell {
+.mt-provider-options__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex: 1 1 100%;
+  box-sizing: border-box;
+  height: 62px;
+  min-height: 62px;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid #e6e9ee;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #8a9099;
+  background: #fff;
 }
 
 .mt-provider-options__cell {
@@ -625,9 +656,12 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  flex: 1 1 calc(50% - 3px);
+  flex: 1 1 0;
+  box-sizing: border-box;
+  width: auto;
   min-width: 0;
-  min-height: 56px;
+  height: 62px;
+  min-height: 62px;
   padding: 10px 12px 8px;
   background: #fff;
   border: 1px solid #e6e9ee;

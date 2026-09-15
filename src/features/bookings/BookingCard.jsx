@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { formatMetroStationName } from '../../api/journey'
 import { BusGlyph, MetroGlyph, ModeIcon, PinIcon, ViewDetailsIcon } from '../../components/icons'
 import { LAST_MILE_MODES } from '../../constants/lastMile'
@@ -5,8 +6,6 @@ import { resolveCabProviderId } from '../../constants/tickets'
 import olaLogo from '../../assets/brands/ola.png'
 import rapidoLogo from '../../assets/brands/rapido.png'
 import refexLogo from '../../assets/brands/refex.png'
-import '../../styles/fare-classes.css'
-import '../srp/RouteCard.css'
 import './BookingCard.css'
 
 const MODE_CLASS = {
@@ -169,22 +168,24 @@ function BookingTimeline({ segments }) {
           const itemLayout = isWalk ? 'center' : edge === 'end' ? 'end' : 'start'
 
           return (
-            <div key={segment.id} className={`mt-timeline__item is-layout-${itemLayout}`}>
+            <Fragment key={segment.id}>
               {index > 0 ? <div className="mt-timeline__rail" aria-hidden="true" /> : null}
-              <div className={`mt-timeline__step ${MODE_CLASS[segment.mode] || ''} is-align-${edge}`}>
-                {isWalk ? (
-                  <>
-                    <ModeCapsule segment={segment} edge={edge} />
-                    <p className="mt-walk__meta">{segment.durationMin} Min</p>
-                  </>
-                ) : (
-                  <>
-                    <ModeCapsule segment={segment} edge={edge} />
-                    <TransitMeta segment={segment} edge={edge} />
-                  </>
-                )}
+              <div className={`mt-timeline__item is-layout-${itemLayout}`}>
+                <div className={`mt-timeline__step ${MODE_CLASS[segment.mode] || ''} is-align-${edge}`}>
+                  {isWalk ? (
+                    <>
+                      <ModeCapsule segment={segment} edge={edge} />
+                      <p className="mt-walk__meta">{segment.durationMin} Min</p>
+                    </>
+                  ) : (
+                    <>
+                      <ModeCapsule segment={segment} edge={edge} />
+                      <TransitMeta segment={segment} edge={edge} />
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
+            </Fragment>
           )
         })}
       </div>
@@ -240,15 +241,16 @@ function BookingStops({ stops }) {
 }
 
 function FirstMileSection({ booking }) {
-  const { cabLeg, cabFrom, cabFareInr, cabDurationMin, lastMileMode, cabVehicleLabel } = booking
+  const { cabLeg, cabFrom, cabFareInr, cabDurationMin, lastMileMode } = booking
   if (!cabLeg || !cabFrom) return null
 
   const providerId = resolveCabProviderId(cabLeg, cabLeg.booking_details)
   const pickupLabel = booking.pickupLabel || shortPlaceName(cabFrom)
   const mode = lastMileMode || 'cab'
+  const firstTransitMode = booking.stops?.[0]?.mode
 
   return (
-    <div className="mt-mile">
+    <div className={`mt-mile${firstTransitMode === 'bus' ? ' is-bus' : ''}`}>
       <div className="mt-mile__row">
         <div className="mt-mile__origin">
           <AccessCurve />
@@ -273,26 +275,20 @@ function FirstMileSection({ booking }) {
 
       <div className="mt-provider-options mt-booking-card__provider">
         <div className="mt-provider-options__cell is-selected">
-          <VehicleCheckBadge />
           <div className="mt-provider-options__row">
             <BrandLogo id={providerId} name={cabLeg.cab_aggregator || providerId} />
             <ModeIcon mode={mode} size={16} className="mt-provider-options__mode-icon" />
           </div>
           <span className="mt-provider-options__meta">
             {cabDurationMin ? <span className="mt-provider-options__eta">{cabDurationMin} Min</span> : null}
-            {cabDurationMin ? (
-              <span className="mt-provider-options__dot" aria-hidden="true">
-                •
-              </span>
-            ) : null}
-            <span className="mt-provider-options__label">{cabVehicleLabel || 'Cab'}</span>
-            {cabFareInr ? (
+            {cabDurationMin && cabFareInr ? (
               <span className="mt-provider-options__dot" aria-hidden="true">
                 •
               </span>
             ) : null}
             {cabFareInr ? <span className="mt-provider-options__fare">₹{cabFareInr}</span> : null}
           </span>
+          <VehicleCheckBadge />
         </div>
       </div>
     </div>
@@ -304,7 +300,7 @@ export function BookingCard({ booking, onViewDetails }) {
   const timeLabel = booking.totalTimeMin != null ? `${booking.totalTimeMin} Min` : '—'
 
   return (
-    <article className="mt-card mt-booking-card">
+    <article className="mt-booking-card">
       {booking.segments?.length ? <BookingTimeline segments={booking.segments} /> : null}
 
       <BusRouteStrip stops={booking.stops} segments={booking.segments} />

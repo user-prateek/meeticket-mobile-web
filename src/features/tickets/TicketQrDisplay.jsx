@@ -5,13 +5,14 @@ import { useBookingQr } from '../../hooks/useBookingQr'
 import expiredQrDummy from '../../assets/tickets/expired-qr-dummy.png'
 import { QrCode } from './QrCode'
 
-function ExpiredQrFrame({ size = 179, className = '' }) {
+function StatusQrFrame({ size = 179, className = '', variant = 'expired' }) {
+  const validated = variant === 'validated'
   return (
     <div
-      className={`mt-qr-expired ${className}`.trim()}
+      className={`mt-qr-expired${validated ? ' is-validated' : ''} ${className}`.trim()}
       style={{ width: size, height: size }}
       role="img"
-      aria-label="Expired ticket QR code"
+      aria-label={validated ? 'Validated ticket QR code' : 'Expired ticket QR code'}
     >
       <img
         src={expiredQrDummy}
@@ -22,21 +23,41 @@ function ExpiredQrFrame({ size = 179, className = '' }) {
         draggable={false}
       />
       <span className="mt-qr-expired__veil" aria-hidden="true" />
-      <span className="mt-qr-expired-badge">
+      <span className={`mt-qr-expired-badge${validated ? ' is-validated' : ''}`}>
         <span className="mt-qr-expired-badge__icon" aria-hidden="true">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path
-              d="M3.2 3.2 8.8 8.8M8.8 3.2 3.2 8.8"
-              stroke="#fff"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-            />
-          </svg>
+          {validated ? (
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path
+                d="M2.6 6.2 5 8.6 9.4 3.6"
+                stroke="#fff"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          ) : (
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path
+                d="M3.2 3.2 8.8 8.8M8.8 3.2 3.2 8.8"
+                stroke="#fff"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+          )}
         </span>
-        EXPIRED
+        {validated ? 'VALIDATED' : 'EXPIRED'}
       </span>
     </div>
   )
+}
+
+function ExpiredQrFrame(props) {
+  return <StatusQrFrame {...props} variant="expired" />
+}
+
+function ValidatedQrFrame(props) {
+  return <StatusQrFrame {...props} variant="validated" />
 }
 
 export function TicketQrDisplay({
@@ -60,9 +81,10 @@ export function TicketQrDisplay({
     [validUntil],
   )
   const qrConsumed = status === 'consumed' || consumed
+  const isValidated = qrConsumed
   const isExpired =
-    expired || qrConsumed || (secondsLeft != null && secondsLeft <= 0)
-  const qrUnavailable = status === 'error' && !qrImage && !isExpired
+    !isValidated && (expired || (secondsLeft != null && secondsLeft <= 0))
+  const qrUnavailable = status === 'error' && !qrImage && !isExpired && !isValidated
 
   useEffect(() => {
     if (validUntil) onValidUntil?.(validUntil)
@@ -80,13 +102,10 @@ export function TicketQrDisplay({
 
   let qrNode
 
-  if (bookingReferenceNumber && isExpired) {
-    qrNode = (
-      <ExpiredQrFrame
-        size={size}
-        className={className}
-      />
-    )
+  if (bookingReferenceNumber && isValidated) {
+    qrNode = <ValidatedQrFrame size={size} className={className} />
+  } else if (bookingReferenceNumber && isExpired) {
+    qrNode = <ExpiredQrFrame size={size} className={className} />
   } else if (bookingReferenceNumber && status === 'loading' && !qrImage) {
     qrNode = (
       <div className="mt-qr mt-qr--loading" style={{ width: size, height: size }} role="status">
@@ -118,8 +137,8 @@ export function TicketQrDisplay({
     )
   }
 
-  // Expired / consumed: no Valid / Refresh row under the QR.
-  const showActions = refreshable && bookingReferenceNumber && !isExpired
+  // Expired / validated: no Valid / Refresh row under the QR.
+  const showActions = refreshable && bookingReferenceNumber && !isExpired && !isValidated
 
   let statusEl = (
     <span className="mt-bus-valid">
@@ -172,4 +191,4 @@ export function TicketQrDisplay({
   )
 }
 
-export { ExpiredQrFrame }
+export { ExpiredQrFrame, ValidatedQrFrame }

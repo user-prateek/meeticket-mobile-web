@@ -57,7 +57,7 @@
   --tk-tab-gap: 4px;
 
   --tk-journey-margin-x: 16px;
-  --tk-journey-margin-top: 0;
+  --tk-journey-margin-top: 10px;
   --tk-journey-pad: 2px;
   --tk-journey-gap: 0;
   --tk-journey-chip-h: 36px;
@@ -70,7 +70,7 @@
   --tk-body-gap: 12px;
 
   --tk-card-radius: 8px;
-  --tk-card-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  --tk-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 
   --tk-banner-pad-y: 8px;
   --tk-banner-pad-x: 12px;

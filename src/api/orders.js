@@ -1,5 +1,5 @@
 import { PostRequest } from './client'
-import { ordersApiKey, ordersBaseUrl, urls } from './config'
+import { olaAccessToken, olaAffiliateUid, ordersApiKey, ordersBaseUrl, urls } from './config'
 import { isPayAtPickupVehicle } from '../constants/lastMile'
 import { getAppContext } from '../lib/appContext'
 import { getUserContext } from '../lib/userContext'
@@ -60,6 +60,32 @@ function coord(value) {
 function stringId(value) {
   if (value == null || value === '') return ''
   return String(value)
+}
+
+function olaAccessTokenValue() {
+  return String(olaAccessToken || '').trim()
+}
+
+function requireOlaAccessToken() {
+  const token = olaAccessTokenValue()
+  if (!token) {
+    throw new Error('Ola access token is missing. Set VITE_OLA_ACCESS_TOKEN.')
+  }
+  return token
+}
+
+function isOlaCabLeg(leg) {
+  return (
+    String(leg?.leg_type || '').toUpperCase() === 'CAB' &&
+    String(leg?.leg_info?.provider || '').toLowerCase() === 'ola'
+  )
+}
+
+/** Backend requires ola_access_token on Ola cab nested objects and on every sibling leg. */
+function applyOlaAccessToken(legs) {
+  if (!legs.some(isOlaCabLeg)) return legs
+  const token = requireOlaAccessToken()
+  return legs.map((leg) => ({ ...leg, ola_access_token: token }))
 }
 
 function travelDate({ segment, trip } = {}) {
@@ -289,8 +315,9 @@ function buildCabLegInfo({ journey, trip, lastMile }) {
       mileRaw?.to_lon,
   )
 
-  return {
-    provider: lastMile?.providerId || 'internal_fleet',
+  const provider = lastMile?.providerId || 'internal_fleet'
+  const info = {
+    provider,
     pickup_lat,
     pickup_lng,
     drop_lat,
@@ -302,6 +329,10 @@ function buildCabLegInfo({ journey, trip, lastMile }) {
       mile?.toLabel ?? (isDrop ? trip?.toPlace : journey?.originStation),
     ),
   }
+  if (provider === 'ola') {
+    info.ola_access_token = requireOlaAccessToken()
+  }
+  return info
 }
 
 function readChargeAmount(charge) {
@@ -319,7 +350,7 @@ function compactRecord(record) {
 /**
  * Provider-specific cab metadata for orders API `agg_specific_info`.
  */
-function buildCabAggSpecificInfo({ lastMile, selectedVehicle }) {
+function buildCabAggSpecificInfo({ lastMile, selectedVehicle, legInfo } = {}) {
   if (!selectedVehicle) return null
 
   const providerId = lastMile?.providerId || selectedVehicle.providerId
@@ -349,17 +380,36 @@ function buildCabAggSpecificInfo({ lastMile, selectedVehicle }) {
 
   if (providerId === 'ola') {
     const min = readPositiveInr(selectedVehicle.fareInr, lastMile?.fareInr)
-    const max = readPositiveInr(selectedVehicle.fareMaxInr, min)
+    const max = readPositiveInr(selectedVehicle.fareMaxInr, lastMile?.fareMaxInr, min)
+    const category =
+      stringId(selectedVehicle.categoryId || lastMile?.categoryId) || undefined
+    const fareId = stringId(selectedVehicle.fareId || lastMile?.fareId) || undefined
+    const pickupMode =
+      stringId(selectedVehicle.pickupMode || lastMile?.pickupMode) || 'now'
+    const coupon =
+      stringId(selectedVehicle.discountCode || lastMile?.couponCode) || undefined
+
+    // Fields backend copies into Ola POST /v1.5/bookings/create after Paytm S2S.
+    // merchant_txn_id is assigned by backend (order / PG id) — do not send a stub.
     return compactRecord({
-      distance: Number.isFinite(distance) && distance > 0 ? distance : undefined,
+      pickup_lat: coord(legInfo?.pickup_lat),
+      pickup_lng: coord(legInfo?.pickup_lng),
+      drop_lat: coord(legInfo?.drop_lat),
+      drop_lng: coord(legInfo?.drop_lng),
+      category,
+      pickup_mode: pickupMode,
+      payment_instrument_type: 'cash',
+      fare_id: fareId,
+      coupon_code: coupon,
+      affiliate_uid: olaAffiliateUid || undefined,
+      distance: Number.isFinite(distance) && distance >= 0 ? distance : undefined,
       amount_min: min || undefined,
       amount_max: max || undefined,
-      // Estimate only — cash to driver; not charged via Paytm.
-      total_fare: undefined,
-      search_id: stringId(selectedVehicle.fareId) || undefined,
-      vehicle_type: selectedVehicle.categoryId || selectedVehicle.mode || undefined,
+      search_id: fareId,
+      vehicle_type: category,
       model: selectedVehicle.label || undefined,
       payment_mode: 'CASH',
+      ola_access_token: requireOlaAccessToken(),
     })
   }
 
@@ -436,15 +486,19 @@ function buildFirstMileLeg({ journey, trip, lastMile, selectedVehicle }) {
   if (!hasFirstMileLeg({ lastMile, selectedVehicle })) return null
 
   const payAtPickup = isPayAtPickupVehicle(selectedVehicle)
-  // Cash rides are not collected online — amount_paise stays 0 for Paytm.
-  const amount_paise = payAtPickup ? 0 : inrToPaise(selectedVehicle.fareInr ?? lastMile.fareInr)
+  // Orders API requires amount_paise > 0 on every leg. Cash is still not charged via Paytm
+  // (`payment_mode: CASH`); pg/initiate only sums ONLINE legs.
+  const amount_paise = inrToPaise(selectedVehicle.fareInr ?? lastMile.fareInr)
+  if (amount_paise <= 0) {
+    throw new Error('Ride fare is unavailable')
+  }
   const leg_info = buildCabLegInfo({ journey, trip, lastMile })
 
   if ([leg_info.pickup_lat, leg_info.pickup_lng, leg_info.drop_lat, leg_info.drop_lng].some((v) => v == null)) {
     throw new Error('First-mile pickup/drop coordinates are missing')
   }
 
-  const agg_specific_info = buildCabAggSpecificInfo({ lastMile, selectedVehicle })
+  const agg_specific_info = buildCabAggSpecificInfo({ lastMile, selectedVehicle, legInfo: leg_info })
 
   const leg = {
     leg_type: 'CAB',
@@ -590,10 +644,7 @@ export async function buildOrderPayload({ journey, trip, lastMile, selectedVehic
     throw new Error('Add a bus or metro journey, or select a first-mile ride')
   }
 
-  const invalidLeg = legs.find((leg) => {
-    if (leg.payment_mode === PAYMENT_MODE_CASH) return false
-    return !leg.amount_paise || leg.amount_paise <= 0
-  })
+  const invalidLeg = legs.find((leg) => !leg.amount_paise || leg.amount_paise <= 0)
   if (invalidLeg) {
     throw new Error(`Invalid fare for ${invalidLeg.leg_type} leg`)
   }
@@ -625,7 +676,7 @@ export async function buildOrderPayload({ journey, trip, lastMile, selectedVehic
     email: profile.email || import.meta.env.VITE_ORDER_USER_EMAIL || 'test@example.com',
     platform: platform || undefined,
     ...pickupDrop,
-    legs,
+    legs: applyOlaAccessToken(legs),
   })
 }
 
@@ -642,7 +693,10 @@ export async function buildDropOrderPayload({ journey, trip, lastMile, selectedV
   }
 
   const payAtPickup = isPayAtPickupVehicle(selectedVehicle)
-  const amount_paise = payAtPickup ? 0 : inrToPaise(selectedVehicle.fareInr ?? dropLastMile.fareInr)
+  const amount_paise = inrToPaise(selectedVehicle.fareInr ?? dropLastMile.fareInr)
+  if (amount_paise <= 0) {
+    throw new Error('Ride fare is unavailable')
+  }
   const leg_info = buildCabLegInfo({ journey, trip, lastMile: dropLastMile })
 
   if (
@@ -671,6 +725,7 @@ export async function buildDropOrderPayload({ journey, trip, lastMile, selectedV
   const agg_specific_info = buildCabAggSpecificInfo({
     lastMile: dropLastMile,
     selectedVehicle,
+    legInfo: leg_info,
   })
   if (agg_specific_info && Object.keys(agg_specific_info).length) {
     leg.agg_specific_info = agg_specific_info
@@ -698,7 +753,7 @@ export async function buildDropOrderPayload({ journey, trip, lastMile, selectedV
     email: profile.email || import.meta.env.VITE_ORDER_USER_EMAIL || 'test@example.com',
     platform: platform || undefined,
     ...pickupDrop,
-    legs: [leg],
+    legs: applyOlaAccessToken([leg]),
   })
 }
 
@@ -936,9 +991,22 @@ export function isPgPaymentSuccessful(pgStatus) {
   return ['TXN_SUCCESS', 'SUCCESS', 'PAID', 'COMPLETED'].includes(code)
 }
 
-const LEG_CONFIRMED = new Set(['CONFIRMED', 'SUCCESS', 'BOOKED', 'COMPLETED'])
+const LEG_CONFIRMED = new Set([
+  'CONFIRMED',
+  'SUCCESS',
+  'BOOKED',
+  'COMPLETED',
+  'ALLOTTED',
+  'ACCEPTED',
+  'ON_TRIP',
+  'IN_PROGRESS',
+  'STARTED',
+  'ARRIVED',
+  'CALL_DRIVER',
+])
 const LEG_CANCELLED = new Set(['CANCELLED', 'CANCELED'])
 const LEG_FAILED = new Set(['FAILED', 'FAILURE'])
+const CAB_LEG_TYPES = new Set(['CAB', 'AUTO', 'BIKE'])
 
 export function classifyLegBooking(leg) {
   const status = String(leg?.status ?? '').toUpperCase()
@@ -946,6 +1014,66 @@ export function classifyLegBooking(leg) {
   if (LEG_CANCELLED.has(status)) return 'cancelled'
   if (LEG_FAILED.has(status)) return 'failed'
   return 'pending'
+}
+
+function readObject(value) {
+  return value && typeof value === 'object' ? value : null
+}
+
+function isOlaAggregatorLeg(leg) {
+  const details = readObject(leg?.booking_details)
+  const agg = readObject(leg?.agg_specific_info)
+  const raw = String(
+    leg?.cab_aggregator ||
+      leg?.cabAggregator ||
+      details?.cab_aggregator ||
+      details?.provider ||
+      details?.provider_id ||
+      details?.providerId ||
+      '',
+  ).toLowerCase()
+  if (raw.includes('ola')) return true
+  return Boolean(agg?.fare_id || agg?.pickup_mode || agg?.ola_access_token)
+}
+
+function olaCabHasAssignment(leg) {
+  const details = readObject(leg?.booking_details)
+  const assignment = readObject(details?.driver_assignment)
+  const vehicle =
+    readObject(leg?.vehicle_info) ||
+    readObject(leg?.vehicleInfo) ||
+    readObject(details?.vehicle_info) ||
+    readObject(details?.vehicleInfo) ||
+    readObject(assignment?.vehicle)
+  const driver =
+    readObject(leg?.driver_info) ||
+    readObject(leg?.driverInfo) ||
+    readObject(details?.driver_info) ||
+    readObject(details?.driverInfo) ||
+    readObject(assignment?.chauffeur) ||
+    readObject(assignment?.driver)
+  const vehicleNo = String(
+    vehicle?.vehicle_number ||
+      vehicle?.vehicle_no ||
+      vehicle?.number ||
+      vehicle?.registration_number ||
+      details?.vehicle_number ||
+      details?.vehicle_no ||
+      '',
+  ).trim()
+  const driverName = String(
+    driver?.name || driver?.driver_name || driver?.driverName || details?.driver_name || '',
+  ).trim()
+  return Boolean(vehicleNo || driverName)
+}
+
+/** Ola first-mile: payment can succeed before a driver accepts. Keep waiting until then. */
+export function isOlaCabAwaitingDriver(leg) {
+  const type = String(leg?.leg_type || '').toUpperCase()
+  if (!CAB_LEG_TYPES.has(type) || !isOlaAggregatorLeg(leg)) return false
+  const state = classifyLegBooking(leg)
+  if (state === 'cancelled' || state === 'failed') return false
+  return !(state === 'confirmed' && olaCabHasAssignment(leg))
 }
 
 /** Payment succeeded but no leg was confirmed when polling finished. */
