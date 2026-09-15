@@ -13,6 +13,34 @@ function toQuery(payload = {}) {
     .join('&')
 }
 
+function readApiErrorMessage(data) {
+  if (data == null) return null
+  if (typeof data === 'string') {
+    const text = data.trim()
+    return text && text !== '[object Object]' ? text : null
+  }
+  if (typeof data !== 'object') return null
+
+  const detail = data.detail
+  if (typeof detail === 'string' && detail.trim()) return detail.trim()
+  if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
+    const nested = detail.message || detail.error || detail.errorMessage
+    if (typeof nested === 'string' && nested.trim()) return nested.trim()
+  }
+  if (Array.isArray(detail) && detail[0]) {
+    const first = detail[0]
+    const fromList =
+      typeof first === 'string' ? first : first?.msg || first?.message || first?.error
+    if (typeof fromList === 'string' && fromList.trim()) return fromList.trim()
+  }
+
+  const direct = data.error || data.errorMessage || data.message
+  if (typeof direct === 'string' && direct.trim() && direct !== '[object Object]') {
+    return direct.trim()
+  }
+  return null
+}
+
 /**
  * GET — `url` should already end with `?` (see urls in config).
  * `payload` object becomes query params.
@@ -70,10 +98,7 @@ export async function PostRequest(
   }
 
   if (!response.ok) {
-    const apiMessage =
-      data && typeof data === 'object'
-        ? data.error || data.errorMessage || data.message || data.detail
-        : null
+    const apiMessage = readApiErrorMessage(data)
     const validation =
       data && typeof data === 'object' && data.errors
         ? ` — ${JSON.stringify(data.errors)}`

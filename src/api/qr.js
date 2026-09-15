@@ -9,19 +9,64 @@ function cacheKey(bookingId) {
   return `${QR_CACHE_PREFIX}${String(bookingId)}`
 }
 
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function unwrapQrPayload(data) {
+  if (!isPlainObject(data)) return {}
+  const nested =
+    (isPlainObject(data.detail) && data.detail) ||
+    (isPlainObject(data.data) && data.data) ||
+    (isPlainObject(data.response) && data.response) ||
+    (isPlainObject(data.result) && data.result) ||
+    (isPlainObject(data.error) && data.error) ||
+    (isPlainObject(data.body) && data.body)
+  return nested ? { ...data, ...nested } : data
+}
+
+function readFlag(value) {
+  if (value === true || value === 1 || value === 'true' || value === '1') return true
+  if (value === false || value === 0 || value === 'false' || value === '0') return false
+  return null
+}
+
+function readQrMessage(data) {
+  if (!data) return null
+  if (typeof data === 'string') {
+    const text = data.trim()
+    return text && text !== '[object Object]' ? text : null
+  }
+  if (!isPlainObject(data) && !Array.isArray(data)) return null
+
+  if (Array.isArray(data.detail)) {
+    const first = data.detail[0]
+    const fromList = readQrMessage(first)
+    if (fromList) return fromList
+  }
+
+  for (const key of ['message', 'detail', 'error', 'errorMessage', 'msg']) {
+    const value = data[key]
+    if (typeof value === 'string') {
+      const text = value.trim()
+      if (text && text !== '[object Object]') return text
+    }
+    if (isPlainObject(value)) {
+      const nested = readQrMessage(value)
+      if (nested) return nested
+    }
+  }
+  return null
+}
+
 export function isQrConsumedPayload(data) {
-  if (!data || typeof data !== 'object') return false
-  return (
-    data.is_consumed === true ||
-    data.is_consumed === 'true' ||
-    data.isConsumed === true ||
-    data.isConsumed === 'true'
-  )
+  const payload = unwrapQrPayload(data)
+  return readFlag(payload.is_consumed) === true || readFlag(payload.isConsumed) === true
 }
 
 export class QrConsumedError extends Error {
   constructor(message, body = null) {
-    super(message || 'This ticket cannot be used now.')
+    super(message || 'This ticket has been validated.')
     this.name = 'QrConsumedError'
     this.consumed = true
     this.body = body
@@ -70,10 +115,31 @@ function writeQrCache(bookingId, normalized) {
   }
 }
 
+function resolveQrOutcome(raw, fallbackError) {
+  const normalized = normalizeQrResponse(raw)
+  if (normalized.consumed) {
+    return { kind: 'consumed', normalized }
+  }
+  if (normalized.qrImage || normalized.qrString) {
+    return { kind: 'ready', normalized }
+  }
+  const message =
+    normalized.message ||
+    (typeof fallbackError?.message === 'string' && fallbackError.message !== '[object Object]'
+      ? fallbackError.message
+      : null) ||
+    'Could not load QR code'
+  return { kind: 'error', normalized, message }
+}
+
 /**
  * POST /qr/generate/v2 — returns qr_string and/or qrImage (data URL).
  * Cached by booking_id (memory + sessionStorage). Pass `forceRefresh: true` for Refresh QR.
- * `{ is_consumed: true }` means the ticket was scanned / validated, not expired.
+ *
+ * The API body is not stable. Known shapes:
+ *   { detail: { message, is_consumed: false } }  → not found / error
+ *   { message, is_consumed: true }               → validated
+ *   { order_id, qrImage, qr_string, valid_until, is_consumed: false }
  */
 export async function generateBookingQr(bookingId, { signal, forceRefresh = false } = {}) {
   if (!urls.qrGenerate) {
@@ -92,7 +158,7 @@ export async function generateBookingQr(bookingId, { signal, forceRefresh = fals
     const cached = readQrCache(id)
     if (cached?.consumed) {
       throw new QrConsumedError(
-        cached.message || 'This ticket cannot be used now.',
+        cached.message || 'This ticket has been validated.',
         cached.raw || cached,
       )
     }
@@ -104,7 +170,7 @@ export async function generateBookingQr(bookingId, { signal, forceRefresh = fals
       const cached = readQrCache(id)
       if (cached?.consumed) {
         throw new QrConsumedError(
-          cached.message || 'This ticket cannot be used now.',
+          cached.message || 'This ticket has been validated.',
           cached.raw || cached,
         )
       }
@@ -126,29 +192,28 @@ export async function generateBookingQr(bookingId, { signal, forceRefresh = fals
         },
       )
     } catch (error) {
-      if (isQrConsumedPayload(error?.body)) {
-        const normalized = normalizeQrResponse(error.body)
-        writeQrCache(id, normalized)
-        throw new QrConsumedError(
-          error.body?.message || error.message || 'This ticket cannot be used now.',
-          error.body,
-        )
+      const outcome = resolveQrOutcome(error?.body, error)
+      if (outcome.kind === 'consumed') {
+        writeQrCache(id, outcome.normalized)
+        throw new QrConsumedError(outcome.normalized.message, error?.body)
       }
-      throw error
+      if (outcome.kind === 'ready') {
+        writeQrCache(id, outcome.normalized)
+        return outcome.normalized
+      }
+      throw new Error(outcome.message)
     }
 
-    if (isQrConsumedPayload(data)) {
-      const normalized = normalizeQrResponse(data)
-      writeQrCache(id, normalized)
-      throw new QrConsumedError(
-        data.message || 'This ticket cannot be used now.',
-        data,
-      )
+    const outcome = resolveQrOutcome(data)
+    if (outcome.kind === 'consumed') {
+      writeQrCache(id, outcome.normalized)
+      throw new QrConsumedError(outcome.normalized.message, data)
     }
-
-    const normalized = normalizeQrResponse(data)
-    writeQrCache(id, normalized)
-    return normalized
+    if (outcome.kind === 'ready') {
+      writeQrCache(id, outcome.normalized)
+      return outcome.normalized
+    }
+    throw new Error(outcome.message)
   })
 }
 
@@ -158,20 +223,32 @@ export function peekCachedBookingQr(bookingId) {
 }
 
 export function normalizeQrResponse(data) {
-  if (!data || typeof data !== 'object') {
-    throw new Error('Invalid QR response')
+  if (data == null) {
+    return {
+      bookingId: null,
+      qrString: null,
+      qrImage: null,
+      validUntil: null,
+      generatedAt: null,
+      consumed: false,
+      message: null,
+      raw: data,
+    }
   }
 
-  const consumed = isQrConsumedPayload(data)
+  const payload = unwrapQrPayload(data)
+  const consumed = isQrConsumedPayload(payload)
+  const qrString = payload.qr_string ?? payload.qrString ?? null
+  const qrImage = payload.qrImage ?? payload.qr_image ?? payload.qr_code_image ?? null
 
   return {
-    bookingId: data.order_id ?? data.booking_id ?? null,
-    qrString: consumed ? null : data.qr_string ?? data.qrString ?? null,
-    qrImage: consumed ? null : data.qrImage ?? data.qr_image ?? null,
-    validUntil: data.valid_until ?? data.validUntil ?? null,
-    generatedAt: data.qr_generation_timestamp ?? null,
+    bookingId: payload.order_id ?? payload.booking_id ?? payload.bookingId ?? null,
+    qrString: consumed ? null : qrString,
+    qrImage: consumed ? null : qrImage,
+    validUntil: payload.valid_until ?? payload.validUntil ?? null,
+    generatedAt: payload.qr_generation_timestamp ?? payload.generatedAt ?? null,
     consumed,
-    message: data.message || null,
+    message: readQrMessage(payload),
     raw: data,
   }
 }
