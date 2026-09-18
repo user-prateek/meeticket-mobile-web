@@ -16,6 +16,7 @@ import {
   PAYTM_FAILURE_EVENTS,
   PAYTM_SUCCESS_EVENTS,
 } from '../lib/paytmCheckout'
+import { cabDirectPath, isCabDirectRequest, rideHomePath } from '../lib/cabDirect'
 import { tripToSearch } from '../lib/tripQuery'
 import { lastMileSelectionAtom, orderAtom, tripAtom } from '../store/journey'
 import '../components/PaymentRedirectScreen.css'
@@ -36,6 +37,7 @@ export function PaymentPage() {
 
   const journeyId = params.get('id')
   const journey = useJourneyOptionById(journeyId)
+  const cabDirect = isCabDirectRequest(params, lastMile, journey)
 
   const orderId = getOrderId(storedOrder)
   const pg = useMemo(() => getPaytmPgData(storedOrder?.pgInitiate), [storedOrder?.pgInitiate])
@@ -80,9 +82,11 @@ export function PaymentPage() {
       navigatedRef.current = true
       setPollingActive(false)
       setOrder({ ...storedOrder, pgStatus })
-      navigate(`/payment/failed?id=${journey?.id ?? journeyId}`, { replace: true })
+      const failed = new URLSearchParams({ id: String(journey?.id ?? journeyId ?? '') })
+      if (cabDirect) failed.set('direct', '1')
+      navigate(`/payment/failed?${failed.toString()}`, { replace: true })
     },
-    [journey?.id, journeyId, navigate, setOrder, storedOrder],
+    [cabDirect, journey?.id, journeyId, navigate, setOrder, storedOrder],
   )
 
   const onPgUpdate = useCallback(
@@ -127,15 +131,47 @@ export function PaymentPage() {
   }
 
   if (!journey) {
-    const fallback = trip ? `/journey${tripToSearch(trip)}` : '/journey'
+    const fallback = cabDirect
+      ? rideHomePath(trip)
+      : trip
+        ? `/journey${tripToSearch(trip)}`
+        : '/journey'
     return <Navigate to={withAppContext(fallback)} replace />
   }
 
   if (!storedOrder?.pgInitiate || !pg.checkoutJsUrl) {
-    return <Navigate to={withAppContext(`/journey-detail?id=${journey.id}`)} replace />
+    if (storedOrder?.payAtPickupOnly) {
+      const paidOrderId = getOrderId(storedOrder)
+      return (
+        <Navigate
+          to={withAppContext(buildSuccessPath({ orderId: paidOrderId }))}
+          replace
+        />
+      )
+    }
+    const fallback = cabDirect
+      ? cabDirectPath({
+          trip,
+          providerId: lastMile?.providerId,
+          modeId: lastMile?.modeId,
+          vehicleId: lastMile?.vehicleId,
+        })
+      : `/journey-detail?id=${journey.id}`
+    return <Navigate to={withAppContext(fallback)} replace />
   }
 
   function backToDetail() {
+    if (cabDirect) {
+      navigate(
+        cabDirectPath({
+          trip,
+          providerId: lastMile?.providerId,
+          modeId: lastMile?.modeId,
+          vehicleId: lastMile?.vehicleId,
+        }),
+      )
+      return
+    }
     const next = new URLSearchParams({ id: String(journey.id) })
     if (lastMile?.providerId) next.set('provider', lastMile.providerId)
     if (lastMile?.modeId) next.set('mode', lastMile.modeId)

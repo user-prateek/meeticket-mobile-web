@@ -1,0 +1,131 @@
+.mt-ride {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  flex: 1;
+  background: #f1f1f1;
+}
+
+.mt-ride__header {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 70px;
+  padding: calc(6px + env(safe-area-inset-top)) 16px 6px 12px;
+  background: #ffffff;
+}
+
+.mt-ride__icon-btn {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--mt-primary);
+  border-radius: 999px;
+}
+
+.mt-ride__icon-btn:disabled {
+  opacity: 0.35;
+}
+
+.mt-ride__logo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 0;
+  width: 60px;
+  height: 58px;
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.mt-ride__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 16px 24px;
+}
+
+.mt-ride__card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 12px 14px 14px;
+  border: 0;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  text-align: left;
+  color: inherit;
+}
+
+.mt-ride__card:active {
+  transform: scale(0.99);
+}
+
+.mt-ride__brand {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  background: #f6f7f9;
+  overflow: hidden;
+}
+
+.mt-ride__brand img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.mt-ride__copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.mt-ride__copy strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #111111;
+}
+
+.mt-ride__copy span {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #6b6b6b;
+}
+
+.mt-ride__chevron {
+  flex-shrink: 0;
+  color: #9aa0a6;
+}
+
+.mt-ride__empty {
+  margin: 32px 16px 0;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #6b7280;
+}
+
+.mt-ride__empty code {
+  font-size: 12px;
+}

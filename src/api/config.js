@@ -23,10 +23,21 @@ export const olaBaseUrl = (import.meta.env.VITE_OLA_BASE_URL || 'https://olaapi.
   '',
 )
 export const olaAppToken = import.meta.env.VITE_OLA_APP_TOKEN || ''
-/** Bearer token — required. */
+/** Bearer token — env fallback when the user has not completed Ola OAuth. */
 export const olaAccessToken = import.meta.env.VITE_OLA_ACCESS_TOKEN || ''
 /** Optional Ola partner affiliate uid for bookings/create. Backend may also fill this. */
 export const olaAffiliateUid = String(import.meta.env.VITE_OLA_AFFILIATE_UID || '').trim()
+/**
+ * Ola user OAuth (implicit): open authorize URL, callback returns #access_token=.
+ * Client id from Ola developer account. Redirect URI defaults to the current page.
+ */
+export const olaOauthAuthorizeUrl = String(
+  import.meta.env.VITE_OLA_OAUTH_AUTHORIZE_URL || 'https://devapi-stg.olacabs-dev.in/oauth2/authorize',
+).replace(/\/$/, '')
+export const olaOauthClientId = String(import.meta.env.VITE_OLA_CLIENT_ID || '').trim()
+export const olaOauthScope = String(import.meta.env.VITE_OLA_OAUTH_SCOPE || 'profile booking').trim()
+/** Optional registered callback. Empty = use the current /journey or /ride URL. */
+export const olaOauthRedirectUri = String(import.meta.env.VITE_OLA_OAUTH_REDIRECT_URI || '').trim()
 
 /**
  * Refex MeeTicket API host (staging/production).

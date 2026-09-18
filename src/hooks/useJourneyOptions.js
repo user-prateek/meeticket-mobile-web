@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useAtom, useSetAtom } from 'jotai'
+import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { fetchJourneyOptions, tripCacheKey } from '../api/journey'
 import {
   journeyErrorAtom,
@@ -132,6 +132,12 @@ export function useSelectedJourney() {
 
 export function useJourneyOptionById(optionId) {
   const [options] = useAtom(journeyOptionsAtom)
+  const snapshot = useAtomValue(selectedJourneySnapshotAtom)
+  if (optionId == null || optionId === '') return undefined
+  const key = String(optionId)
+  const live = options.find((option) => String(option.id) === key)
+  if (live) return live
+  if (snapshot && String(snapshot.id) === key) return snapshot
   const id = Number(optionId)
   if (!Number.isFinite(id)) return undefined
   return options.find((option) => option.id === id)

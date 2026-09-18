@@ -22,6 +22,14 @@ function optionMeta(vehicle) {
   return formatVehicleMeta(vehicle)
 }
 
+function modeAllowedForProvider(providerId, modeId, lockProvider) {
+  if (lockProvider) {
+    if (providerId === 'refex') return modeId === 'cab'
+    return true
+  }
+  return providerSupportsMode(providerId, modeId)
+}
+
 export function LastMilePage({
   journey,
   serviceId,
@@ -33,16 +41,20 @@ export function LastMilePage({
   initialProviderId,
   initialModeId,
   initialVehicleId,
+  lockProvider = false,
   fromPlace = 'Ameerpet',
   toPlace = 'L.B. Nagar',
 }) {
-  const providerId =
-    coerceEnabledProviderId(initialProviderId, { fallback: LAST_MILE_PROVIDER_DEFAULT }) ||
-    LAST_MILE_PROVIDER_DEFAULT
+  const providerId = lockProvider
+    ? initialProviderId || LAST_MILE_PROVIDER_DEFAULT
+    : coerceEnabledProviderId(initialProviderId, { fallback: LAST_MILE_PROVIDER_DEFAULT }) ||
+      LAST_MILE_PROVIDER_DEFAULT
 
   const [modeId, setModeId] = useState(() => {
     const preferred = initialModeId || LAST_MILE_MODE_DEFAULT
-    return providerSupportsMode(providerId, preferred) ? preferred : LAST_MILE_MODE_DEFAULT
+    return modeAllowedForProvider(providerId, preferred, lockProvider)
+      ? preferred
+      : LAST_MILE_MODE_DEFAULT
   })
   const [selectedId, setSelectedId] = useState(() => initialVehicleId || '')
   const [refexVehicles, setRefexVehicles] = useState([])
@@ -97,7 +109,7 @@ export function LastMilePage({
 
   function handleModeChange(nextModeId) {
     if (nextModeId === modeId) return
-    if (!providerSupportsMode(providerId, nextModeId)) return
+    if (!modeAllowedForProvider(providerId, nextModeId, lockProvider)) return
     setModeId(nextModeId)
     setSelectedId('')
     setBookError('')
@@ -117,12 +129,14 @@ export function LastMilePage({
   // Keep local selection in sync when query params change (e.g. navigating from detail).
   useEffect(() => {
     const preferred = initialModeId || LAST_MILE_MODE_DEFAULT
-    const nextMode = providerSupportsMode(providerId, preferred) ? preferred : LAST_MILE_MODE_DEFAULT
+    const nextMode = modeAllowedForProvider(providerId, preferred, lockProvider)
+      ? preferred
+      : LAST_MILE_MODE_DEFAULT
     setModeId(nextMode)
     setSelectedId(initialVehicleId || '')
     setBookError('')
     setBookingStatus('idle')
-  }, [providerId, initialModeId, initialVehicleId])
+  }, [providerId, initialModeId, initialVehicleId, lockProvider])
 
   useEffect(() => {
     if (providerId !== 'refex' || modeId !== 'cab') {
@@ -246,7 +260,7 @@ export function LastMilePage({
         <div className="mt-lastmile-page__modes" role="tablist" aria-label="Vehicle type">
           {LAST_MILE_MODES.map((mode) => {
             const active = modeId === mode.id
-            const disabled = !providerSupportsMode(providerId, mode.id)
+            const disabled = !modeAllowedForProvider(providerId, mode.id, lockProvider)
             return (
               <button
                 key={mode.id}

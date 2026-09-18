@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAtomValue } from 'jotai'
 import { getOlaRideEstimateForJourneyCached } from '../../api/ola'
 import { searchRefexForJourney } from '../../api/refex'
@@ -23,6 +23,8 @@ import {
   formatSegmentFareRange,
   cheapestFareOptionId,
 } from '../../lib/fareClasses'
+import { ensureOlaToken } from '../../lib/olaLink'
+import { peekOlaOauthResume, takeOlaOauthResume } from '../../lib/olaOauth'
 import { tripAtom } from '../../store/journey'
 import olaLogo from '../../assets/brands/ola.png'
 import rapidoLogo from '../../assets/brands/rapido.png'
@@ -43,6 +45,12 @@ const BRAND_LOGO = {
   ola: olaLogo,
   rapido: rapidoLogo,
   refex: refexLogo,
+}
+
+function srpOlaResume(optionId) {
+  const resume = peekOlaOauthResume()
+  if (resume?.kind !== 'srp' || String(resume.journeyId) !== String(optionId)) return null
+  return resume
 }
 
 function BrandLogo({ id, name, className = '' }) {
@@ -530,16 +538,21 @@ export function RouteCard({
   onSelect,
   onLastMileChange,
 }) {
-  const [lastMile, setLastMile] = useState(LAST_MILE_MODE_DEFAULT)
-  const [needRide, setNeedRide] = useState(false)
-  const [providerExpanded, setProviderExpanded] = useState(false)
-  const [selectedProviderId, setSelectedProviderId] = useState(null)
+  const resumeHere = srpOlaResume(option.id)
+  const [lastMile, setLastMile] = useState(
+    () => resumeHere?.lastMile || LAST_MILE_MODE_DEFAULT,
+  )
+  const [needRide, setNeedRide] = useState(() => Boolean(resumeHere))
+  const [providerExpanded, setProviderExpanded] = useState(() => Boolean(resumeHere))
+  const [selectedProviderId, setSelectedProviderId] = useState(() => (resumeHere ? 'ola' : null))
   const [selectedVehicleId, setSelectedVehicleId] = useState(null)
   const [refexVehicles, setRefexVehicles] = useState([])
   const [olaVehicles, setOlaVehicles] = useState([])
   const [liveStatus, setLiveStatus] = useState('idle')
   const [liveError, setLiveError] = useState('')
   const [expandedFareSegmentId, setExpandedFareSegmentId] = useState(null)
+  const olaLinkingRef = useRef(false)
+  const restoredFromOauthRef = useRef(Boolean(resumeHere))
   const trip = useAtomValue(tripAtom)
 
   const timeline = option.cardSegments?.length ? option.cardSegments : option.segments
@@ -664,7 +677,14 @@ export function RouteCard({
 
   // Collapse last-mile provider view when another journey card is selected.
   useEffect(() => {
-    if (selected) return
+    if (selected) {
+      if (restoredFromOauthRef.current) {
+        takeOlaOauthResume()
+        restoredFromOauthRef.current = false
+      }
+      return
+    }
+    if (restoredFromOauthRef.current) return
     setNeedRide(false)
     setProviderExpanded(false)
     setSelectedProviderId(null)
@@ -748,10 +768,28 @@ export function RouteCard({
     }
   }
 
-  function selectProvider(event, id) {
+  async function selectProvider(event, id) {
     event.stopPropagation()
     if (!needRide) setNeedRide(true)
     if (!isProviderEnabled(id) || isProviderDisabledForMode(id, lastMile)) return
+    if (id === 'ola') {
+      if (olaLinkingRef.current) return
+      olaLinkingRef.current = true
+      try {
+        const result = await ensureOlaToken({
+          resume: {
+            kind: 'srp',
+            journeyId: option.id,
+            providerId: 'ola',
+            lastMile,
+            needRide: true,
+          },
+        })
+        if (result.source === 'oauth') return
+      } finally {
+        olaLinkingRef.current = false
+      }
+    }
     selectCard()
     setSelectedProviderId(id)
     setProviderExpanded(true)

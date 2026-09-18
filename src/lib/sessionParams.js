@@ -21,6 +21,10 @@ const SESSION_QUERY_KEYS = new Set([
   'mbt',
   'metro_bearer_token',
   'metrobearertoken',
+  'access_token',
+  'ola_access_token',
+  'token_type',
+  'expires_in',
 ])
 
 export function isSessionQueryParam(key) {

@@ -138,6 +138,31 @@ export function tripToSearch(trip) {
   return q ? `?${q}` : ''
 }
 
+/**
+ * Cab-only entry (`/ride`, `/cab?direct=1`) — coords + place names only.
+ * Omits product `mode`, access/egress, candidates, and metro token (`mbt`).
+ */
+export function tripToCabSearchParams(trip) {
+  const params = new URLSearchParams()
+  if (!trip) return params
+  if (trip.fromLat != null) params.set('from_lat', String(trip.fromLat))
+  if (trip.fromLon != null || trip.fromLng != null) {
+    params.set('from_lon', String(trip.fromLon ?? trip.fromLng))
+  }
+  if (trip.toLat != null) params.set('to_lat', String(trip.toLat))
+  if (trip.toLon != null || trip.toLng != null) {
+    params.set('to_lon', String(trip.toLon ?? trip.toLng))
+  }
+  if (trip.fromPlace) params.set('from', shortPlaceLabel(trip.fromPlace))
+  if (trip.toPlace) params.set('to', shortPlaceLabel(trip.toPlace))
+  return params
+}
+
+export function tripToCabSearch(trip) {
+  const q = tripToCabSearchParams(trip).toString()
+  return q ? `?${q}` : ''
+}
+
 /** Default entry when no trip query is present — JourneyPage shows the missing-params state. */
 export function demoJourneyPath() {
   return '/journey'

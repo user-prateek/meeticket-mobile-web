@@ -10,6 +10,7 @@ import {
 import { helplineNumber } from '../api/config'
 import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useJourneyOptionById } from '../hooks/useJourneyOptions'
+import { cabDirectPath, isCabDirectRequest, rideHomePath } from '../lib/cabDirect'
 import { GOTO_HOME_PATH, withAppContext } from '../lib/appContext'
 import { tripToSearch } from '../lib/tripQuery'
 import { lastMileSelectionAtom, tripAtom } from '../store/journey'
@@ -26,13 +27,26 @@ export function PaymentFailedPage() {
 
   const journeyId = params.get('id')
   const journey = useJourneyOptionById(journeyId)
+  const cabDirect = isCabDirectRequest(params, lastMile, journey)
 
   if (!journey) {
-    const fallback = trip ? `/journey${tripToSearch(trip)}` : '/journey'
+    const fallback = cabDirect
+      ? rideHomePath(trip)
+      : trip
+        ? `/journey${tripToSearch(trip)}`
+        : '/journey'
     return <Navigate to={withAppContext(fallback)} replace />
   }
 
   function detailPath() {
+    if (cabDirect) {
+      return cabDirectPath({
+        trip,
+        providerId: lastMile?.providerId,
+        modeId: lastMile?.modeId,
+        vehicleId: lastMile?.vehicleId,
+      })
+    }
     const next = new URLSearchParams({ id: String(journey.id) })
     if (lastMile?.providerId) next.set('provider', lastMile.providerId)
     if (lastMile?.modeId) next.set('mode', lastMile.modeId)

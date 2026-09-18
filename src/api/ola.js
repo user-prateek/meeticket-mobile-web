@@ -2,7 +2,9 @@ import olaAuto from '../assets/vehicles/ola_auto.png'
 import olaBike from '../assets/vehicles/ola_bike.png'
 import olaGoAc from '../assets/vehicles/ola_go_ac.png'
 import { formatFare } from '../constants/lastMile'
-import { olaAccessToken, olaAppToken, urls } from './config'
+import { getOlaAccessToken } from '../lib/olaToken'
+import { isOlaOauthConfigured } from '../lib/olaOauth'
+import { olaAppToken, urls } from './config'
 
 /**
  * Ola GET /v1/products — types match Ride Availability/Estimate docs.
@@ -167,7 +169,7 @@ const OLA_MODE_ICON = {
 }
 
 export function isOlaLiveConfigured() {
-  return Boolean(urls.olaProducts && olaAccessToken)
+  return Boolean(urls.olaProducts && (getOlaAccessToken() || isOlaOauthConfigured()))
 }
 
 /** Docs: ride_estimate may be [] or {} when drop coords are omitted. */
@@ -497,7 +499,7 @@ function userFacingOlaMessage(code, fallback) {
   if (code === 'INVALID_CITY') return 'Ola is not available in this city.'
   if (code === 'INVALID_CITY_CAR_CATEGORY') return 'This Ola category is not available here.'
   if (code === 'OLA_TOKEN_MISSING') {
-    return 'Ola is not configured. Set VITE_OLA_ACCESS_TOKEN in .env and restart the dev server.'
+    return 'Ola is not linked. Sign in with Ola, or set VITE_OLA_ACCESS_TOKEN for local fallback.'
   }
   if (code === 'invalid_partner_key') return 'Ola partner token is invalid. Check VITE_OLA_APP_TOKEN.'
   if (code === 'invalid_token' || code === 'UNAUTHORIZED' || code === 'HTTP_401') {
@@ -565,7 +567,7 @@ export async function getRideEstimate(params, { signal } = {}) {
   }
 
   const pickupMode = params.pickupMode || 'now'
-  const bearer = String(params.accessToken || olaAccessToken || '').trim()
+  const bearer = String(params.accessToken || getOlaAccessToken() || '').trim()
   if (!bearer) {
     throw createOlaError('OLA_TOKEN_MISSING', userFacingOlaMessage('OLA_TOKEN_MISSING'))
   }

@@ -1,7 +1,8 @@
 import { PostRequest } from './client'
-import { olaAccessToken, olaAffiliateUid, ordersApiKey, ordersBaseUrl, urls } from './config'
+import { olaAffiliateUid, ordersApiKey, ordersBaseUrl, urls } from './config'
 import { isPayAtPickupVehicle } from '../constants/lastMile'
 import { getAppContext } from '../lib/appContext'
+import { getOlaAccessToken } from '../lib/olaToken'
 import { getUserContext } from '../lib/userContext'
 import { dedupeInFlight } from '../lib/dedupeRequest'
 import { fetchDrivingEtaMinutes } from '../lib/drivingEta'
@@ -63,13 +64,13 @@ function stringId(value) {
 }
 
 function olaAccessTokenValue() {
-  return String(olaAccessToken || '').trim()
+  return String(getOlaAccessToken() || '').trim()
 }
 
 function requireOlaAccessToken() {
   const token = olaAccessTokenValue()
   if (!token) {
-    throw new Error('Ola access token is missing. Set VITE_OLA_ACCESS_TOKEN.')
+    throw new Error('Ola access token is missing. Link an Ola account or set VITE_OLA_ACCESS_TOKEN.')
   }
   return token
 }
@@ -653,7 +654,12 @@ export async function buildOrderPayload({ journey, trip, lastMile, selectedVehic
     (leg) => leg.payment_mode !== PAYMENT_MODE_CASH && leg.amount_paise > 0,
   )
   if (!hasOnlineLeg) {
-    throw new Error('No online-payable legs for this order')
+    const cabOnly =
+      transitSegments(journey).length === 0 &&
+      legs.some((leg) => String(leg.leg_type).toUpperCase() === 'CAB')
+    if (!cabOnly) {
+      throw new Error('No online-payable legs for this order')
+    }
   }
 
   const pickupDrop = resolveOrderPickupDrop({ journey, trip })

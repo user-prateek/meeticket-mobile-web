@@ -1,10 +1,11 @@
 import { Navigate, useSearchParams } from 'react-router-dom'
 import { useAtomValue, useSetAtom } from 'jotai'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import {
   buildDropOrderPayload,
   buildOrderPayload,
   createOrderAndInitiatePg,
+  getOrderId,
 } from '../api/orders'
 import {
   LAST_MILE_PROVIDER_DEFAULT,
@@ -14,19 +15,30 @@ import { LastMilePage } from '../features/lastMile/LastMilePage'
 import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useHydrateJourneyOptions, useJourneyOptionById, useSelectJourney } from '../hooks/useJourneyOptions'
 import { withAppContext } from '../lib/appContext'
+import {
+  buildDirectCabJourney,
+  cabDirectPath,
+  cabDirectPaymentPath,
+  isCabDirectRequest,
+  rideHomePath,
+} from '../lib/cabDirect'
 import { preloadGoogleMaps } from '../lib/googleMaps'
 import { buildSuccessPath } from '../lib/successUrl'
+import { hasRequiredTripParams, parseTripQuery } from '../lib/tripQuery'
 import { lastMileSelectionAtom, orderAtom, tripAtom, userAtom } from '../store/journey'
 
 /**
  * /cab?id=1&service=pickup|drop&provider=&mode=&vehicle=&order=
- * First / last mile booking using access / egress from the selected journey.
+ * First / last mile using access / egress from the selected journey.
+ *
+ * Cab-only entry: /cab?direct=1&provider=ola&from_lat=… (no journey option).
  * Drop Service: new CAB-only order (egress → B); `order` query is parent success back-nav only.
  */
 export function CabPage() {
   const [params, setParams] = useSearchParams()
   const navigate = useAppNavigate()
-  const trip = useAtomValue(tripAtom)
+  const storedTrip = useAtomValue(tripAtom)
+  const setTrip = useSetAtom(tripAtom)
   const user = useAtomValue(userAtom)
   const setOrder = useSetAtom(orderAtom)
   const setLastMileSelection = useSetAtom(lastMileSelectionAtom)
@@ -34,19 +46,49 @@ export function CabPage() {
   const id = params.get('id')
   const existingOrderId = params.get('order') || params.get('order_id') || ''
   const serviceId = params.get('service') === 'drop' ? 'drop' : 'pickup'
-  const providerId =
-    coerceEnabledProviderId(params.get('provider'), {
-      fallback: LAST_MILE_PROVIDER_DEFAULT,
-    }) || LAST_MILE_PROVIDER_DEFAULT
+  const isDirect = isCabDirectRequest(params)
+  const searchKey = params.toString()
+
+  const urlHasTrip = hasRequiredTripParams(searchKey)
+  const trip = useMemo(
+    () => (urlHasTrip ? parseTripQuery(searchKey) : storedTrip),
+    [urlHasTrip, searchKey, storedTrip],
+  )
+
+  useEffect(() => {
+    if (!urlHasTrip) return
+    setTrip(parseTripQuery(searchKey))
+  }, [urlHasTrip, searchKey, setTrip])
+
+  const requestedProvider = params.get('provider')
+  const providerId = isDirect
+    ? requestedProvider || LAST_MILE_PROVIDER_DEFAULT
+    : coerceEnabledProviderId(requestedProvider, {
+        fallback: LAST_MILE_PROVIDER_DEFAULT,
+      }) || LAST_MILE_PROVIDER_DEFAULT
   const modeId = params.get('mode') || undefined
   const vehicleId = params.get('vehicle') || undefined
 
-  const { hydrating } = useHydrateJourneyOptions(trip)
-  const journey = useJourneyOptionById(id)
+  const { hydrating } = useHydrateJourneyOptions(isDirect ? null : trip)
+  const listedJourney = useJourneyOptionById(id)
+  const directJourney = useMemo(
+    () => (isDirect ? buildDirectCabJourney(trip) : null),
+    [isDirect, trip],
+  )
+  const journey = isDirect ? directJourney : listedJourney
 
   useEffect(() => {
     preloadGoogleMaps()
   }, [])
+
+  useEffect(() => {
+    if (!isDirect || !directJourney) return
+    selectJourney(directJourney)
+  }, [isDirect, directJourney, selectJourney])
+
+  if (isDirect && !directJourney) {
+    return <Navigate to={withAppContext(rideHomePath(storedTrip))} replace />
+  }
 
   if (!journey) {
     if (hydrating) {
@@ -56,7 +98,7 @@ export function CabPage() {
         </div>
       )
     }
-    return <Navigate to={withAppContext('/journey')} replace />
+    return <Navigate to={withAppContext(isDirect ? rideHomePath(trip) : '/journey')} replace />
   }
 
   const mile = serviceId === 'drop' ? journey.egress : journey.access
@@ -78,6 +120,7 @@ export function CabPage() {
   }
 
   function paymentPath() {
+    if (isDirect) return cabDirectPaymentPath()
     return `/payment?id=${String(journey.id)}`
   }
 
@@ -85,10 +128,29 @@ export function CabPage() {
     if (existingOrderId && serviceId === 'drop') {
       return buildSuccessPath({ orderId: existingOrderId })
     }
+    if (isDirect) {
+      return rideHomePath(trip)
+    }
     return detailPath()
   }
 
-  function handleSelectionChange({ providerId: nextProvider, modeId: nextMode, vehicleId: nextVehicle }) {
+  function handleSelectionChange({
+    providerId: nextProvider,
+    modeId: nextMode,
+    vehicleId: nextVehicle,
+  }) {
+    if (isDirect) {
+      const next = new URLSearchParams(
+        cabDirectPath({
+          trip,
+          providerId: nextProvider,
+          modeId: nextMode,
+          vehicleId: nextVehicle,
+        }).split('?')[1] || '',
+      )
+      setParams(next, { replace: true })
+      return
+    }
     const next = new URLSearchParams({
       id: String(journey.id),
       service: serviceId,
@@ -103,6 +165,7 @@ export function CabPage() {
   async function handleBook({ vehicle, providerId: bookedProvider, modeId: bookedMode }) {
     const lastMile = {
       journeyId: journey.id,
+      cabDirect: Boolean(isDirect || journey.cabDirect),
       providerId: bookedProvider || null,
       modeId: bookedMode || null,
       vehicleId: vehicle?.id || null,
@@ -140,6 +203,11 @@ export function CabPage() {
           })
     const order = await createOrderAndInitiatePg(payload, { journeyId: journey.id })
     setOrder(order)
+    if (order.payAtPickupOnly) {
+      const orderId = getOrderId(order)
+      navigate(buildSuccessPath({ orderId }), { replace: true })
+      return
+    }
     navigate(paymentPath(), { replace: true })
   }
 
@@ -149,6 +217,7 @@ export function CabPage() {
       serviceId={serviceId}
       mile={mile}
       trip={trip}
+      lockProvider={isDirect}
       initialProviderId={providerId}
       initialModeId={modeId}
       initialVehicleId={vehicleId}

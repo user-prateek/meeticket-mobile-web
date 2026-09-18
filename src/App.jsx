@@ -5,7 +5,15 @@ import { AlertHost } from './components/Alert'
 import { MobileShell } from './components/MobileShell'
 import { BookingsSkeleton, JourneySkeleton } from './components/skeletons/PageSkeleton'
 import { captureAppContextFromSearch } from './lib/appContext'
+import { useSaveOlaTokenOnCallback } from './hooks/useOlaUserToken'
 import { captureUserFromSearch } from './lib/userContext'
+import {
+  markOlaOauthPendingSave,
+  parseOlaOauthCallback,
+  peekOlaOauthState,
+  stripOlaOauthSearch,
+} from './lib/olaOauth'
+import { storeOlaAccessToken } from './lib/olaToken'
 import { sessionStrippedSearch } from './lib/sessionParams'
 import { demoJourneyPath } from './lib/tripQuery'
 import { appContextAtom, userAtom } from './store/journey'
@@ -14,6 +22,7 @@ import { JourneyPage } from './pages/JourneyPage'
 
 /** Non-entry screens — deferred so WebView FCP stays on journey/bookings. */
 const CabPage = lazy(() => import('./pages/CabPage').then((m) => ({ default: m.CabPage })))
+const RidePage = lazy(() => import('./pages/RidePage').then((m) => ({ default: m.RidePage })))
 const GoToHomePage = lazy(() =>
   import('./pages/GoToHomePage').then((m) => ({ default: m.GoToHomePage })),
 )
@@ -47,6 +56,22 @@ const LiveTrackingPage = lazy(() =>
 function RouteFallback() {
   const path = useLocation().pathname
   if (path.startsWith('/bookings')) return <BookingsSkeleton />
+  if (path.startsWith('/ride')) {
+    return (
+      <div
+        style={{ minHeight: '100dvh', background: '#f1f1f1' }}
+        role="status"
+        aria-label="Loading"
+      />
+    )
+  }
+  if (path.startsWith('/cab')) {
+    return (
+      <div className="mt-success-loading" role="status">
+        <p>Loading cab options…</p>
+      </div>
+    )
+  }
   if (path.startsWith('/payment')) {
     return (
       <div
@@ -80,19 +105,45 @@ function AppContextSync() {
     const appContext = captureAppContextFromSearch(location.search)
     setAppContext(appContext)
 
-    const storedUser = captureUserFromSearch(location.search)
+    let storedUser = captureUserFromSearch(location.search)
+    const fromHash = parseOlaOauthCallback(location.hash)
+    const fromSearch = parseOlaOauthCallback(location.search)
+    const oauth = fromHash || fromSearch
+    if (oauth?.accessToken) {
+      const expected = peekOlaOauthState()
+      const stateOk = !oauth.state || !expected || oauth.state === expected
+      if (stateOk) {
+        storedUser = storeOlaAccessToken(oauth)
+        // Hash (and Ola-style query with expires_in) → persist via SET API.
+        // Bare ?access_token= from Android is session-only; skip GET/SET.
+        if (fromHash || oauth.expiresIn || oauth.tokenType) {
+          markOlaOauthPendingSave()
+        }
+      }
+    }
     if (storedUser) setUser(storedUser)
 
-    const cleanedSearch = sessionStrippedSearch(location.search)
+    const cleanedSearch = sessionStrippedSearch(
+      stripOlaOauthSearch(location.search.startsWith('?') ? location.search : `?${location.search}`),
+    )
     const currentSearch = location.search.startsWith('?')
       ? location.search.slice(1)
       : location.search
+    const hashNeedsClear = Boolean(oauth?.accessToken && location.hash)
 
-    if (cleanedSearch !== currentSearch) {
-      navigate({ pathname: location.pathname, search: cleanedSearch }, { replace: true })
+    if (cleanedSearch !== currentSearch || hashNeedsClear) {
+      navigate(
+        { pathname: location.pathname, search: cleanedSearch, hash: '' },
+        { replace: true },
+      )
     }
-  }, [location.pathname, location.search, navigate, setAppContext, setUser])
+  }, [location.hash, location.pathname, location.search, navigate, setAppContext, setUser])
 
+  return null
+}
+
+function OlaTokenCallbackSync() {
+  useSaveOlaTokenOnCallback()
   return null
 }
 
@@ -100,6 +151,7 @@ export default function App() {
   return (
     <>
       <AppContextSync />
+      <OlaTokenCallbackSync />
       <AlertHost />
       <Suspense fallback={<RouteFallback />}>
         <Routes>
@@ -117,6 +169,7 @@ export default function App() {
                     <Route path="/payment" element={<PaymentPage />} />
                     <Route path="/payment/failed" element={<PaymentFailedPage />} />
                     <Route path="/payment/booking-failed" element={<PaymentBookingFailedPage />} />
+                    <Route path="/ride" element={<RidePage />} />
                     <Route path="/cab" element={<CabPage />} />
                     <Route path="/live-tracking" element={<LiveTrackingPage />} />
                     <Route path="/bookings" element={<BookingsPage />} />

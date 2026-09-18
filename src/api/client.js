@@ -67,12 +67,13 @@ export async function GetRequest(url, payload = {}, { signal, headers: extraHead
 export async function PostRequest(
   url,
   payload = {},
-  { signal, headers: extraHeaders, noBody = false } = {},
+  { signal, headers: extraHeaders, noBody = false, method = 'POST' } = {},
 ) {
+  const verb = String(method || 'POST').toUpperCase()
   let response
   try {
     response = await fetch(url, {
-      method: 'POST',
+      method: verb,
       headers: noBody
         ? { Accept: 'application/json', ...extraHeaders }
         : headers(extraHeaders),

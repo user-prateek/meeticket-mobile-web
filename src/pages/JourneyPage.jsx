@@ -13,6 +13,7 @@ import {
 import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useJourneyOptions, useSelectJourney } from '../hooks/useJourneyOptions'
 import { GOTO_HOME_PATH } from '../lib/appContext'
+import { peekOlaOauthResume } from '../lib/olaOauth'
 import {
   applyFareSelectionsToJourney,
   buildInitialFareSelections,
@@ -100,10 +101,13 @@ export function JourneyPage() {
     () => (paramsOk ? parseTripQuery(location.search) : null),
     [paramsOk, location.search],
   )
-  const { options, status, error, reload } = useJourneyOptions(trip)
+  const { options, status, error, reload } = useJourneyOptions(paramsOk ? trip : null)
 
   const [sortBy, setSortBy] = useState(SORT_DEFAULT)
-  const [selectedId, setSelectedId] = useState(null)
+  const [selectedId, setSelectedId] = useState(() => {
+    const resume = peekOlaOauthResume()
+    return resume?.kind === 'srp' && resume.journeyId != null ? resume.journeyId : null
+  })
   const [lastMileByOption, setLastMileByOption] = useState({})
   const [fareSelectionsByOption, setFareSelectionsByOption] = useState({})
 
@@ -115,7 +119,12 @@ export function JourneyPage() {
     })
     return sortOptionsList(withFares, sortBy)
   }, [fareSelectionsByOption, options, sortBy])
-  const selected = list.find((option) => option.id === selectedId) ?? list[0] ?? null
+  const selected =
+    (selectedId != null
+      ? list.find((option) => String(option.id) === String(selectedId))
+      : null) ??
+    list[0] ??
+    null
   const count = list.length
   const loading = count === 0 && (status === 'loading' || status === 'idle')
   const loadingMore = status === 'loading' && count > 0
@@ -226,7 +235,7 @@ export function JourneyPage() {
               <RouteCard
                 key={`${option.source ?? 'journey'}-${option.id}`}
                 option={option}
-                selected={selected?.id === option.id}
+                selected={String(selected?.id) === String(option.id)}
                 fareSelections={fareSelectionsByOption[option.id]}
                 onFareSelectionsChange={(selections) =>
                   handleFareSelectionsChange(option.id, selections)

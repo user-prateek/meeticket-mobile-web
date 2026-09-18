@@ -30,6 +30,8 @@ import { formatMetroStationName } from '../api/journey'
 import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useJourneyOptionById, useSelectJourney } from '../hooks/useJourneyOptions'
 import { withAppContext } from '../lib/appContext'
+import { ensureOlaToken } from '../lib/olaLink'
+import { peekOlaOauthResume, takeOlaOauthResume } from '../lib/olaOauth'
 import {
   applyFareSelectionsToJourney,
   buildInitialFareSelections,
@@ -797,6 +799,7 @@ export function JourneyDetailPage() {
   const [confirmError, setConfirmError] = useState('')
   const [fareSelections, setFareSelections] = useState({})
   const [collapsedFareSegments, setCollapsedFareSegments] = useState(() => new Set())
+  const olaLinkingRef = useRef(false)
 
   useEffect(() => {
     if (!journey) return
@@ -827,6 +830,17 @@ export function JourneyDetailPage() {
     initialLastMile.needRide,
     journey?.id,
   ])
+
+  useEffect(() => {
+    const resume = peekOlaOauthResume()
+    if (resume?.kind !== 'detail') return
+    takeOlaOauthResume()
+    if (resume.providerId !== 'ola') return
+    setNeedRide(true)
+    setProviderId('ola')
+    setSelectedVehicleId(null)
+    setShowProviders(false)
+  }, [])
 
   useEffect(() => {
     if (!needRide || providerId !== 'refex') {
@@ -1025,8 +1039,21 @@ export function JourneyDetailPage() {
     setShowProviders(true)
   }
 
-  function handleSelectProvider(nextProviderId) {
+  async function handleSelectProvider(nextProviderId) {
     if (!isProviderEnabled(nextProviderId)) return
+    if (nextProviderId === 'ola') {
+      if (olaLinkingRef.current) return
+      olaLinkingRef.current = true
+      try {
+        const result = await ensureOlaToken({
+          extraParams: { provider: 'ola' },
+          resume: { kind: 'detail', journeyId: journey.id, providerId: 'ola' },
+        })
+        if (result.source === 'oauth') return
+      } finally {
+        olaLinkingRef.current = false
+      }
+    }
     const nextMode = isProviderDisabledForMode(nextProviderId, modeId)
       ? LAST_MILE_MODE_DEFAULT
       : modeId

@@ -9,6 +9,7 @@ import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useHydrateJourneyOptions, useSelectJourney } from '../hooks/useJourneyOptions'
 import { PG_STATUS_POLL_MS, usePgStatusPolling } from '../hooks/usePgStatusPolling'
 import { withAppContext } from '../lib/appContext'
+import { isCabDirectJourney } from '../lib/cabDirect'
 import { OLA_SEARCHING_PREVIEW, buildOlaSearchingPreviewBooking } from '../lib/successPreview'
 import { buildSuccessPath, useSuccessBackNavigation } from '../lib/successUrl'
 import {
@@ -38,14 +39,16 @@ export function SuccessPage() {
   const selectJourney = useSelectJourney()
   const goBack = useSuccessBackNavigation(trip)
 
+  const cabDirect = Boolean(lastMile?.cabDirect || isCabDirectJourney(journey))
+
   // Rehydrate journey options after refresh so Drop Service → /cab has egress.
-  useHydrateJourneyOptions(trip)
+  useHydrateJourneyOptions(cabDirect ? null : trip)
 
   useEffect(() => {
-    if (!journeyOptions.length) return
+    if (cabDirect || !journeyOptions.length) return
     if (journeyOptions.some((option) => Number(option.id) === Number(selectedJourneyId))) return
     selectJourney(journeyOptions[0])
-  }, [journeyOptions, selectedJourneyId, selectJourney])
+  }, [cabDirect, journeyOptions, selectedJourneyId, selectJourney])
 
   const urlOrderId = params.get('order') || params.get('order_id')
   const isOlaSearchingPreview = params.get('preview') === OLA_SEARCHING_PREVIEW
@@ -152,7 +155,7 @@ export function SuccessPage() {
   }
 
   if (!orderId && !isOlaSearchingPreview) {
-    return <Navigate to={withAppContext('/journey')} replace />
+    return <Navigate to={withAppContext(cabDirect ? '/ride' : '/journey')} replace />
   }
 
   if (loading && !displayBooking && !isOlaSearchingPreview) {
