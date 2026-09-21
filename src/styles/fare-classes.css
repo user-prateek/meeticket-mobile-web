@@ -65,6 +65,14 @@
   margin-right: auto;
 }
 
+.mt-fare-classes.is-bus.mt-transit-fare__panel.is-legs-1 {
+  width: 95%;
+}
+
+.mt-fare-classes.is-bus.mt-transit-fare__panel.is-legs-2 {
+  width: 80%;
+}
+
 .mt-fare-classes__row {
   display: flex;
   align-items: center;

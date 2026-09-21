@@ -1,0 +1,40 @@
+.mt-inline-spinner {
+  display: grid;
+  place-items: center;
+  flex: 1;
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 8px;
+}
+
+.mt-inline-spinner__circle {
+  display: block;
+  box-sizing: border-box;
+  border: 2.5px solid #e6e9ee;
+  border-top-color: var(--mt-primary);
+  border-radius: 50%;
+  animation: mt-inline-spin 0.7s linear infinite;
+}
+
+@keyframes mt-inline-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.mt-provider-options > .mt-inline-spinner {
+  border: 1px solid #e6e9ee;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.mt-card__providers-container.is-fares .mt-inline-spinner {
+  min-height: 64px;
+}
+
+.mt-cab-map__loading .mt-inline-spinner,
+.mt-qr--loading .mt-inline-spinner,
+.mt-lastmile-page__empty .mt-inline-spinner {
+  min-height: 0;
+  padding: 0;
+}

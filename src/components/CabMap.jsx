@@ -7,6 +7,7 @@ import {
   shortNameFromFormattedAddress,
 } from '../lib/geocode'
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_MAP_ID, loadGoogleMaps } from '../lib/googleMaps'
+import { InlineSpinner } from './InlineSpinner'
 import { DropMarker } from './map/DropMarker'
 import { PickupMarker } from './map/PickupMarker'
 import { SearchPulseMarker } from './map/SearchPulseMarker'
@@ -330,7 +331,11 @@ export function CabMap({ from, to, className, vehicleSrc, distance, searching = 
   return (
     <div className={`mt-cab-map ${className || ''}`.trim()}>
       <div ref={hostRef} className="mt-cab-map__canvas" />
-      {status === 'loading' ? <p className="mt-cab-map__loading">Loading map…</p> : null}
+      {status === 'loading' ? (
+        <div className="mt-cab-map__loading">
+          <InlineSpinner size={28} label="Loading map" />
+        </div>
+      ) : null}
       {error ? <p className="mt-cab-map__error">{error}</p> : null}
     </div>
   )

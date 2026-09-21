@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CabMap } from '../../components/CabMap'
+import { InlineSpinner, isLiveSlotLoading } from '../../components/InlineSpinner'
 import { BackIcon, ModeIcon } from '../../components/icons'
 import {
   LAST_MILE_MODE_DEFAULT,
@@ -59,7 +60,9 @@ export function LastMilePage({
   const [selectedId, setSelectedId] = useState(() => initialVehicleId || '')
   const [refexVehicles, setRefexVehicles] = useState([])
   const [olaVehicles, setOlaVehicles] = useState([])
-  const [liveStatus, setLiveStatus] = useState('idle')
+  const [liveStatus, setLiveStatus] = useState(() =>
+    providerId === 'ola' || providerId === 'refex' ? 'loading' : 'idle',
+  )
   const [liveError, setLiveError] = useState('')
   const [bookingStatus, setBookingStatus] = useState('idle')
   const [bookError, setBookError] = useState('')
@@ -228,12 +231,10 @@ export function LastMilePage({
 
   let emptyMessage = 'No vehicles available.'
   if (providerId === 'refex') {
-    if (liveStatus === 'loading') emptyMessage = 'Searching Refex…'
-    else if (liveStatus === 'error') emptyMessage = liveError || 'Refex search failed.'
+    if (liveStatus === 'error') emptyMessage = liveError || 'Refex search failed.'
     else emptyMessage = 'No Refex cars for this trip.'
   } else if (providerId === 'ola') {
-    if (liveStatus === 'loading' || liveStatus === 'idle') emptyMessage = 'Getting Ola estimates…'
-    else if (liveStatus === 'error') emptyMessage = liveError || 'Could not load Ola estimates.'
+    if (liveStatus === 'error') emptyMessage = liveError || 'Could not load Ola estimates.'
     else emptyMessage = 'No Ola rides available near this pickup.'
   }
 
@@ -291,7 +292,13 @@ export function LastMilePage({
 
         <div className="mt-lastmile-page__panel" role="tabpanel">
           {vehicles.length === 0 ? (
-            <p className="mt-lastmile-page__empty">{emptyMessage}</p>
+            isLiveSlotLoading(liveStatus) ? (
+              <div className="mt-lastmile-page__empty is-loading">
+                <InlineSpinner label="Loading vehicles" />
+              </div>
+            ) : (
+              <p className="mt-lastmile-page__empty">{emptyMessage}</p>
+            )
           ) : (
             <ul className="mt-lastmile-page__list">
               {vehicles.map((vehicle) => {

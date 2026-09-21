@@ -30,7 +30,7 @@
   overflow: visible;
 }
 
-.mt-card.is-selected {
+.mt-card.is-selected, .mt-metrics.is-selected {
   border-color: var(--mt-primary);
   box-shadow: 0 0 0 1px var(--mt-primary);
 }
@@ -112,8 +112,8 @@
 }
 
 .mt-card__access-arrow.is-big {
-  width: 20px;
-  height: 51px;
+  width: 24px;
+  height: 60px;
   top: 12px;
   left: -10px;
 }
@@ -221,9 +221,7 @@
 .mt-card__ride-check-container.checked {
   border-radius: 8px;
   border: 1.5px dashed var(--mt-access-accent);
-  border-radius: 8px;
-  border: 1.5px dashed var(--mt-access-accent);
-  padding-left: 5px;
+  padding: 0 6px 8px 5px;
   margin-top: 4px;
   margin-bottom: 10px;
 }
@@ -233,21 +231,43 @@
   width: calc(100% - 14px);
 }
 .mt-card__ride-check-container.checked .mt-card__ride-modes{
-  top:-14px;
+  position: absolute;
+  top: -3px;
+  margin-top: -12px;
+  margin-bottom: 4px;
+  width: calc(100% - 8px);
 }
 .mt-card__ride-check-input{
   line-height: 0 !important;
   position: relative;
   top: 2px;
 }
+.mt-card__providers-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 2px 2px 0;
+  position: relative;
+  top: 6px;
+  margin-bottom: 5px;
+}
+
+.mt-card__providers-container.is-fares {
+  align-items: stretch;
+  justify-content: space-between;
+  position: relative;
+  top: 6px;
+}
+
 .mt-card__providers {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
+  padding: 4px 6px;
   width: fit-content;
   max-width: 100%;
-  background: #fff;
+  background: transparent;
 }
 
 .mt-card__provider {
@@ -278,22 +298,41 @@
   object-fit: contain;
 }
 
-.mt-card__providers-next {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  margin-left: 4px;
-  padding: 0;
+.mt-card__check-others {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 0 2px;
   border: 0;
-  border-radius: 999px;
-  background: var(--mt-access-accent);
+  background: transparent;
+  color: var(--mt-access-accent);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  white-space: normal;
   cursor: pointer;
-  flex-shrink: 0;
 }
 
-.mt-card__access-path .mt-provider-options {
-  margin: 0 0 10px;
+.mt-card__providers-container.is-fares .mt-provider-options {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  flex-wrap: nowrap;
+}
+
+.mt-card__providers-container.is-fares .mt-provider-options__cellsrp {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 8px 6px 6px;
+}
+
+.mt-card__providers-container.is-fares .mt-provider-options__empty {
+  flex: 1;
+  padding: 10px 8px;
+}
+
+.mt-card__providers-container.is-fares .mt-provider-options__meta {
+  overflow: hidden;
 }
 
 .mt-card__access-path .mt-timeline {
@@ -837,16 +876,14 @@
   background: #fff;
 }
 
-.mt-provider-options__cell {
+.mt-provider-options__cellsrp {
   position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 8px;
   flex: 1 1 140px;
   min-width: 0;
-  min-height: 56px;
   padding: 10px 12px 8px;
   background: #fff;
   border: 1px solid #e6e9ee;
@@ -854,11 +891,11 @@
   cursor: pointer;
 }
 
-.mt-provider-options__cell.is-empty {
+.mt-provider-options__cellsrp.is-empty {
   display: none;
 }
 
-.mt-provider-options__cell.is-selected {
+.mt-provider-options__cellsrp.is-selected {
   border-color: var(--mt-metro);
   box-shadow: 0 0 0 1px var(--mt-metro);
 }
@@ -950,7 +987,7 @@
   font-weight: 700;
 }
 
-.mt-provider-options__cell.is-unavailable {
+.mt-provider-options__cellsrp.is-unavailable {
   opacity: 0.45;
   cursor: not-allowed;
 }

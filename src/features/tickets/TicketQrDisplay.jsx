@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { InlineSpinner } from '../../components/InlineSpinner'
 import { CheckIcon, CloseIcon, RefreshIcon } from '../../components/icons'
 import { secondsUntilValidUntil } from '../../constants/tickets'
 import { useBookingQr } from '../../hooks/useBookingQr'
@@ -108,8 +109,8 @@ export function TicketQrDisplay({
     qrNode = <ExpiredQrFrame size={size} className={className} />
   } else if (bookingReferenceNumber && status === 'loading' && !qrImage) {
     qrNode = (
-      <div className="mt-qr mt-qr--loading" style={{ width: size, height: size }} role="status">
-        Loading QR…
+      <div className={`mt-qr mt-qr--loading ${className}`.trim()} style={{ width: size, height: size }}>
+        <InlineSpinner size={28} label="Loading QR" />
       </div>
     )
   } else if (bookingReferenceNumber && qrImage) {

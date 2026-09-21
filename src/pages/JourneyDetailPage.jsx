@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { Header } from '../components/Header'
+import { InlineSpinner, isLiveSlotLoading } from '../components/InlineSpinner'
 import { FareClassPanel } from '../components/FareClassPanel'
 import { ChevronIcon, ClockIcon, CashBillIcon, ModeIcon, OnlinePayIcon, PinIcon, MetroGlyph, BusGlyph, WalkIcon } from '../components/icons'
 import {
@@ -259,6 +260,7 @@ function LegCard({
   fareExpanded,
   onToggleFarePanel,
   onSelectFare,
+  busLegCount = 1,
 }) {
   const title = segment.title || segment.detailTitle
   const isBus = segment.mode === 'bus'
@@ -331,7 +333,7 @@ function LegCard({
 
       {hasFareOptions && fareExpanded ? (
         <FareClassPanel
-          className="mt-transit-fare__panel"
+          className={`mt-transit-fare__panel ${busLegCount >= 2 ? 'is-legs-2' : 'is-legs-1'}`}
           groupId={segment.id}
           segmentId={segment.id}
           options={segment.fareOptions}
@@ -514,6 +516,7 @@ function PickupServiceCard({
 }) {
   const visibleSlots = slots.filter(Boolean)
   const showVehicleSlots = Boolean(needRide && providerId && !showProviders)
+  const slotLoading = isLiveSlotLoading(status)
   const fromPlaceLabel = trip?.fromPlace || journey?.access?.fromLabel || 'Current location'
   const accessKmLabel = formatAccessKm(journey?.access?.distanceM)
   const firstHop = firstTransitHop(journey?.segments)
@@ -528,17 +531,11 @@ function PickupServiceCard({
 
   let providerEmptyMessage = 'No options for this mode.'
   if (providerId === 'refex') {
-    if (status === 'loading') providerEmptyMessage = 'Searching Refex…'
-    else if (status === 'error') providerEmptyMessage = error || 'Refex search failed.'
+    if (status === 'error') providerEmptyMessage = error || 'Refex search failed.'
     else providerEmptyMessage = 'No Refex cars for this trip.'
   } else if (providerId === 'ola') {
-    if (status === 'loading') providerEmptyMessage = 'Getting Ola estimates…'
-    else if (status === 'error') providerEmptyMessage = error || 'Could not load Ola estimates.'
+    if (status === 'error') providerEmptyMessage = error || 'Could not load Ola estimates.'
     else providerEmptyMessage = 'No Ola rides available near this pickup.'
-  } else if (status === 'loading') {
-    providerEmptyMessage = 'Searching options…'
-  } else if (status === 'error') {
-    providerEmptyMessage = error || 'Could not load options.'
   }
 
   return (
@@ -589,7 +586,11 @@ function PickupServiceCard({
             aria-label={`${providerId} ride options`}
           >
             {!visibleSlots.length ? (
-              <p className="mt-provider-options__empty">{providerEmptyMessage}</p>
+              slotLoading ? (
+                <InlineSpinner label="Loading ride options" />
+              ) : (
+                <p className="mt-provider-options__empty">{providerEmptyMessage}</p>
+              )
             ) : (
               visibleSlots.map((vehicle) => {
                 const active = selectedVehicleId === vehicle.id
@@ -677,6 +678,10 @@ function JourneyDetailView({
   onSelectVehicle,
 }) {
   const blocks = useMemo(() => detailBlocks(journey), [journey])
+  const busLegCount = useMemo(
+    () => (journey?.segments || []).filter((segment) => segment.mode === 'bus').length,
+    [journey],
+  )
 
   return (
     <section className="mt-details-page">
@@ -720,6 +725,7 @@ function JourneyDetailView({
                 fareExpanded={!collapsedFareSegments.has(block.segment.id)}
                 onToggleFarePanel={onToggleFarePanel}
                 onSelectFare={onSelectFare}
+                busLegCount={busLegCount}
               />
             ),
           )}
@@ -793,7 +799,11 @@ export function JourneyDetailPage() {
   )
   const [refexVehicles, setRefexVehicles] = useState([])
   const [olaVehicles, setOlaVehicles] = useState([])
-  const [slotStatus, setSlotStatus] = useState('idle')
+  const [slotStatus, setSlotStatus] = useState(() =>
+    initialLastMile.providerId === 'ola' || initialLastMile.providerId === 'refex'
+      ? 'loading'
+      : 'idle',
+  )
   const [slotError, setSlotError] = useState('')
   const [confirmLoading, setConfirmLoading] = useState(false)
   const [confirmError, setConfirmError] = useState('')
@@ -840,6 +850,7 @@ export function JourneyDetailPage() {
     setProviderId('ola')
     setSelectedVehicleId(null)
     setShowProviders(false)
+    setSlotStatus('loading')
   }, [])
 
   useEffect(() => {
@@ -1041,6 +1052,17 @@ export function JourneyDetailPage() {
 
   async function handleSelectProvider(nextProviderId) {
     if (!isProviderEnabled(nextProviderId)) return
+    const nextMode = isProviderDisabledForMode(nextProviderId, modeId)
+      ? LAST_MILE_MODE_DEFAULT
+      : modeId
+    setNeedRide(true)
+    setProviderId(nextProviderId)
+    setSelectedVehicleId(null)
+    setModeId(nextMode)
+    setShowProviders(false)
+    setSlotError('')
+    setSlotStatus(nextProviderId === 'ola' || nextProviderId === 'refex' ? 'loading' : 'idle')
+    syncSelection(nextProviderId, null, nextMode, true)
     if (nextProviderId === 'ola') {
       if (olaLinkingRef.current) return
       olaLinkingRef.current = true
@@ -1054,15 +1076,6 @@ export function JourneyDetailPage() {
         olaLinkingRef.current = false
       }
     }
-    const nextMode = isProviderDisabledForMode(nextProviderId, modeId)
-      ? LAST_MILE_MODE_DEFAULT
-      : modeId
-    setNeedRide(true)
-    setProviderId(nextProviderId)
-    setSelectedVehicleId(null)
-    setModeId(nextMode)
-    setShowProviders(false)
-    syncSelection(nextProviderId, null, nextMode, true)
   }
 
   function cabPath(serviceId = 'pickup') {

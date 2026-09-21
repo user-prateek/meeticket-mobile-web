@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import olaLogo from '../../assets/brands/ola.png'
 import rapidoLogo from '../../assets/brands/rapido.png'
 import refexLogo from '../../assets/brands/refex.png'
+import { InlineSpinner, isLiveSlotLoading } from '../../components/InlineSpinner'
 import { ModeIcon, PinIcon } from '../../components/icons'
 import { searchRefexForJourney } from '../../api/refex'
 import { LAST_MILE_OPTIONS } from '../../constants/journey'
@@ -222,7 +223,6 @@ export function DropServiceSheet({ open, fromLabel, journey, trip, pgStatus, onC
   if (providerId === 'refex') {
     if (modeId !== 'cab') providerEmptyMessage = 'Refex is available for cab only.'
     else if (!journey) providerEmptyMessage = 'Loading journey details…'
-    else if (liveStatus === 'loading') providerEmptyMessage = 'Searching Refex…'
     else if (liveStatus === 'error') providerEmptyMessage = liveError || 'Refex search failed.'
     else if (liveStatus === 'ready') providerEmptyMessage = 'No Refex cabs for this drop.'
   }
@@ -244,6 +244,8 @@ export function DropServiceSheet({ open, fromLabel, journey, trip, pgStatus, onC
     setProviderId(nextProviderId)
     setProviderExpanded(true)
     setSelectedVehicleId(null)
+    setLiveError('')
+    setLiveStatus(nextProviderId === 'refex' ? 'loading' : 'idle')
   }
 
   function selectVehicleSlot(vehicleId) {
@@ -319,7 +321,11 @@ export function DropServiceSheet({ open, fromLabel, journey, trip, pgStatus, onC
               aria-label={`${providerId} ride options`}
             >
               {!hasProviderOptions ? (
-                <p className="mt-provider-options__empty">{providerEmptyMessage}</p>
+                isLiveSlotLoading(liveStatus) ? (
+                  <InlineSpinner label="Loading ride options" />
+                ) : (
+                  <p className="mt-provider-options__empty">{providerEmptyMessage}</p>
+                )
               ) : (
                 providerSlots.filter(Boolean).map((vehicle) => {
                   const active = selectedVehicleId === vehicle.id

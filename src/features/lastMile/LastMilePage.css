@@ -343,6 +343,11 @@
   color: #6b7280;
 }
 
+.mt-lastmile-page__empty.is-loading {
+  min-height: 120px;
+  margin: 8px 0;
+}
+
 .mt-lastmile-page__footer {
   flex-shrink: 0;
   padding: 10px 14px 14px;

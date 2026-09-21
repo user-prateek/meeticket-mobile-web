@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAtomValue } from 'jotai'
 import { getOlaRideEstimateForJourneyCached } from '../../api/ola'
 import { searchRefexForJourney } from '../../api/refex'
+import { InlineSpinner, isLiveSlotLoading } from '../../components/InlineSpinner'
 import { BusGlyph, MetroGlyph, ModeIcon, PinIcon } from '../../components/icons'
 import { FareClassPanel } from '../../components/FareClassPanel'
 import {
@@ -246,6 +247,15 @@ function getTransitEdge(segments, segmentId) {
   return 'center'
 }
 
+function tgsrtcLegCount(segments) {
+  return (segments || []).filter((segment) => segment.mode === 'bus').length
+}
+
+function transitFarePanelClass(segments) {
+  const count = tgsrtcLegCount(segments)
+  return `mt-transit-fare__panel ${count >= 2 ? 'is-legs-2' : 'is-legs-1'}`
+}
+
 function getItemLayout(segment, segments) {
   if (segment.mode === 'walk' || segment.mode === 'interchange') return 'center'
   return getTransitEdge(segments, segment.id)
@@ -364,7 +374,7 @@ function Timeline({
   const panel =
     expandedSegment?.mode === 'bus' && expandedSegment.fareOptions?.length > 0 ? (
       <FareClassPanel
-        className="mt-transit-fare__panel"
+        className={transitFarePanelClass(displaySegments)}
         groupId={groupId}
         segmentId={expandedSegment.id}
         options={expandedSegment.fareOptions}
@@ -450,7 +460,7 @@ function TimelineFarePanel({
 
   return (
     <FareClassPanel
-      className="mt-transit-fare__panel"
+      className={transitFarePanelClass(displaySegments)}
       groupId={groupId}
       segmentId={expandedSegment.id}
       options={expandedSegment.fareOptions}
@@ -509,21 +519,6 @@ function AccessArrow({ size = 'small' }) {
       <path
         d="M10.311 19.9821L8.53394 13.0811L3.40999 21.7591L10.311 19.9821Z"
         fill="currentColor"
-      />
-    </svg>
-  )
-}
-
-/** Cab page / detail “check others” — reserved for provider strip overflow. */
-function ProvidersNextIcon() {
-  return (
-    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-      <path
-        d="M3.2 1.5 6.8 5 3.2 8.5"
-        stroke="#fff"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
       />
     </svg>
   )
@@ -772,6 +767,12 @@ export function RouteCard({
     event.stopPropagation()
     if (!needRide) setNeedRide(true)
     if (!isProviderEnabled(id) || isProviderDisabledForMode(id, lastMile)) return
+    selectCard()
+    setSelectedProviderId(id)
+    setProviderExpanded(true)
+    setSelectedVehicleId(null)
+    setLiveError('')
+    setLiveStatus(id === 'ola' || id === 'refex' ? 'loading' : 'idle')
     if (id === 'ola') {
       if (olaLinkingRef.current) return
       olaLinkingRef.current = true
@@ -790,27 +791,13 @@ export function RouteCard({
         olaLinkingRef.current = false
       }
     }
-    selectCard()
-    setSelectedProviderId(id)
-    setProviderExpanded(true)
-    setSelectedVehicleId(null)
-    setLiveStatus('idle')
-    setLiveError('')
   }
 
   function checkOthers(event) {
     event.stopPropagation()
     selectCard()
-    const next = providers.find(
-      (provider) =>
-        isProviderEnabled(provider.id) && !isProviderDisabledForMode(provider.id, lastMile),
-    )
-    if (!next) return
-    setSelectedProviderId(next.id)
-    setProviderExpanded(true)
+    setProviderExpanded(false)
     setSelectedVehicleId(null)
-    setLiveStatus('idle')
-    setLiveError('')
   }
 
   function selectVehicleSlot(event, vehicleId) {
@@ -820,19 +807,15 @@ export function RouteCard({
     setSelectedVehicleId((current) => (current === vehicleId ? null : vehicleId))
   }
 
+  const slotLoading = isLiveSlotLoading(liveStatus)
   let providerEmptyMessage = 'No options for this mode.'
   if (selectedProviderId === 'refex') {
     if (lastMile !== 'cab') providerEmptyMessage = 'Refex is available for cab only.'
-    else if (liveStatus === 'loading') providerEmptyMessage = 'Searching Refex…'
     else if (liveStatus === 'error') providerEmptyMessage = liveError || 'Refex search failed.'
+    else providerEmptyMessage = 'No Refex cars for this trip.'
   } else if (selectedProviderId === 'ola') {
-    if (liveStatus === 'loading' || liveStatus === 'idle') {
-      providerEmptyMessage = 'Getting Ola estimates…'
-    } else if (liveStatus === 'error') {
-      providerEmptyMessage = liveError || 'Could not load Ola estimates.'
-    } else {
-      providerEmptyMessage = 'No Ola rides available near this pickup.'
-    }
+    if (liveStatus === 'error') providerEmptyMessage = liveError || 'Could not load Ola estimates.'
+    else providerEmptyMessage = 'No Ola rides available near this pickup.'
   }
 
   return (
@@ -900,91 +883,97 @@ export function RouteCard({
                     
                   </div>
                   {needRide ? (
-                      <div className="mt-card__providers-container">
-                        <div
-                          className="mt-card__providers"
-                          role="list"
-                          aria-label="Ride providers"
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          {providers.map((provider) => {
-                            const disabled = isProviderDisabledForMode(provider.id, lastMile)
-                            return (
-                              <button
-                                key={provider.id}
-                                type="button"
-                                role="listitem"
-                                disabled={disabled}
-                                aria-disabled={disabled || undefined}
-                                title={providerDisabledReason(provider.id, lastMile)}
-                                className={`mt-card__provider${selectedProviderId === provider.id ? ' is-selected' : ''}${disabled ? ' is-disabled' : ''}`}
-                                onClick={(event) => selectProvider(event, provider.id)}
-                              >
-                                <BrandLogo
-                                  id={provider.id}
-                                  name={provider.name}
-                                  className="mt-card__provider-logo"
-                                />
-                              </button>
-                            )
-                          })}
-                          <button
-                            type="button"
-                            className="mt-card__providers-next"
-                            aria-label="More ride options"
-                            onClick={checkOthers}
+                      <div
+                        className={`mt-card__providers-container${providerExpanded ? ' is-fares' : ''}`}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        {providerExpanded ? (
+                          <>
+                            <div
+                              className="mt-provider-options"
+                              role="region"
+                              aria-label={`${selectedProviderId} ride options`}
+                            >
+                              {!hasProviderOptions ? (
+                                slotLoading ? (
+                                  <InlineSpinner label="Loading ride options" />
+                                ) : (
+                                  <p className="mt-provider-options__empty">{providerEmptyMessage}</p>
+                                )
+                              ) : (
+                                providerSlots.filter(Boolean).map((vehicle) => {
+                                  const active = selectedVehicleId === vehicle.id
+                                  const { eta, fare, peak } = vehicleMetaParts(vehicle)
+
+                                  return (
+                                    <button
+                                      key={vehicle.id}
+                                      type="button"
+                                      aria-pressed={active}
+                                      className={`mt-provider-options__cellsrp${active ? ' is-selected' : ''}${vehicle.unavailable ? ' is-unavailable' : ''}`}
+                                      onClick={(event) => selectVehicleSlot(event, vehicle.id)}
+                                      disabled={vehicle.unavailable || undefined}
+                                    >
+                                      {active ? <VehicleCheckBadge /> : null}
+                                      <div className="mt-provider-options__row">
+                                        <BrandLogo id={selectedProviderId} name={selectedProviderId} />
+                                        <ModeIcon
+                                          mode={vehicle.mode}
+                                          size={16}
+                                          className="mt-provider-options__mode-icon"
+                                        />
+                                      </div>
+                                      <VehicleSlotMeta
+                                        eta={eta}
+                                        fare={fare}
+                                        peak={peak}
+                                      />
+                                    </button>
+                                  )
+                                })
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              className="mt-card__check-others"
+                              onClick={checkOthers}
+                            >
+                              Check others
+                            </button>
+                          </>
+                        ) : (
+                          <div
+                            className="mt-card__providers"
+                            role="list"
+                            aria-label="Ride providers"
                           >
-                            <ProvidersNextIcon />
-                          </button>
-                        </div>
+                            {providers.map((provider) => {
+                              const disabled = isProviderDisabledForMode(provider.id, lastMile)
+                              return (
+                                <button
+                                  key={provider.id}
+                                  type="button"
+                                  role="listitem"
+                                  disabled={disabled}
+                                  aria-disabled={disabled || undefined}
+                                  title={providerDisabledReason(provider.id, lastMile)}
+                                  className={`mt-card__provider${selectedProviderId === provider.id ? ' is-selected' : ''}${disabled ? ' is-disabled' : ''}`}
+                                  onClick={(event) => selectProvider(event, provider.id)}
+                                >
+                                  <BrandLogo
+                                    id={provider.id}
+                                    name={provider.name}
+                                    className="mt-card__provider-logo"
+                                  />
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
                       </div>
                     ) : null}
                 </div>
               </div>
-              {needRide && providerExpanded ? (
-                <div
-                  className="mt-provider-options"
-                  role="region"
-                  aria-label={`${selectedProviderId} ride options`}
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  {!hasProviderOptions ? (
-                    <p className="mt-provider-options__empty">{providerEmptyMessage}</p>
-                  ) : (
-                    providerSlots.filter(Boolean).map((vehicle) => {
-                      const active = selectedVehicleId === vehicle.id
-                      const { eta, fare, peak } = vehicleMetaParts(vehicle)
-
-                      return (
-                        <button
-                          key={vehicle.id}
-                          type="button"
-                          aria-pressed={active}
-                          className={`mt-provider-options__cell${active ? ' is-selected' : ''}${vehicle.unavailable ? ' is-unavailable' : ''}`}
-                          onClick={(event) => selectVehicleSlot(event, vehicle.id)}
-                          disabled={vehicle.unavailable || undefined}
-                        >
-                          {active ? <VehicleCheckBadge /> : null}
-                          <div className="mt-provider-options__row">
-                            <BrandLogo id={selectedProviderId} name={selectedProviderId} />
-                            <ModeIcon
-                              mode={vehicle.mode}
-                              size={16}
-                              className="mt-provider-options__mode-icon"
-                            />
-                          </div>
-                          <VehicleSlotMeta
-                            label={vehicle.label}
-                            eta={eta}
-                            fare={fare}
-                            peak={peak}
-                          />
-                        </button>
-                      )
-                    })
-                  )}
-                </div>
-              ) : null}
 
               {compact && !singleHasFareOptions ? (
                 <CompactHeader segment={displayTimeline[0]} />
@@ -1066,7 +1055,7 @@ export function RouteCard({
         </div>
       </article>
 
-      <div className="mt-metrics" aria-label="Trip totals">
+      <div className={`mt-metrics${selected ? ' is-selected' : ''}`} aria-label="Trip totals">
         <div>
           <span>Total Distance</span>
           <strong>{option.totalDistanceKm}</strong>

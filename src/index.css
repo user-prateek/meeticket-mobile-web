@@ -4,7 +4,7 @@
   /* CTA — filled buttons (Drop Service, Pay, Book, Search, etc.) */
   --mt-navy: #060496;
   --mt-button: var(--mt-navy);
-  --mt-page: #f0f1f3;
+  --mt-page:#cdced0;
   --mt-card: #ffffff;
   --mt-border: #e4e4e4;
   --mt-text: #111111;
