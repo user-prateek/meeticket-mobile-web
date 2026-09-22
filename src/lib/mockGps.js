@@ -1,4 +1,6 @@
 import { loadGoogleMaps } from './googleMaps'
+import { isOsmMap } from './mapProvider'
+import { fetchOsmDrivingRoute } from './osmMaps'
 
 /** Demo endpoints — real Hyderabad coords (user ↔ Miyapur area). */
 export const LIVE_TRACKING_DEMO = {
@@ -131,11 +133,45 @@ function positionAtDistance(path, cum, distanceM) {
   }
 }
 
+function formatKmText(meters) {
+  if (!Number.isFinite(meters) || meters <= 0) return ''
+  if (meters < 1000) return `${Math.round(meters)} m`
+  return `${(meters / 1000).toFixed(1)} km`
+}
+
+function formatMinText(seconds) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return ''
+  const minutes = Math.max(1, Math.ceil(seconds / 60))
+  return `${minutes} min`
+}
+
 /**
- * Fetch a driving route between two points (Google Directions).
+ * Fetch a driving route between two points (Google Directions or OSRM).
  * Returns { path, totalMeters, durationSec, distanceText, durationText, raw }.
  */
 export async function fetchTrackingRoute(origin, destination, { signal } = {}) {
+  if (isOsmMap()) {
+    const route = await fetchOsmDrivingRoute({
+      fromLat: origin.lat,
+      fromLng: origin.lng,
+      toLat: destination.lat,
+      toLng: destination.lng,
+      signal,
+    })
+    const path = dedupePath(route.path)
+    const { cum, totalMeters } = buildProgressIndex(path)
+    return {
+      path,
+      cum,
+      totalMeters: totalMeters || route.distanceM,
+      durationSec: route.durationSec || null,
+      distanceText: formatKmText(route.distanceM),
+      durationText: formatMinText(route.durationSec),
+      bounds: null,
+      raw: route,
+    }
+  }
+
   const gmaps = await loadGoogleMaps()
   const result = await new Promise((resolve, reject) => {
     const onAbort = () => {

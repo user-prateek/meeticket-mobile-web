@@ -1,8 +1,13 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, lazy, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_MAP_ID, loadGoogleMaps } from '../../lib/googleMaps'
+import { isOsmMap } from '../../lib/mapProvider'
 import { TrackingBikeMarker } from './TrackingBikeMarker'
 import './LiveTrackingMap.css'
+
+const LiveTrackingMapOsmLazy = lazy(() =>
+  import('./LiveTrackingMapOsm').then((mod) => ({ default: mod.LiveTrackingMapOsm })),
+)
 
 function AdvancedMarkerCtor(gmaps) {
   return gmaps.marker?.AdvancedMarkerElement || window.google?.maps?.marker?.AdvancedMarkerElement || null
@@ -105,8 +110,26 @@ function PlaceBubble({ kind, title, address }) {
 
 /**
  * Live tracking map: route polyline + pickup/drop bubbles + oriented vehicle marker.
+ * Provider is `VITE_MAP_PROVIDER` (`google` | `osm`).
  */
-export function LiveTrackingMap({
+export function LiveTrackingMap(props) {
+  if (isOsmMap()) {
+    return (
+      <Suspense
+        fallback={
+          <div className={`mt-track-map ${props.className || ''}`.trim()}>
+            <div className="mt-track-map__canvas" />
+          </div>
+        }
+      >
+        <LiveTrackingMapOsmLazy {...props} />
+      </Suspense>
+    )
+  }
+  return <LiveTrackingMapGoogle {...props} />
+}
+
+function LiveTrackingMapGoogle({
   pickup,
   dropoff,
   path = [],

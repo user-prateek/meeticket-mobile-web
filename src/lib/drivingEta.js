@@ -1,10 +1,21 @@
 import { loadGoogleMaps } from './googleMaps'
+import { isOsmMap } from './mapProvider'
+import { fetchOsmDrivingRoute } from './osmMaps'
 
 /**
- * Driving duration (minutes) between two points via Google Directions API.
+ * Driving duration (minutes) between two points.
+ * Google Directions when `VITE_MAP_PROVIDER=google`; OSRM when `osm`.
  * Used for first-mile cab ExpectedEndTime on order create.
  */
 export async function fetchDrivingEtaMinutes({ fromLat, fromLng, toLat, toLng }) {
+  if (isOsmMap()) {
+    const route = await fetchOsmDrivingRoute({ fromLat, fromLng, toLat, toLng })
+    if (!Number.isFinite(route.durationSec) || route.durationSec <= 0) {
+      throw new Error('OSRM returned no duration')
+    }
+    return Math.max(1, Math.ceil(route.durationSec / 60))
+  }
+
   const gmaps = await loadGoogleMaps()
 
   return new Promise((resolve, reject) => {

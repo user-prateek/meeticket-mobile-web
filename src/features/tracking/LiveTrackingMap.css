@@ -28,6 +28,22 @@
   position: relative;
 }
 
+.mt-track-map__canvas.leaflet-container {
+  font: inherit;
+  background: #d5dde6;
+}
+
+.mt-track-map__marker-host.leaflet-div-icon {
+  background: none;
+  border: none;
+}
+
+.mt-track-map .leaflet-control-attribution {
+  max-width: 72%;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
 .mt-track-bubble {
   position: absolute;
   left: 0;

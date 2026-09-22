@@ -1,11 +1,14 @@
 import { loadGoogleMaps } from './googleMaps'
+import { isOsmMap } from './mapProvider'
+import { reverseGeocodeOsm } from './osmMaps'
 
 /**
- * Reverse-geocode lat/lng via Maps JavaScript Geocoder (browser-safe).
+ * Reverse-geocode lat/lng.
+ * Google Geocoder when `VITE_MAP_PROVIDER=google`; Nominatim when `osm`.
  * Do not call maps.googleapis.com/maps/api/geocode/json from the browser — that REST
  * endpoint has no CORS and will fail in DevTools as "CORS error".
  *
- * Returns { address, placeId, city } or null on failure.
+ * Returns { address, placeId, city, shortName } or null on failure.
  */
 export async function reverseGeocodeLatLng(lat, lon, { signal } = {}) {
   if (lat == null || lon == null) return null
@@ -13,6 +16,10 @@ export async function reverseGeocodeLatLng(lat, lon, { signal } = {}) {
     const err = new Error('Aborted')
     err.name = 'AbortError'
     throw err
+  }
+
+  if (isOsmMap()) {
+    return reverseGeocodeOsm(lat, lon, { signal })
   }
 
   const gmaps = await loadGoogleMaps()

@@ -78,18 +78,42 @@ On `/cab?id=2&service=pickup|drop`:
 - `pickup` → `access` lat/lng (first mile)
 - `drop` → `egress` lat/lng (last mile)
 
-`import.meta.env.VITE_GOOGLE_MAPS_API_KEY` is **inlined at build time** by Vite.  
+`import.meta.env.VITE_GOOGLE_MAPS_API_KEY` and `VITE_MAP_PROVIDER` are **inlined at build time** by Vite.  
 Nginx/pm2 serving `dist/` does **not** read `.env` or bashrc at request time.
 
-### Local development
+### Map provider (`osm` default, or `google`)
+
+Google Maps JavaScript **Dynamic Maps** and **Directions** are billed (10k free loads/requests per month, then paid). The cab page needs a custom route + markers, so **OSM is the default**. Set `VITE_MAP_PROVIDER=google` only if you have a billed Google key.
 
 `.env` in the project root (gitignored):
 
 ```
-VITE_GOOGLE_MAPS_API_KEY=your_key_here
+# osm (default) | google
+VITE_MAP_PROVIDER=osm
+
+# Only required when VITE_MAP_PROVIDER=google
+# VITE_GOOGLE_MAPS_API_KEY=your_key_here
+
+# Optional OSM overrides (defaults are public OSM / OSRM / Nominatim)
+# VITE_OSM_TILE_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
+# VITE_OSM_ROUTER_URL=https://router.project-osrm.org
+# VITE_OSM_NOMINATIM_URL=https://nominatim.openstreetmap.org
 ```
 
 Then `npm run dev` (restart after changing `.env`).
+
+`osm` uses Leaflet + OpenStreetMap tiles, OSRM for driving routes/ETA, and Nominatim for reverse geocode. `google` uses Maps JavaScript + Directions + Geocoder. Map Guide “View” opens OpenStreetMap or Google Maps directions to match the provider.
+
+### Local development (OSM, default)
+
+No Google key needed. Unset `VITE_MAP_PROVIDER` or set `VITE_MAP_PROVIDER=osm`.
+
+### Local development (Google)
+
+```
+VITE_MAP_PROVIDER=google
+VITE_GOOGLE_MAPS_API_KEY=your_key_here
+```
 
 ### Production / release (no `.env` in the repo)
 
@@ -104,7 +128,9 @@ npm run build
 # symlink dist → nginx/pm2
 
 # or one line:
-VITE_GOOGLE_MAPS_API_KEY=your_key_here npm run build
+VITE_MAP_PROVIDER=osm npm run build
+# Google (billed Maps JS + Directions):
+VITE_MAP_PROVIDER=google VITE_GOOGLE_MAPS_API_KEY=your_key_here npm run build
 ```
 
 To avoid typing it each release, put the same `export` in the deploy user’s `~/.bashrc` / `~/.profile` (or your CI secrets) so the shell that runs `npm run build` already has it.

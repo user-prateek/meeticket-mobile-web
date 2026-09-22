@@ -22,7 +22,7 @@ import {
   isCabDirectRequest,
   rideHomePath,
 } from '../lib/cabDirect'
-import { preloadGoogleMaps } from '../lib/googleMaps'
+import { preloadMap } from '../lib/mapProvider'
 import { buildSuccessPath } from '../lib/successUrl'
 import { hasRequiredTripParams, parseTripQuery } from '../lib/tripQuery'
 import { lastMileSelectionAtom, orderAtom, tripAtom, userAtom } from '../store/journey'
@@ -78,7 +78,7 @@ export function CabPage() {
   const journey = isDirect ? directJourney : listedJourney
 
   useEffect(() => {
-    preloadGoogleMaps()
+    preloadMap()
   }, [])
 
   useEffect(() => {

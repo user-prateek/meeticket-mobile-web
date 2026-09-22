@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react'
-import { openGoogleMapsDirections } from '../../lib/mapGuide'
+import { openMapDirections } from '../../lib/mapGuide'
 import './MapGuidePopup.css'
 
 export function MapGuidePopup({ options = [], open, onClose }) {
@@ -43,7 +43,7 @@ export function MapGuidePopup({ options = [], open, onClose }) {
   const selected = list.find((option) => option.id === selectedId) || list[0]
 
   function handleView() {
-    const ok = openGoogleMapsDirections(selected)
+    const ok = openMapDirections(selected)
     if (!ok) {
       window.alert('Coordinates are not available for this stop yet.')
       return

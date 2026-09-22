@@ -32,7 +32,8 @@ import { MapGuidePopup } from './MapGuidePopup'
 import { OtpQrCode } from './OtpQrCode'
 import { QrCode } from './QrCode'
 import { CabMap } from '../../components/CabMap'
-import { preloadGoogleMaps, resolveCabMapPoints } from '../../lib/googleMaps'
+import { resolveCabMapPoints } from '../../lib/googleMaps'
+import { preloadMap } from '../../lib/mapProvider'
 import { buildMapGuideOptions } from '../../lib/mapGuide'
 import './tickets.tokens.css'
 import './TicketsPage.css'
@@ -320,7 +321,7 @@ function CabSearchingTicket({ ticket, journey, trip, onCancel }) {
   const [extraInr, setExtraInr] = useState(0)
 
   useEffect(() => {
-    preloadGoogleMaps()
+    preloadMap()
   }, [])
 
   const mapPoints = useMemo(() => {

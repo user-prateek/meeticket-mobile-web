@@ -16,7 +16,8 @@ import {
 } from '../../constants/lastMile'
 import { getOlaRideEstimateForJourneyCached } from '../../api/ola'
 import { searchRefexForJourney } from '../../api/refex'
-import { preloadGoogleMaps, resolveCabMapPoints } from '../../lib/googleMaps'
+import { resolveCabMapPoints } from '../../lib/googleMaps'
+import { preloadMap } from '../../lib/mapProvider'
 import './LastMilePage.css'
 
 function optionMeta(vehicle) {
@@ -126,7 +127,7 @@ export function LastMilePage({
   }
 
   useEffect(() => {
-    preloadGoogleMaps()
+    preloadMap()
   }, [])
 
   // Keep local selection in sync when query params change (e.g. navigating from detail).

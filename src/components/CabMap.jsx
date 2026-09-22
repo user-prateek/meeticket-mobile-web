@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import olaGoAc from '../assets/vehicles/ola_go_ac.png'
 import {
@@ -7,12 +7,17 @@ import {
   shortNameFromFormattedAddress,
 } from '../lib/geocode'
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_MAP_ID, loadGoogleMaps } from '../lib/googleMaps'
+import { isOsmMap } from '../lib/mapProvider'
 import { InlineSpinner } from './InlineSpinner'
 import { DropMarker } from './map/DropMarker'
 import { PickupMarker } from './map/PickupMarker'
 import { SearchPulseMarker } from './map/SearchPulseMarker'
 import './CabMap.css'
 import './map/mapMarkers.css'
+
+const CabMapOsmLazy = lazy(() =>
+  import('./CabMapOsm').then((mod) => ({ default: mod.CabMapOsm })),
+)
 
 function formatKm(km) {
   if (!Number.isFinite(km) || km <= 0) return { value: '1', unit: 'KM' }
@@ -109,9 +114,29 @@ class HtmlOverlayMarker {
 }
 
 /**
- * Google Map for cab first/last mile: custom pickup/drop HTML markers + driving path.
+ * Cab first/last mile map. Default provider is OSM (`VITE_MAP_PROVIDER=osm`).
+ * Google Maps JS + Directions is billed after the monthly free cap — opt in with `google`.
  */
-export function CabMap({ from, to, className, vehicleSrc, distance, searching = false }) {
+export function CabMap(props) {
+  if (isOsmMap()) {
+    return (
+      <Suspense
+        fallback={
+          <div className={`mt-cab-map ${props.className || ''}`.trim()}>
+            <div className="mt-cab-map__loading">
+              <InlineSpinner size={28} label="Loading map" />
+            </div>
+          </div>
+        }
+      >
+        <CabMapOsmLazy {...props} />
+      </Suspense>
+    )
+  }
+  return <CabMapGoogle {...props} />
+}
+
+function CabMapGoogle({ from, to, className, vehicleSrc, distance, searching = false }) {
   const hostRef = useRef(null)
   const mapRef = useRef(null)
   const overlaysRef = useRef([])

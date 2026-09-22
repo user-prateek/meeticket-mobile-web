@@ -1,3 +1,5 @@
+import { isOsmMap } from './mapProvider'
+
 /**
  * Map Guide from pg/status.
  *
@@ -253,21 +255,40 @@ export function buildMapGuideOptions({ journey, trip, booking, pgStatus } = {}) 
   )
 }
 
-/** Google Maps directions — lat/lng only. */
-export function openGoogleMapsDirections(option) {
+function openOsmDirections(from, to) {
+  const route = `${from.lat},${from.lng};${to.lat},${to.lng}`
+  const params = new URLSearchParams({ engine: 'fossgis_osrm_car', route })
+  window.open(
+    `https://www.openstreetmap.org/directions?${params.toString()}`,
+    '_blank',
+    'noopener,noreferrer',
+  )
+}
+
+function openGoogleDirections(from, to, travelMode) {
+  const params = new URLSearchParams({
+    api: '1',
+    origin: `${from.lat},${from.lng}`,
+    destination: `${to.lat},${to.lng}`,
+    travelmode: travelMode || 'driving',
+  })
+  window.open(`https://www.google.com/maps/dir/?${params.toString()}`, '_blank', 'noopener,noreferrer')
+}
+
+/** External directions for the active map provider (`VITE_MAP_PROVIDER`). */
+export function openMapDirections(option) {
   if (!option) return false
   const from = option.from
   const to = option.to
   if (!hasPoint(from) || !hasPoint(to)) return false
 
   const mode = option.travelMode || 'driving'
-  const params = new URLSearchParams({
-    api: '1',
-    origin: `${from.lat},${from.lng}`,
-    destination: `${to.lat},${to.lng}`,
-    travelmode: mode,
-  })
-
-  window.open(`https://www.google.com/maps/dir/?${params.toString()}`, '_blank', 'noopener,noreferrer')
+  if (isOsmMap()) openOsmDirections(from, to)
+  else openGoogleDirections(from, to, mode)
   return true
+}
+
+/** @deprecated use openMapDirections */
+export function openGoogleMapsDirections(option) {
+  return openMapDirections(option)
 }
