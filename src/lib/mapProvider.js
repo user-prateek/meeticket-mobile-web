@@ -35,6 +35,11 @@ export function isGoogleMap() {
   return MAP_PROVIDER === MAP_PROVIDERS.GOOGLE
 }
 
+/** Query value for journey `live_distance_provider`: google | osrm */
+export function liveDistanceProvider() {
+  return isGoogleMap() ? 'google' : 'osrm'
+}
+
 export function isMapConfigured() {
   if (isOsmMap()) return true
   return Boolean(String(import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '').trim())

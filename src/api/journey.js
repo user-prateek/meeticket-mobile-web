@@ -11,6 +11,7 @@ import {
 } from '../constants/journeyMode'
 import { defaultFareOptionId, mapLegFareOptions } from '../lib/fareClasses'
 import { takeJourneySourcePrefetches } from '../lib/journeyPrefetch'
+import { liveDistanceProvider } from '../lib/mapProvider'
 
 const SHARED = {
   lastMileProviders: LAST_MILE_PROVIDERS,
@@ -28,10 +29,16 @@ const DEFAULTS = {
 
 /** Journey engines fetched in parallel; results merged in this order. */
 const JOURNEY_SOURCES = [
-  { id: 'metro', urlKey: 'journey', candidates: (trip) => trip.candidates ?? DEFAULTS.candidates },
+  {
+    id: 'metro',
+    urlKey: 'journey',
+    liveDistance: true,
+    candidates: (trip) => trip.candidates ?? DEFAULTS.candidates,
+  },
   {
     id: 'tgsrtc',
     urlKey: 'tgsrtcJourney',
+    liveDistance: true,
     candidates: (trip) => trip.tgsrtcCandidates ?? DEFAULTS.tgsrtcCandidates,
   },
   {
@@ -688,8 +695,8 @@ export function mapJourneyOption(item, trip, { id = 1, source } = {}) {
   }
 }
 
-export function buildJourneyParams(trip, { candidates } = {}) {
-  return {
+export function buildJourneyParams(trip, { candidates, liveDistance = false } = {}) {
+  const params = {
     from_lat: trip.fromLat,
     from_lon: trip.fromLon,
     to_lat: trip.toLat,
@@ -698,6 +705,11 @@ export function buildJourneyParams(trip, { candidates } = {}) {
     egress_mode: trip.egressMode ?? DEFAULTS.egressMode,
     candidates: candidates ?? trip.candidates ?? DEFAULTS.candidates,
   }
+  if (liveDistance) {
+    params.use_live_distance = true
+    params.live_distance_provider = liveDistanceProvider()
+  }
+  return params
 }
 
 function mergeJourneyChunks(bySource, trip) {
@@ -730,7 +742,10 @@ async function fetchJourneySource(source, trip, { signal, bySource, onPartial, p
     return { source: source.id, ok: false }
   }
 
-  const params = buildJourneyParams(trip, { candidates: source.candidates(trip) })
+  const params = buildJourneyParams(trip, {
+    candidates: source.candidates(trip),
+    liveDistance: Boolean(source.liveDistance),
+  })
   let payload
 
   const prefetchPromise = prefetches?.[source.id]

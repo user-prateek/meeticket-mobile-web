@@ -168,14 +168,26 @@
                 egress_mode: egressMode,
                 candidates: candidates,
               }
+              var mapProvider = String('%VITE_MAP_PROVIDER%' || 'osm').toLowerCase()
+              var liveDistanceProvider =
+                mapProvider === 'google' || mapProvider === 'gmaps' || mapProvider === 'google-maps'
+                  ? 'google'
+                  : 'osrm'
+              var liveDistance = {
+                use_live_distance: 'true',
+                live_distance_provider: liveDistanceProvider,
+              }
               var sources = {}
               if (mode === 1 || mode === 3) {
-                sources.metro = jsonFetch('https://metrommdl.iamgds.com/journey?' + buildQuery(common))
+                sources.metro = jsonFetch(
+                  'https://metrommdl.iamgds.com/journey?' +
+                    buildQuery(Object.assign({}, common, liveDistance)),
+                )
               }
               if (mode === 2 || mode === 3) {
                 sources.tgsrtc = jsonFetch(
                   'https://tgsrtcengine.iamgds.com/journey?' +
-                    buildQuery(Object.assign({}, common, { candidates: '2' })),
+                    buildQuery(Object.assign({}, common, liveDistance, { candidates: '2' })),
                 )
               }
               if (mode === 3) {
