@@ -7,7 +7,10 @@ export function TicketQrFlip({ flipDirection, children }) {
       <div className="mt-ticket-qr-flip__scene">
         <div className="mt-ticket-qr-flip__coin">
           <div className="mt-ticket-qr-flip__edge" aria-hidden="true" />
-          <div className="mt-ticket-qr-flip__face">{children}</div>
+          <div className="mt-ticket-qr-flip__face">
+            {children}
+            <span className="mt-ticket-qr-flip__scan" aria-hidden="true" />
+          </div>
         </div>
       </div>
     </div>

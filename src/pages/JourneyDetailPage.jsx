@@ -295,9 +295,9 @@ function LegCard({
     ? undefined
     : line?.hex
       ? {
-          borderColor: line.hex,
-          ['--leg-accent']: line.hex,
-        }
+        borderColor: line.hex,
+        ['--leg-accent']: line.hex,
+      }
       : undefined
 
   return (
@@ -477,19 +477,22 @@ function AccessArrow({ checked }) {
     <svg
       className={`mt-pickup__arrow${checked ? ' checked' : ''}`}
       width="32"
-      height="160"
-      viewBox="0 0 32 160"
+      height="40"
+      viewBox="0 0 32 40"
       fill="none"
       aria-hidden="true"
     >
       <path
-        d="M13 1C-6 36 -2 94 14 142"
+        d="M13 1C5 12 5 25 14 34"
         stroke="currentColor"
         strokeWidth="1.2"
         strokeLinecap="round"
         strokeDasharray="2.5 2.5"
       />
-      <path d="M16.85 150.55 10.05 143.35 17.95 140.65Z" fill="currentColor" />
+      <path
+        d="M16.85 37.5 10.05 34.0 17.2 31.8Z"
+        fill="currentColor"
+      />
     </svg>
   )
 }
@@ -557,7 +560,7 @@ function PickupServiceCard({
         ) : (
           <span className="mt-pickup__km is-empty" aria-hidden="true" />
         )}
-        <label className="mt-pickup__check">
+        {/* <label className="mt-pickup__check">
           <span className="mt-pickup__check-input">
             <input type="checkbox" checked={needRide} onChange={onToggleNeedRide} />
           </span>
@@ -575,10 +578,10 @@ function PickupServiceCard({
               {mode.label}
             </span>
           ))}
-        </div>
+        </div> */}
       </div>
 
-      {showVehicleSlots ? (
+      {/* {showVehicleSlots ? (
         <div className="mt-pickup__options">
           <div
             className="mt-provider-options"
@@ -645,7 +648,7 @@ function PickupServiceCard({
             )
           })}
         </div>
-      )}
+      )} */}
     </article>
   )
 }

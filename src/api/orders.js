@@ -205,7 +205,54 @@ function buildMetroLegInfo(segment, trip, { metroBearerToken, stopCoords } = {})
   return leg
 }
 
-function buildRtcLegInfo(segment, trip, { stopCoords } = {}) {
+function rtcServiceCategory(segment, journey) {
+  const routeId = stringId(segment?.routeId || segment?.routeShortName)
+  const lists = []
+  if (Array.isArray(segment?.fare_options)) lists.push(segment.fare_options)
+
+  const raw = journey?.raw
+  const searchLegs = [
+    ...(Array.isArray(raw?.legs) ? raw.legs : []),
+    ...(Array.isArray(raw?.bus?.legs) ? raw.bus.legs : []),
+  ]
+  const fromId = stringId(segment?.fromId)
+  const toId = stringId(segment?.toId)
+  const matching = searchLegs.filter((leg) => {
+    if (!fromId || !toId) return true
+    return (
+      stringId(leg.from_stop_id || leg.from_station_id) === fromId &&
+      stringId(leg.to_stop_id || leg.to_station_id) === toId
+    )
+  })
+  for (const searchLeg of matching.length ? matching : searchLegs) {
+    if (Array.isArray(searchLeg.fare_options)) lists.push(searchLeg.fare_options)
+  }
+
+  for (const options of lists) {
+    for (const option of options) {
+      for (const route of option?.routes || []) {
+        const id = stringId(route?.chalo_route_id || route?.route_id)
+        if (routeId && id === routeId) {
+          const service_category = stringId(route?.service_category)
+          if (service_category) return service_category
+        }
+      }
+    }
+  }
+
+  for (const options of lists) {
+    for (const option of options) {
+      const service_category = stringId(
+        option?.service_category || option?.routes?.[0]?.service_category,
+      )
+      if (service_category) return service_category
+    }
+  }
+
+  return stringId(segment?.service_category)
+}
+
+function buildRtcLegInfo(segment, trip, { stopCoords, journey } = {}) {
   const leg = {
     source_stop_id: stringId(segment.fromId),
     destination_stop_id: stringId(segment.toId),
@@ -214,6 +261,9 @@ function buildRtcLegInfo(segment, trip, { stopCoords } = {}) {
     FromLocName: stringId(segment.from),
     ToLocName: stringId(segment.to),
   }
+
+  const service_category = rtcServiceCategory(segment, journey)
+  if (service_category) leg.service_category = service_category
 
   const tripId = stringId(segment.tripId)
   const tripInstanceId = stringId(segment.tripInstanceId)
@@ -573,12 +623,12 @@ function resolveTransitFareMap(journey, segments = transitSegments(journey)) {
   return assigned
 }
 
-function buildTransitLegInfo(segment, trip, { metroBearerToken, stopCoords } = {}) {
+function buildTransitLegInfo(segment, trip, { metroBearerToken, stopCoords, journey } = {}) {
   if (segment.mode === 'metro') {
     return buildMetroLegInfo(segment, trip, { metroBearerToken, stopCoords })
   }
   if (segment.mode === 'bus') {
-    return buildRtcLegInfo(segment, trip, { stopCoords })
+    return buildRtcLegInfo(segment, trip, { stopCoords, journey })
   }
   return null
 }
@@ -598,7 +648,7 @@ function buildTransitLegs(journey, trip, { chainStart, metroBearerToken } = {}) 
     if (amount_paise <= 0) return
 
     const stopCoords = resolveTransitStopCoords(journey, index, segments.length)
-    const leg_info = buildTransitLegInfo(segment, trip, { metroBearerToken, stopCoords })
+    const leg_info = buildTransitLegInfo(segment, trip, { metroBearerToken, stopCoords, journey })
     if (!leg_info) return
 
     const times = resolveTransitLegTimes(segment, trip, nextChainStart)

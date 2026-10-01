@@ -47,8 +47,33 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   backface-visibility: hidden;
   transform: translateZ(1px);
+}
+
+/* Thin moving bar — does not block taps or typical QR reads; frozen in screenshots. */
+.mt-ticket-qr-flip__scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 2;
+  height: 2px;
+  pointer-events: none;
+  background: #e11d48;
+  box-shadow: 0 0 6px 1px rgba(225, 29, 72, 0.45);
+  animation: ticket-qr-scan 2.2s ease-in-out infinite;
+}
+
+@keyframes ticket-qr-scan {
+  0%,
+  100% {
+    transform: translateY(8px);
+  }
+  50% {
+    transform: translateY(calc(var(--tk-qr-frame) - 10px));
+  }
 }
 
 .mt-ticket-qr-flip--ltr .mt-ticket-qr-flip__coin {
@@ -115,4 +140,6 @@
     transform: none;
     transform-origin: center center;
   }
+
+  /* Keep the scan bar moving — it is screenshot deterrence, not decoration. */
 }

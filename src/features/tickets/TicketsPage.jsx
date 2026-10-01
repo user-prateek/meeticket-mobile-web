@@ -413,7 +413,7 @@ function CabSearchingTicket({ ticket, journey, trip, onCancel }) {
   )
 }
 
-function BusRouteTimeline({ from, to, fromEditable = false, routeName }) {
+function BusRouteTimeline({ service_category, from, to, fromEditable = false, routeName }) {
   return (
     <div className="mt-bus-route">
       <div className="mt-bus-route__stop mt-bus-route__stop--from">
@@ -424,13 +424,13 @@ function BusRouteTimeline({ from, to, fromEditable = false, routeName }) {
         <div className="mt-bus-route__text">
           <div className="mt-bus-route__row">
             <strong className="mt-bus-route__name">{from}</strong>
-            {fromEditable ? (
+            {/* {fromEditable ? (
               <button type="button" className="mt-bus-route__edit-btn" aria-label="Edit boarding point">
                 <PencilIcon size={13} />
               </button>
-            ) : null}
+            ) : null} */}
           </div>
-          <span className="mt-bus-route__label">{busStopRoleLabel(routeName, 'Boarding')}</span>
+          <span className="mt-bus-route__label">{busStopRoleLabel(routeName, 'Boarding',service_category)}</span>
         </div>
       </div>
       <div className="mt-bus-route__stop mt-bus-route__stop--to">
@@ -727,7 +727,15 @@ function BusTicket({ ticket, onDropService, qrFlipDirection }) {
               <BusPassengerRow adult={pax.adult} child={pax.child} />
             </div>
           </div>
-          <BusRouteTimeline from={ticket.from} to={ticket.to} fromEditable routeName={ticket.routeName} />
+          <BusRouteTimeline
+            service_category={
+              ticket.rawLeg?.service_category || ticket.bookingDetails?.service_category
+            }
+            from={ticket.from}
+            to={ticket.to}
+            fromEditable
+            routeName={ticket.routeName}
+          />
         </div>
       </article>
 

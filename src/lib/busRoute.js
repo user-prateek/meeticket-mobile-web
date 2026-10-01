@@ -28,10 +28,11 @@ export function busRouteLabel(source) {
 }
 
 /** "365-METRO-EXPRESS" → "Boarding - Route: 365 - Metro Express" */
-export function busStopRoleLabel(source, role = 'Boarding') {
+export function busStopRoleLabel(source, role = 'Boarding', service_category) {
   const { code, service } = parseBusRouteName(source)
   const parts = [role]
   if (code) parts.push(`Route: ${code}`)
+  if (service_category) parts.push(service_category)
   if (service) parts.push(service)
   return parts.join(' - ')
 }

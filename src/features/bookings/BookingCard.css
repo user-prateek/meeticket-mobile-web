@@ -39,6 +39,7 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
+  width: 100%;
   padding: 4px 4px 12px;
   color: #111827;
 }
@@ -101,6 +102,33 @@
 
 .mt-booking-card .mt-capsule__meta-text {
   min-width: 0;
+}
+
+.mt-booking-card .mt-capsule-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.mt-booking-card .mt-timeline .mt-capsule-row {
+  width: auto;
+  justify-content: flex-start;
+}
+
+.mt-booking-card .mt-capsule__service {
+  min-width: 0;
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--mt-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  width: 100%;
 }
 
 .mt-booking-card .mt-capsule__meta.is-metro,

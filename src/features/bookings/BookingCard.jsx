@@ -122,7 +122,18 @@ function ModeCapsule({ segment, edge = 'start' }) {
   )
 }
 
-function TransitMeta({ segment, edge }) {
+function CapsuleRow({ segment, edge = 'start' }) {
+  const serviceCategory = String(segment.serviceCategory || '').trim()
+
+  return (
+    <div className="mt-capsule-row">
+      <ModeCapsule segment={segment} edge={edge} />
+      {serviceCategory ? <span className="mt-capsule__service">{serviceCategory}</span> : null}
+    </div>
+  )
+}
+
+function CapsuleMeta({ segment, edge = 'start' }) {
   const fareSuffix = segment.fareInr ? `, ₹${segment.fareInr}` : ''
   const edgeClass = edge === 'end' ? 'is-edge-end' : 'is-edge-start'
   const modeClass = segment.mode === 'bus' ? 'bus' : 'metro'
@@ -141,12 +152,8 @@ function CompactHeader({ segment }) {
 
   return (
     <div className="mt-compact">
-      <ModeCapsule segment={segment} edge="start" />
-      <p className={`mt-capsule__meta is-${segment.mode === 'bus' ? 'bus' : 'metro'} is-edge-start`}>
-        <span className="mt-capsule__meta-text">
-          {segment.durationMin} Min{segment.fareInr ? `, ₹${segment.fareInr}` : ''}
-        </span>
-      </p>
+      <CapsuleRow segment={segment} edge="start" />
+      <CapsuleMeta segment={segment} edge="start" />
     </div>
   )
 }
@@ -179,8 +186,8 @@ function BookingTimeline({ segments }) {
                     </>
                   ) : (
                     <>
-                      <ModeCapsule segment={segment} edge={edge} />
-                      <TransitMeta segment={segment} edge={edge} />
+                      <CapsuleRow segment={segment} edge={edge} />
+                      <CapsuleMeta segment={segment} edge={edge} />
                     </>
                   )}
                 </div>

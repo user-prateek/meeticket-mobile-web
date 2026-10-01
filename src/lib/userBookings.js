@@ -73,6 +73,10 @@ function fareInrFromLeg(leg) {
   return Number.isFinite(fare) && fare > 0 ? Math.round(fare) : 0
 }
 
+function readServiceCategory(leg) {
+  return String(leg?.service_category || leg?.booking_details?.service_category || '').trim() || null
+}
+
 function inferLastMileMode(cabLeg) {
   const type = String(cabLeg?.vehicle_info?.vehicle_type || '').toLowerCase()
   if (type.includes('auto')) return 'auto'
@@ -93,6 +97,44 @@ function shortPlaceName(value) {
   const text = String(value || '').trim()
   if (!text) return ''
   return text.split(',')[0].trim()
+}
+
+/** Temporary list filters — cab stays hidden; metro/TGSRTC flags stay off unless needed. */
+export const HIDE_CAB_LEGS = true
+export const HIDE_METRO = false
+export const HIDE_TGSRTC = false
+
+/** `/bookings?mode=all|metro|bus` — aliases: tgsrtc, rtc. Missing mode uses the flags above. */
+export function parseBookingsListMode(value) {
+  const raw = String(value || '').trim().toLowerCase()
+  if (raw === 'all' || raw === 'multi' || raw === 'multimode' || raw === 'multimodel') return 'all'
+  if (raw === 'metro') return 'metro'
+  if (raw === 'bus' || raw === 'tgsrtc' || raw === 'rtc') return 'bus'
+  return null
+}
+
+export function hidesFromBookingsMode(mode) {
+  if (mode === 'all') return { cab: false, metro: false, tgsrtc: false }
+  if (mode === 'metro') return { cab: true, metro: false, tgsrtc: true }
+  if (mode === 'bus') return { cab: true, metro: true, tgsrtc: false }
+  return undefined
+}
+
+function bookingListHides(overrides) {
+  return {
+    cab: HIDE_CAB_LEGS,
+    metro: HIDE_METRO,
+    tgsrtc: HIDE_TGSRTC,
+    ...overrides,
+  }
+}
+
+function isHiddenBookingLeg(leg, hides = bookingListHides()) {
+  const type = String(leg?.leg_type || '').toUpperCase()
+  if (hides.cab && (type === 'CAB' || type === 'AUTO' || type === 'BIKE')) return true
+  if (hides.metro && type === 'METRO') return true
+  if (hides.tgsrtc && (type === 'RTC' || type === 'BUS')) return true
+  return false
 }
 
 function extractLegs(orderRow) {
@@ -119,6 +161,7 @@ function buildTimelineSegments(transitLegs) {
       title: legCapsuleTitle(mode, leg),
       durationMin: durationMinFromLeg(leg) ?? 0,
       fareInr: fareInrFromLeg(leg),
+      serviceCategory: readServiceCategory(leg),
     })
   })
   return segments
@@ -149,11 +192,13 @@ function totalTimeMin(legs) {
 }
 
 /** Map one API order row → card model for BookingCard. */
-export function normalizeBookingOrder(orderRow) {
+export function normalizeBookingOrder(orderRow, hideOverrides) {
   const orderId = String(orderRow?.order_id || '').trim()
   if (!orderId) return null
 
-  const legs = extractLegs(orderRow)
+  const hides = bookingListHides(hideOverrides)
+  const allLegs = extractLegs(orderRow)
+  const legs = allLegs.filter((leg) => !isHiddenBookingLeg(leg, hides))
   if (!legs.length) return null
 
   const cabLegs = legs.filter((leg) => legMode(leg.leg_type) === 'cab')
@@ -191,7 +236,7 @@ export function normalizeBookingOrder(orderRow) {
 }
 
 /** Map GET /api/users/{id}/bookings response → card models. */
-export function normalizeUserBookingsResponse(response) {
+export function normalizeUserBookingsResponse(response, hideOverrides) {
   const rows = Array.isArray(response?.data) ? response.data : []
-  return rows.map(normalizeBookingOrder).filter(Boolean)
+  return rows.map((row) => normalizeBookingOrder(row, hideOverrides)).filter(Boolean)
 }

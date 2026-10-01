@@ -182,7 +182,7 @@ export const CANCEL_REASONS = [
 export const PRIMARY_TICKET_TABS = [
   { id: 'metro', label: 'Metro', mode: 'metro' },
   { id: 'bus', label: 'TGSRTC', mode: 'bus' },
-  { id: 'cab', label: 'Cab', mode: 'cab' },
+  // { id: 'cab', label: 'Cab', mode: 'cab' },
   { id: 'other', label: 'Other', mode: 'other' },
 ]
 

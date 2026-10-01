@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { fetchUserBookings } from '../api/orders'
 import { Header } from '../components/Header'
 import { BookingsSkeleton } from '../components/skeletons/PageSkeleton'
@@ -6,7 +7,11 @@ import { BookingCard } from '../features/bookings/BookingCard'
 import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useAppSession } from '../hooks/useAppSession'
 import { GOTO_HOME_PATH } from '../lib/appContext'
-import { normalizeUserBookingsResponse } from '../lib/userBookings'
+import {
+  hidesFromBookingsMode,
+  normalizeUserBookingsResponse,
+  parseBookingsListMode,
+} from '../lib/userBookings'
 import { buildSuccessPath } from '../lib/successUrl'
 import './BookingsPage.css'
 
@@ -14,35 +19,47 @@ function resolveBookingsUserId(user) {
   return user?.userId || import.meta.env.VITE_ORDER_USER_ID || ''
 }
 
+function bookingsListTitle(mode) {
+  if (mode === 'metro') return 'Metro Bookings'
+  if (mode === 'bus') return 'TGSRTC City Bus Booking'
+  return 'Multi Model Bookings'
+}
+
 export function BookingsPage() {
   const navigate = useAppNavigate()
+  const [params] = useSearchParams()
   const { user } = useAppSession()
   const userId = resolveBookingsUserId(user)
+  const listMode = parseBookingsListMode(params.get('mode') || params.get('type'))
+  const hideOverrides = useMemo(() => hidesFromBookingsMode(listMode), [listMode])
 
   const [bookings, setBookings] = useState([])
   const [status, setStatus] = useState('loading')
   const [error, setError] = useState('')
 
-  const loadBookings = useCallback(async (signal) => {
-    if (!userId) {
-      setBookings([])
-      setStatus('no-user')
-      return
-    }
+  const loadBookings = useCallback(
+    async (signal) => {
+      if (!userId) {
+        setBookings([])
+        setStatus('no-user')
+        return
+      }
 
-    setStatus('loading')
-    setError('')
-    try {
-      const response = await fetchUserBookings(userId, { signal })
-      setBookings(normalizeUserBookingsResponse(response))
-      setStatus('ready')
-    } catch (err) {
-      if (signal?.aborted) return
-      setBookings([])
-      setError(err?.message || 'Could not load your bookings.')
-      setStatus('error')
-    }
-  }, [userId])
+      setStatus('loading')
+      setError('')
+      try {
+        const response = await fetchUserBookings(userId, { signal })
+        setBookings(normalizeUserBookingsResponse(response, hideOverrides))
+        setStatus('ready')
+      } catch (err) {
+        if (signal?.aborted) return
+        setBookings([])
+        setError(err?.message || 'Could not load your bookings.')
+        setStatus('error')
+      }
+    },
+    [userId, hideOverrides],
+  )
 
   useEffect(() => {
     const controller = new AbortController()
@@ -52,9 +69,10 @@ export function BookingsPage() {
 
   const openBooking = useCallback(
     (orderId) => {
-      navigate(buildSuccessPath({ orderId, returnTo: '/bookings' }))
+      const query = params.toString()
+      navigate(buildSuccessPath({ orderId, returnTo: query ? `/bookings?${query}` : '/bookings' }))
     },
-    [navigate],
+    [navigate, params],
   )
 
   const goHome = useCallback(() => {
@@ -67,7 +85,7 @@ export function BookingsPage() {
 
   return (
     <div className="mt-bookings">
-      <Header title="Multi Model Bookings" onBack={goHome} />
+      <Header title={bookingsListTitle(listMode)} onBack={goHome} />
 
       <div className="mt-bookings__body">
         {status === 'no-user' ? (
