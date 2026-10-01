@@ -592,9 +592,9 @@ function MetroTicket({ ticket, onDropService, qrFlipDirection }) {
 
       <MetroQrPanel ticket={ticket} flipDirection={qrFlipDirection} />
 
-      <button type="button" className="mt-bus-drop" onClick={() => onDropService?.(ticket)}>
+      {/* <button type="button" className="mt-bus-drop" onClick={() => onDropService?.(ticket)}>
         Drop Service
-      </button>
+      </button> */}
     </div>
   )
 }
@@ -800,9 +800,9 @@ function BusTicket({ ticket, onDropService, qrFlipDirection }) {
         </div>
       </article>
 
-      <button type="button" className="mt-bus-drop" onClick={() => onDropService?.(ticket)}>
+      {/* <button type="button" className="mt-bus-drop" onClick={() => onDropService?.(ticket)}>
         Drop Service
-      </button>
+      </button> */}
 
       <div className="mt-bus-terms">
         <InfoIcon size={24} className="mt-bus-terms__icon" />

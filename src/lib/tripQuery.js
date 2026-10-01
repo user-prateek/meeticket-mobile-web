@@ -17,6 +17,7 @@
  */
 
 import {
+  JOURNEY_MODE,
   JOURNEY_MODE_DEFAULT,
   parseJourneyMode,
 } from '../constants/journeyMode'
@@ -24,6 +25,7 @@ import {
 const DEFAULT_ACCESS_MODE = 'walk'
 const DEFAULT_EGRESS_MODE = 'walk'
 const DEFAULT_CANDIDATES = '2'
+const JOURNEY_MODE_STORAGE_KEY = 'mt:journey-mode'
 
 function parseCoord(value) {
   if (value == null || value === '') return null
@@ -42,6 +44,34 @@ function firstParam(params, keys) {
 function parseCandidates(value) {
   const n = Number(value)
   return n === 2 ? 2 : 1
+}
+
+function searchParamsFrom(source) {
+  if (source instanceof URLSearchParams) return source
+  return new URLSearchParams(source ?? '')
+}
+
+/** Persist product `mode=1|2|3` from the entry URL so it survives later query rewrites. */
+export function captureJourneyModeFromSearch(source) {
+  const params = searchParamsFrom(source)
+  const raw = firstParam(params, ['mode'])
+  const n = Number(raw)
+  if (n !== JOURNEY_MODE.METRO && n !== JOURNEY_MODE.TGSRTC && n !== JOURNEY_MODE.MULTI) {
+    return getCapturedJourneyMode()
+  }
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.setItem(JOURNEY_MODE_STORAGE_KEY, String(n))
+  }
+  return n
+}
+
+export function getCapturedJourneyMode() {
+  if (typeof sessionStorage === 'undefined') return null
+  const n = Number(sessionStorage.getItem(JOURNEY_MODE_STORAGE_KEY))
+  if (n === JOURNEY_MODE.METRO || n === JOURNEY_MODE.TGSRTC || n === JOURNEY_MODE.MULTI) {
+    return n
+  }
+  return null
 }
 
 /** True when URL includes all four coordinates. */
@@ -95,7 +125,9 @@ export function parseTripQuery(source) {
   const candidates = parseCandidates(
     firstParam(params, ['candidates']) ?? DEFAULT_CANDIDATES,
   )
-  const mode = parseJourneyMode(firstParam(params, ['mode']))
+  const mode = parseJourneyMode(
+    firstParam(params, ['mode']) ?? getCapturedJourneyMode(),
+  )
 
   return {
     fromPlace,

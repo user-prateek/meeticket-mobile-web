@@ -757,7 +757,7 @@ function JourneyDetailView({
           onClick={onConfirm}
           disabled={confirmLoading}
         >
-          {confirmLoading ? 'Creating order…' : 'Confirm Multi Model'}
+          {confirmLoading ? 'Creating order…' : 'Confirm'}
         </button>
         {confirmError ? <p className="mt-details-page__confirm-error">{confirmError}</p> : null}
       </div>

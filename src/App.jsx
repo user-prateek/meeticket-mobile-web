@@ -15,7 +15,7 @@ import {
 } from './lib/olaOauth'
 import { storeOlaAccessToken } from './lib/olaToken'
 import { sessionStrippedSearch } from './lib/sessionParams'
-import { demoJourneyPath } from './lib/tripQuery'
+import { captureJourneyModeFromSearch, demoJourneyPath } from './lib/tripQuery'
 import { appContextAtom, userAtom } from './store/journey'
 import { BookingsPage } from './pages/BookingsPage'
 import { JourneyPage } from './pages/JourneyPage'
@@ -104,6 +104,7 @@ function AppContextSync() {
   useEffect(() => {
     const appContext = captureAppContextFromSearch(location.search)
     setAppContext(appContext)
+    captureJourneyModeFromSearch(location.search)
 
     let storedUser = captureUserFromSearch(location.search)
     const fromHash = parseOlaOauthCallback(location.hash)

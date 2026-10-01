@@ -27,8 +27,13 @@ const SESSION_QUERY_KEYS = new Set([
   'expires_in',
 ])
 
+/** Trip keys Flutter puts on `/journey` — never strip these. */
+const PRESERVE_QUERY_KEYS = new Set(['mode'])
+
 export function isSessionQueryParam(key) {
-  return SESSION_QUERY_KEYS.has(String(key || '').toLowerCase())
+  const k = String(key || '').toLowerCase()
+  if (PRESERVE_QUERY_KEYS.has(k)) return false
+  return SESSION_QUERY_KEYS.has(k)
 }
 
 /** Returns `?foo=bar` or empty string. */

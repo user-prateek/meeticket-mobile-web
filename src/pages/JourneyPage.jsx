@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useSetAtom } from 'jotai'
 import { Header } from '../components/Header'
@@ -101,6 +101,15 @@ export function JourneyPage() {
     () => (paramsOk ? parseTripQuery(location.search) : null),
     [paramsOk, location.search],
   )
+
+  useEffect(() => {
+    if (!trip) return
+    const params = new URLSearchParams(location.search)
+    if (params.get('mode') === String(trip.mode)) return
+    params.set('mode', String(trip.mode))
+    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true })
+  }, [trip, location.pathname, location.search, navigate])
+
   const { options, status, error, reload } = useJourneyOptions(paramsOk ? trip : null)
 
   const [sortBy, setSortBy] = useState(SORT_DEFAULT)

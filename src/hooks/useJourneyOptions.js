@@ -181,6 +181,7 @@ export function useHydrateJourneyOptions(trip) {
         candidates: trip.candidates,
         fromPlace: trip.fromPlace,
         toPlace: trip.toPlace,
+        mode: trip.mode,
       },
       { signal: controller.signal },
     )
