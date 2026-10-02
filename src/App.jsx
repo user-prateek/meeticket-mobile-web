@@ -52,6 +52,9 @@ const SuccessPage = lazy(() =>
 const LiveTrackingPage = lazy(() =>
   import('./features/tracking/LiveTrackingPage').then((m) => ({ default: m.LiveTrackingPage })),
 )
+const MapOpenPage = lazy(() =>
+  import('./pages/MapOpenPage').then((m) => ({ default: m.MapOpenPage })),
+)
 
 function RouteFallback() {
   const path = useLocation().pathname
@@ -159,6 +162,7 @@ export default function App() {
           {/* Bare pages for Paytm checkout / callback (no mobile chrome). */}
           <Route path="/payment/checkout" element={<PaymentCheckoutPage />} />
           <Route path="/payment/callback" element={<PaymentCallbackPage />} />
+          <Route path="/map-open" element={<MapOpenPage />} />
           <Route
             path="*"
             element={

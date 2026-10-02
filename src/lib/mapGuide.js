@@ -253,17 +253,42 @@ export function buildMapGuideOptions({ journey, trip, booking, pgStatus } = {}) 
   )
 }
 
-function openGoogleDirections(from, to, travelMode) {
+function mapsLabel(point) {
+  return String(point?.label || '').trim()
+}
+
+/** Native WebView should intercept URLs that include this flag, then cancel the load. */
+export const MAP_NATIVE_INTERCEPT = 'mt_native'
+
+/**
+ * Google Maps directions URL with coords + labels for both ends.
+ *
+ * Native: if the URL contains `mt_native=1`, cancel WebView navigation, parse
+ * origin / destination / origin_name / destination_name / travelmode, open maps.
+ * Google Maps ignores unknown params, so without intercept the same URL still loads.
+ */
+export function buildGoogleMapsDirectionsUrl(from, to, travelMode = 'driving') {
   const params = new URLSearchParams({
     api: '1',
     origin: `${from.lat},${from.lng}`,
     destination: `${to.lat},${to.lng}`,
     travelmode: travelMode || 'driving',
   })
-  window.open(`https://www.google.com/maps/dir/?${params.toString()}`, '_blank', 'noopener,noreferrer')
+  const fromName = mapsLabel(from)
+  const toName = mapsLabel(to)
+  if (fromName) params.set('origin_name', fromName)
+  if (toName) params.set('destination_name', toName)
+  params.set(MAP_NATIVE_INTERCEPT, '1')
+  return `https://www.google.com/maps/dir/?${params.toString()}`
 }
 
-/** Map Guide always opens Google Maps directions (not OSM). */
+export function openGoogleDirections(from, to, travelMode) {
+  const url = buildGoogleMapsDirectionsUrl(from, to, travelMode)
+  console.log('openGoogleDirections', url)
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
+
+/** Success / tickets Map Guide — Google Maps only (never OSM). */
 export function openMapDirections(option) {
   if (!option) return false
   const from = option.from
