@@ -1,5 +1,3 @@
-import { isOsmMap } from './mapProvider'
-
 /**
  * Map Guide from pg/status.
  *
@@ -255,16 +253,6 @@ export function buildMapGuideOptions({ journey, trip, booking, pgStatus } = {}) 
   )
 }
 
-function openOsmDirections(from, to) {
-  const route = `${from.lat},${from.lng};${to.lat},${to.lng}`
-  const params = new URLSearchParams({ engine: 'fossgis_osrm_car', route })
-  window.open(
-    `https://www.openstreetmap.org/directions?${params.toString()}`,
-    '_blank',
-    'noopener,noreferrer',
-  )
-}
-
 function openGoogleDirections(from, to, travelMode) {
   const params = new URLSearchParams({
     api: '1',
@@ -275,16 +263,14 @@ function openGoogleDirections(from, to, travelMode) {
   window.open(`https://www.google.com/maps/dir/?${params.toString()}`, '_blank', 'noopener,noreferrer')
 }
 
-/** External directions for the active map provider (`VITE_MAP_PROVIDER`). */
+/** Map Guide always opens Google Maps directions (not OSM). */
 export function openMapDirections(option) {
   if (!option) return false
   const from = option.from
   const to = option.to
   if (!hasPoint(from) || !hasPoint(to)) return false
 
-  const mode = option.travelMode || 'driving'
-  if (isOsmMap()) openOsmDirections(from, to)
-  else openGoogleDirections(from, to, mode)
+  openGoogleDirections(from, to, option.travelMode || 'driving')
   return true
 }
 
