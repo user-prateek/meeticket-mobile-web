@@ -1,3 +1,5 @@
+import { getAppContext } from './appContext'
+
 /**
  * Map Guide from pg/status.
  *
@@ -253,14 +255,59 @@ export function buildMapGuideOptions({ journey, trip, booking, pgStatus } = {}) 
   )
 }
 
-function openGoogleDirections(from, to, travelMode) {
+function mapsHostPlatform() {
+  const src = String(getAppContext()?.src || '').toLowerCase()
+  if (src === 'ios' || src === 'android') return src
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+  if (/iPhone|iPad|iPod/i.test(ua)) return 'ios'
+  if (/android/i.test(ua)) return 'android'
+  return 'web'
+}
+
+function googleMapsWebUrl(origin, destination, travelMode) {
   const params = new URLSearchParams({
     api: '1',
-    origin: `${from.lat},${from.lng}`,
-    destination: `${to.lat},${to.lng}`,
-    travelmode: travelMode || 'driving',
+    origin,
+    destination,
+    travelmode: travelMode,
   })
-  window.open(`https://www.google.com/maps/dir/?${params.toString()}`, '_blank', 'noopener,noreferrer')
+  return `https://www.google.com/maps/dir/?${params.toString()}`
+}
+
+function androidGoogleMapsAppUrl(origin, destination, travelMode) {
+  const path = `www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=${travelMode}`
+  return `intent://${path}#Intent;scheme=https;package=com.google.android.apps.maps;end`
+}
+
+function iosGoogleMapsAppUrl(origin, destination, travelMode) {
+  const params = new URLSearchParams({
+    saddr: origin,
+    daddr: destination,
+    directionsmode: travelMode,
+  })
+  return `comgooglemaps://?${params.toString()}`
+}
+
+/** Custom schemes / intents must be a top-level navigation so the WebView can hand them to the OS. */
+function launchExternalMapsUrl(url) {
+  window.location.assign(url)
+}
+
+function openGoogleDirections(from, to, travelMode) {
+  const mode = travelMode || 'driving'
+  const origin = `${from.lat},${from.lng}`
+  const destination = `${to.lat},${to.lng}`
+  const platform = mapsHostPlatform()
+
+  // Native app URLs — WebView https://maps loads the website with “Open app”.
+  const url =
+    platform === 'ios'
+      ? iosGoogleMapsAppUrl(origin, destination, mode)
+      : platform === 'android'
+        ? androidGoogleMapsAppUrl(origin, destination, mode)
+        : googleMapsWebUrl(origin, destination, mode)
+
+  launchExternalMapsUrl(url)
 }
 
 /** Map Guide always opens Google Maps directions (not OSM). */
