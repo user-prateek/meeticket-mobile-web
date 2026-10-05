@@ -23,6 +23,19 @@ import { JourneyPage } from './pages/JourneyPage'
 /** Non-entry screens — deferred so WebView FCP stays on journey/bookings. */
 const CabPage = lazy(() => import('./pages/CabPage').then((m) => ({ default: m.CabPage })))
 const RidePage = lazy(() => import('./pages/RidePage').then((m) => ({ default: m.RidePage })))
+const MetroPage = lazy(() => import('./pages/MetroPage').then((m) => ({ default: m.MetroPage })))
+const MetroPassPage = lazy(() =>
+  import('./pages/MetroPassPage').then((m) => ({ default: m.MetroPassPage })),
+)
+const MetroPassDetailsPage = lazy(() =>
+  import('./pages/MetroPassDetailsPage').then((m) => ({ default: m.MetroPassDetailsPage })),
+)
+const MetroQrTicketPage = lazy(() =>
+  import('./pages/MetroQrTicketPage').then((m) => ({ default: m.MetroQrTicketPage })),
+)
+const MetroQrTicketSuccessPage = lazy(() =>
+  import('./pages/MetroQrTicketSuccessPage').then((m) => ({ default: m.MetroQrTicketSuccessPage })),
+)
 const GoToHomePage = lazy(() =>
   import('./pages/GoToHomePage').then((m) => ({ default: m.GoToHomePage })),
 )
@@ -59,7 +72,7 @@ const MapOpenPage = lazy(() =>
 function RouteFallback() {
   const path = useLocation().pathname
   if (path.startsWith('/bookings')) return <BookingsSkeleton />
-  if (path.startsWith('/ride')) {
+  if (path.startsWith('/metro') || path.startsWith('/ride')) {
     return (
       <div
         style={{ minHeight: '100dvh', background: '#f1f1f1' }}
@@ -175,6 +188,11 @@ export default function App() {
                     <Route path="/payment/failed" element={<PaymentFailedPage />} />
                     <Route path="/payment/booking-failed" element={<PaymentBookingFailedPage />} />
                     <Route path="/ride" element={<RidePage />} />
+                    <Route path="/metro" element={<MetroPage />} />
+                    <Route path="/metro/pass" element={<MetroPassPage />} />
+                    <Route path="/metro/pass/details" element={<MetroPassDetailsPage />} />
+                    <Route path="/metro/ticket" element={<MetroQrTicketPage />} />
+                    <Route path="/metro/ticket/success" element={<MetroQrTicketSuccessPage />} />
                     <Route path="/cab" element={<CabPage />} />
                     <Route path="/live-tracking" element={<LiveTrackingPage />} />
                     <Route path="/bookings" element={<BookingsPage />} />

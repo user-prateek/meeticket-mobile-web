@@ -1,0 +1,113 @@
+.mt-metro-home {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  flex: 1;
+  background: #f1f1f1;
+}
+
+.mt-metro-home__header {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 70px;
+  padding: calc(6px + env(safe-area-inset-top)) 16px 6px 12px;
+  background: #ffffff;
+}
+
+.mt-metro-home__icon-btn {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--mt-primary);
+  border-radius: 999px;
+}
+
+.mt-metro-home__logo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 0;
+  width: 60px;
+  height: 58px;
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.mt-metro-home__list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 16px 24px;
+}
+
+.mt-metro-home__card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px 14px 16px 16px;
+  border: 0;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  text-align: left;
+  color: inherit;
+}
+
+.mt-metro-home__card:active {
+  transform: scale(0.99);
+}
+
+.mt-metro-home__icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  color: var(--mt-navy);
+}
+
+.mt-metro-home__glyph {
+  width: 48px;
+  height: 48px;
+  display: block;
+}
+
+.mt-metro-home__copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.mt-metro-home__copy strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #111111;
+}
+
+.mt-metro-home__copy span {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #6b6b6b;
+}
+
+.mt-metro-home__chevron {
+  flex-shrink: 0;
+  color: #9aa0a6;
+}
