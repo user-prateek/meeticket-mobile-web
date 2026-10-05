@@ -104,33 +104,6 @@
   min-width: 0;
 }
 
-.mt-booking-card .mt-capsule-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  min-width: 0;
-}
-
-.mt-booking-card .mt-timeline .mt-capsule-row {
-  width: auto;
-  justify-content: flex-start;
-}
-
-.mt-booking-card .mt-capsule__service {
-  min-width: 0;
-  font-weight: 400;
-  font-size: 12px;
-  line-height: 1.2;
-  color: var(--mt-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: left;
-  width: 100%;
-}
-
 .mt-booking-card .mt-capsule__meta.is-metro,
 .mt-booking-card .mt-timeline__step.is-metro .mt-capsule__meta {
   color: var(--mt-metro);
@@ -224,6 +197,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 10px;
+  padding-top: 10px;
 }
 
 .mt-booking-card .mt-stops.is-single {
@@ -231,6 +205,7 @@
 }
 
 .mt-booking-card .mt-stop {
+  position: relative;
   display: flex;
   gap: 8px;
   padding: 10px;
@@ -239,6 +214,34 @@
   border-radius: 8px;
   min-width: 0;
   flex-direction: row;
+}
+
+.mt-booking-card .mt-stop.has-line {
+  padding-top: 16px;
+}
+
+.mt-booking-card .mt-stop__line-title {
+  position: absolute;
+  top: -9px;
+  left: 10px;
+  z-index: 1;
+  max-width: calc(100% - 20px);
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-transform: lowercase;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: #fff;
+}
+
+.mt-booking-card .mt-stop.is-bus .mt-stop__line-title {
+  color: var(--mt-bus);
+  text-transform: none;
 }
 
 .mt-booking-card .mt-stop__rail {
@@ -278,6 +281,11 @@
 .mt-booking-card .mt-stop.is-bus .mt-stop__dot,
 .mt-booking-card .mt-stop.is-bus .mt-stop__sq {
   background: var(--mt-bus);
+}
+
+.mt-booking-card .mt-stop.is-bus {
+  border-color: color-mix(in srgb, var(--mt-bus) 55%, #e6e9ee);
+  background: color-mix(in srgb, var(--mt-bus) 6%, #fff);
 }
 
 .mt-booking-card .mt-stop__copy {

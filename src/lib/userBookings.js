@@ -175,6 +175,8 @@ function buildStops(transitLegs) {
       from: readLegFrom(leg) || '—',
       to: readLegTo(leg) || '—',
       routeName: leg?.booking_details?.route_name || null,
+      routeId: leg?.booking_details?.route_id || leg?.route_id || leg?.booking_details?.route_short_name || null,
+      serviceCategory: readServiceCategory(leg),
       fareInr: fareInrFromLeg(leg),
     }
   })

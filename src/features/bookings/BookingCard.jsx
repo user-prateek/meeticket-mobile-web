@@ -2,6 +2,8 @@ import { Fragment } from 'react'
 import { formatMetroStationName } from '../../api/journey'
 import { BusGlyph, MetroGlyph, ModeIcon, PinIcon, ViewDetailsIcon } from '../../components/icons'
 import { LAST_MILE_MODES } from '../../constants/lastMile'
+import { metroLineFromRouteId } from '../../constants/metroLines'
+import { busRouteLabel } from '../../lib/busRoute'
 import { resolveCabProviderId } from '../../constants/tickets'
 import olaLogo from '../../assets/brands/ola.png'
 import rapidoLogo from '../../assets/brands/rapido.png'
@@ -122,17 +124,6 @@ function ModeCapsule({ segment, edge = 'start' }) {
   )
 }
 
-function CapsuleRow({ segment, edge = 'start' }) {
-  const serviceCategory = String(segment.serviceCategory || '').trim()
-
-  return (
-    <div className="mt-capsule-row">
-      <ModeCapsule segment={segment} edge={edge} />
-      {serviceCategory ? <span className="mt-capsule__service">{serviceCategory}</span> : null}
-    </div>
-  )
-}
-
 function CapsuleMeta({ segment, edge = 'start' }) {
   const fareSuffix = segment.fareInr ? `, ₹${segment.fareInr}` : ''
   const edgeClass = edge === 'end' ? 'is-edge-end' : 'is-edge-start'
@@ -152,7 +143,7 @@ function CompactHeader({ segment }) {
 
   return (
     <div className="mt-compact">
-      <CapsuleRow segment={segment} edge="start" />
+      <ModeCapsule segment={segment} edge="start" />
       <CapsuleMeta segment={segment} edge="start" />
     </div>
   )
@@ -186,7 +177,7 @@ function BookingTimeline({ segments }) {
                     </>
                   ) : (
                     <>
-                      <CapsuleRow segment={segment} edge={edge} />
+                      <ModeCapsule segment={segment} edge={edge} />
                       <CapsuleMeta segment={segment} edge={edge} />
                     </>
                   )}
@@ -207,10 +198,13 @@ function busFareStripSide(segments) {
 }
 
 function BusRouteStrip({ stops, segments }) {
-  const busStop = stops?.find((stop) => stop.mode === 'bus' && stop.routeName)
+  const busStop = stops?.find(
+    (stop) => stop.mode === 'bus' && (stop.serviceCategory || stop.routeName),
+  )
   if (!busStop) return null
 
   const side = busFareStripSide(segments)
+  const label = String(busStop.serviceCategory || '').trim()
 
   return (
     <div
@@ -218,11 +212,32 @@ function BusRouteStrip({ stops, segments }) {
       aria-label="Booked bus route"
     >
       <div className="mt-fare-classes__row is-selected">
-        <span className="mt-fare-classes__label">{busStop.routeName}</span>
+        <span className="mt-fare-classes__label">{label}</span>
         {busStop.fareInr ? <span className="mt-fare-classes__fare">₹{busStop.fareInr}</span> : null}
       </div>
     </div>
   )
+}
+
+function hexToRgba(hex, alpha) {
+  const raw = String(hex || '').replace('#', '')
+  const full = raw.length === 3 ? raw.split('').map((ch) => ch + ch).join('') : raw
+  const n = Number.parseInt(full, 16)
+  if (!Number.isFinite(n)) return `rgba(6, 4, 150, ${alpha})`
+  const r = (n >> 16) & 255
+  const g = (n >> 8) & 255
+  const b = n & 255
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+function stopCardTitle(stop) {
+  if (stop.mode === 'metro') {
+    const line = metroLineFromRouteId(stop.routeId)
+    if (!line?.id) return 'metro'
+    return `${line.id} line metro`
+  }
+  if (stop.mode === 'bus') return busRouteLabel(stop)
+  return null
 }
 
 function BookingStops({ stops }) {
@@ -230,19 +245,50 @@ function BookingStops({ stops }) {
 
   return (
     <div className={`mt-stops${stops.length === 1 ? ' is-single' : ''}`}>
-      {stops.map((stop, index) => (
-        <div key={`${stop.from}-${stop.to}-${index}`} className={`mt-stop ${MODE_CLASS[stop.mode] || ''}`.trim()}>
-          <div className="mt-stop__rail" aria-hidden="true">
-            <span className="mt-stop__dot" />
-            <span className="mt-stop__line" />
-            <span className="mt-stop__sq" />
+      {stops.map((stop, index) => {
+        const line = stop.mode === 'metro' ? metroLineFromRouteId(stop.routeId) : null
+        const title = stopCardTitle(stop)
+        const lineStyle = line ? { background: line.hex } : undefined
+        const railStyle = line
+          ? { background: `color-mix(in srgb, ${line.hex} 35%, #d5dae2)` }
+          : undefined
+        const cardStyle =
+          stop.mode === 'metro' && line
+            ? {
+                borderColor: line.hex,
+                background: hexToRgba(line.hex, 0.08),
+              }
+            : undefined
+        const titleStyle = line
+          ? {
+              color: line.hex,
+              background: '#fff',
+            }
+          : undefined
+
+        return (
+          <div
+            key={`${stop.from}-${stop.to}-${index}`}
+            className={`mt-stop ${MODE_CLASS[stop.mode] || ''}${title ? ' has-line' : ''}`.trim()}
+            style={cardStyle}
+          >
+            {title ? (
+              <span className="mt-stop__line-title" style={titleStyle}>
+                {title}
+              </span>
+            ) : null}
+            <div className="mt-stop__rail" aria-hidden="true">
+              <span className="mt-stop__dot" style={lineStyle} />
+              <span className="mt-stop__line" style={railStyle} />
+              <span className="mt-stop__sq" style={lineStyle} />
+            </div>
+            <div className="mt-stop__copy">
+              <span>{displayStationName(stop.from, stop.mode)}</span>
+              <span>{displayStationName(stop.to, stop.mode)}</span>
+            </div>
           </div>
-          <div className="mt-stop__copy">
-            <span>{displayStationName(stop.from, stop.mode)}</span>
-            <span>{displayStationName(stop.to, stop.mode)}</span>
-          </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
