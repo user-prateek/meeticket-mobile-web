@@ -29,14 +29,14 @@ export function PaymentFailedPage() {
   const journey = useJourneyOptionById(journeyId)
   const cabDirect = isCabDirectRequest(params, lastMile, journey)
 
-  if (!journey) {
-    const fallback = cabDirect
-      ? rideHomePath(trip)
-      : trip
-        ? `/journey${tripToSearch(trip)}`
-        : '/journey'
-    return <Navigate to={withAppContext(fallback)} replace />
-  }
+  // if (!journey) {
+  //   const fallback = cabDirect
+  //     ? rideHomePath(trip)
+  //     : trip
+  //       ? `/journey${tripToSearch(trip)}`
+  //       : '/journey'
+  //   return <Navigate to={withAppContext(fallback)} replace />
+  // }
 
   function detailPath() {
     if (cabDirect) {

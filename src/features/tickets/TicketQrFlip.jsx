@@ -1,5 +1,5 @@
 /** 3D page-flip wrapper for ticket QR codes on tab switch. */
-export function TicketQrFlip({ flipDirection, children }) {
+export function TicketQrFlip({ flipDirection, showScan = true, children }) {
   const flipClass = flipDirection ? `mt-ticket-qr-flip--${flipDirection}` : 'mt-ticket-qr-flip--settled'
 
   return (
@@ -9,7 +9,7 @@ export function TicketQrFlip({ flipDirection, children }) {
           <div className="mt-ticket-qr-flip__edge" aria-hidden="true" />
           <div className="mt-ticket-qr-flip__face">
             {children}
-            <span className="mt-ticket-qr-flip__scan" aria-hidden="true" />
+            {showScan ? <span className="mt-ticket-qr-flip__scan" aria-hidden="true" /> : null}
           </div>
         </div>
       </div>

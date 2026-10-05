@@ -52,6 +52,12 @@
   transform: translateZ(1px);
 }
 
+.mt-ticket.is-expired .mt-ticket-qr-flip__scan,
+.mt-ticket-qr-flip:has(.mt-qr-expired:not(.is-validated)) .mt-ticket-qr-flip__scan {
+  display: none;
+  animation: none;
+}
+
 /* Thin moving bar — does not block taps or typical QR reads; frozen in screenshots. */
 .mt-ticket-qr-flip__scan {
   position: absolute;

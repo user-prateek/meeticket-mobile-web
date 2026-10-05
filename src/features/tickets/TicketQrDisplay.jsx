@@ -174,7 +174,7 @@ export function TicketQrDisplay({
   if (wrapQr) {
     return (
       <>
-        {wrapQr(qrNode)}
+        {wrapQr(qrNode, { expired: isExpired, validated: isValidated })}
         {actionsEl}
       </>
     )

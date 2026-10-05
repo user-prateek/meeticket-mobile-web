@@ -562,6 +562,9 @@ export function RouteCard({
   const displayTimeline = displayOption.cardSegments?.length
     ? displayOption.cardSegments
     : displayOption.segments
+  const stopCards = displayTimeline.filter(
+    (hop) => hop.mode === 'metro' || hop.mode === 'bus',
+  )
   const transitOnly = timeline.filter((seg) => seg.mode !== 'interchange')
   const compact = transitOnly.length === 1 && timeline.length === 1
   const singleHasFareOptions = compact && displayTimeline[0]?.fareOptions?.length > 0
@@ -1001,9 +1004,9 @@ export function RouteCard({
             ) : null}
           </div>
 
-          {option.stops?.length > 0 ? (
-            <div className={`mt-stops${option.stops.length === 1 ? ' is-single' : ''}`}>
-              {option.stops.map((stop) => {
+          {stopCards.length > 0 ? (
+            <div className={`mt-stops${stopCards.length === 1 ? ' is-single' : ''}`}>
+              {stopCards.map((stop) => {
                 const line =
                   stop.mode === 'metro' ? metroLineFromRouteId(stop.routeId) : null
                 const title = stopCardTitle(stop)

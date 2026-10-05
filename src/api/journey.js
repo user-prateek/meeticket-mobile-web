@@ -647,7 +647,16 @@ export function mapJourneyOption(item, trip, { id = 1, source } = {}) {
   const cardSegments = buildCardSegments(metro, bus, item.transfer, { leadMode })
   // Prefer card order so mix itineraries stay chronological for UI + orders.
   const segments = cardSegments.length ? cardSegments : [...bus.hops, ...metro.hops]
-  const stops = [...metro.stops, ...bus.stops]
+  const stops = segments
+    .filter((hop) => hop.mode === 'metro' || hop.mode === 'bus')
+    .map((hop) => ({
+      from: hop.from,
+      to: hop.to,
+      mode: hop.mode,
+      routeId: hop.routeId,
+      routeShortName: hop.routeShortName || null,
+      routeName: hop.routeName || null,
+    }))
   const metroFareInr = metro.fare || 0
   const busFareInr = bus.fare || 0
   const fare = readPositiveInr(item.total_fare) || busFareInr + metroFareInr

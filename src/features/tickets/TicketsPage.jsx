@@ -760,11 +760,15 @@ function BusTicket({ ticket, onDropService, qrFlipDirection }) {
               expired={expired}
               onValidUntil={handleValidUntil}
               onQrState={handleQrState}
-              wrapQr={(qr) => <TicketQrFlip flipDirection={qrFlipDirection}>{qr}</TicketQrFlip>}
+              wrapQr={(qr, { expired: qrExpired } = {}) => (
+                <TicketQrFlip flipDirection={qrFlipDirection} showScan={!qrExpired && !expired}>
+                  {qr}
+                </TicketQrFlip>
+              )}
             />
           ) : expired ? (
             <>
-              <TicketQrFlip flipDirection={qrFlipDirection}>
+              <TicketQrFlip flipDirection={qrFlipDirection} showScan={false}>
                 <ExpiredQrFrame
                   size={179}
                   className="mt-qr"
