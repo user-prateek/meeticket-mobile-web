@@ -5,7 +5,7 @@ import { AlertHost } from './components/Alert'
 import { MobileShell } from './components/MobileShell'
 import { BookingsSkeleton, JourneySkeleton } from './components/skeletons/PageSkeleton'
 import { captureAppContextFromSearch } from './lib/appContext'
-import { useSaveOlaTokenOnCallback } from './hooks/useOlaUserToken'
+import { persistOlaTokenToBackend, useSaveOlaTokenOnCallback } from './hooks/useOlaUserToken'
 import { captureUserFromSearch } from './lib/userContext'
 import {
   markOlaOauthPendingSave,
@@ -130,6 +130,7 @@ function AppContextSync() {
         // Bare ?access_token= from Android is session-only; skip GET/SET.
         if (fromHash || oauth.expiresIn || oauth.tokenType) {
           markOlaOauthPendingSave()
+          persistOlaTokenToBackend()
         }
       }
     }

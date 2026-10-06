@@ -1,3 +1,4 @@
+import { getUserContext } from '../lib/userContext'
 import {
   OLA_AUTH_TEST_AUTHORIZE_URL,
   OLA_AUTH_TEST_RETURN_URL,
@@ -6,7 +7,7 @@ import {
 
 export function OlaAuthPage() {
   function startOlaAuthTest() {
-    saveOlaAuthTestReturn(OLA_AUTH_TEST_RETURN_URL)
+    saveOlaAuthTestReturn(OLA_AUTH_TEST_RETURN_URL, getUserContext()?.mobile)
     window.location.assign(OLA_AUTH_TEST_AUTHORIZE_URL)
   }
 

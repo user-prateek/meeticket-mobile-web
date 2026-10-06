@@ -1,37 +1,33 @@
 import { useEffect } from 'react'
-import { useSetAtom } from 'jotai'
 import { olaTokenMobile, saveOlaAccessToken } from '../api/olaTokens'
+import { peekOlaAuthTestMobile } from '../lib/olaAuthTest'
 import { takeOlaOauthPendingSave } from '../lib/olaOauth'
 import { getUserContext } from '../lib/userContext'
 import { readStoredOlaToken } from '../lib/olaToken'
-import { userAtom } from '../store/journey'
+
+function resolveOlaTokenMobile(user) {
+  return olaTokenMobile(user?.mobile || peekOlaAuthTestMobile())
+}
+
+/** PUT /api/ola/tokens/{mobile} with the token just stored from Ola's callback. */
+export function persistOlaTokenToBackend() {
+  const user = getUserContext() || {}
+  const token = readStoredOlaToken(user)
+  const mobile = resolveOlaTokenMobile(user)
+  if (!token || !mobile) return
+  if (!takeOlaOauthPendingSave()) return
+
+  saveOlaAccessToken(mobile, {
+    accessToken: token,
+    expiresIn: user.olaExpiresIn,
+  }).catch((error) => {
+    if (error?.name === 'AbortError') return
+  })
+}
 
 /** After Ola redirects back with #access_token, PUT it to /api/ola/tokens/{mobile}. */
 export function useSaveOlaTokenOnCallback() {
-  const setUser = useSetAtom(userAtom)
-
   useEffect(() => {
-    if (!takeOlaOauthPendingSave()) return undefined
-
-    const user = getUserContext() || {}
-    const token = readStoredOlaToken(user)
-    const mobile = olaTokenMobile(user.mobile)
-    if (!token || !mobile) return undefined
-
-    const controller = new AbortController()
-    saveOlaAccessToken(
-      mobile,
-      {
-        accessToken: token,
-        expiresIn: user.olaExpiresIn,
-      },
-      { signal: controller.signal },
-    )
-      .then(() => setUser(getUserContext()))
-      .catch((error) => {
-        if (error?.name === 'AbortError') return
-      })
-
-    return () => controller.abort()
-  }, [setUser])
+    persistOlaTokenToBackend()
+  }, [])
 }
