@@ -560,7 +560,7 @@ function PickupServiceCard({
         ) : (
           <span className="mt-pickup__km is-empty" aria-hidden="true" />
         )}
-        {/* <label className="mt-pickup__check">
+        <label className="mt-pickup__check">
           <span className="mt-pickup__check-input">
             <input type="checkbox" checked={needRide} onChange={onToggleNeedRide} />
           </span>
@@ -578,10 +578,10 @@ function PickupServiceCard({
               {mode.label}
             </span>
           ))}
-        </div> */}
+        </div>
       </div>
 
-      {/* {showVehicleSlots ? (
+      {showVehicleSlots ? (
         <div className="mt-pickup__options">
           <div
             className="mt-provider-options"
@@ -648,7 +648,7 @@ function PickupServiceCard({
             )
           })}
         </div>
-      )} */}
+      )}
     </article>
   )
 }

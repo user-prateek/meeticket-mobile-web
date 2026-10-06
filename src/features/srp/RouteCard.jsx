@@ -851,7 +851,7 @@ export function RouteCard({
                 ) : (
                   <span className="mt-card__access-km is-empty" aria-hidden="true" />
                 )}
-                {/* <div className={`mt-card__ride-check-container${needRide ? ' checked' : ''}`}>
+                <div className={`mt-card__ride-check-container${needRide ? ' checked' : ''}`}>
                   <div className="mt-card__ride-modes" role="group" aria-label="First mile modes">
                     <label
                       className="mt-card__ride-check"
@@ -975,7 +975,7 @@ export function RouteCard({
                         )}
                       </div>
                     ) : null}
-                </div> */}
+                </div>
               </div>
 
               {compact && !singleHasFareOptions ? (
