@@ -1,12 +1,14 @@
 import { useEffect } from 'react'
 import { olaTokenMobile, saveOlaAccessToken } from '../api/olaTokens'
 import { peekOlaAuthTestMobile } from '../lib/olaAuthTest'
-import { takeOlaOauthPendingSave } from '../lib/olaOauth'
+import { peekOlaOauthReturn, takeOlaOauthPendingSave } from '../lib/olaOauth'
 import { getUserContext } from '../lib/userContext'
 import { readStoredOlaToken } from '../lib/olaToken'
 
 function resolveOlaTokenMobile(user) {
-  return olaTokenMobile(user?.mobile || peekOlaAuthTestMobile())
+  return olaTokenMobile(
+    user?.mobile || peekOlaAuthTestMobile() || peekOlaOauthReturn()?.mobile,
+  )
 }
 
 /** PUT /api/ola/tokens/{mobile} with the token just stored from Ola's callback. */

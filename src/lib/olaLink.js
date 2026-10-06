@@ -5,7 +5,8 @@ import { getUserContext } from './userContext'
 
 /**
  * Resolve an Ola user token for the current session.
- * Session / GET reuse first; otherwise open Ola authorize with the current page as callback.
+ * Session / GET reuse first; otherwise open Ola authorize. Callback is registered `/journey`;
+ * the real page URL is restored from localStorage, then that key is removed.
  */
 export async function ensureOlaToken({ extraParams, resume } = {}) {
   if (readStoredOlaToken()) return { ok: true, source: 'session' }
@@ -26,6 +27,6 @@ export async function ensureOlaToken({ extraParams, resume } = {}) {
   if (!isOlaOauthConfigured()) return { ok: false, source: 'unconfigured' }
 
   if (resume) rememberOlaOauthResume(resume)
-  startOlaOauth({ extraParams })
+  startOlaOauth({ extraParams, resume, mobile })
   return { ok: false, source: 'oauth' }
 }

@@ -6,11 +6,16 @@ import { MobileShell } from './components/MobileShell'
 import { BookingsSkeleton, JourneySkeleton } from './components/skeletons/PageSkeleton'
 import { captureAppContextFromSearch } from './lib/appContext'
 import { persistOlaTokenToBackend, useSaveOlaTokenOnCallback } from './hooks/useOlaUserToken'
-import { captureUserFromSearch } from './lib/userContext'
+import { captureUserFromSearch, persistUserPatch } from './lib/userContext'
 import {
+  clearOlaOauthReturn,
+  isOlaOauthCallback,
   markOlaOauthPendingSave,
   parseOlaOauthCallback,
-  peekOlaOauthState,
+  parseOlaOauthFromLocation,
+  parseSafeOlaReturnUrl,
+  peekOlaOauthReturn,
+  rememberOlaOauthResume,
   stripOlaOauthSearch,
 } from './lib/olaOauth'
 import { storeOlaAccessToken } from './lib/olaToken'
@@ -19,6 +24,7 @@ import { captureJourneyModeFromSearch, demoJourneyPath, hasRequiredTripParams } 
 import {
   clearOlaAuthTestReturn,
   parseOlaAuthTestReturn,
+  peekOlaAuthTestMobile,
   peekOlaAuthTestReturn,
 } from './lib/olaAuthTest'
 import { appContextAtom, userAtom } from './store/journey'
@@ -119,22 +125,35 @@ function AppContextSync() {
 
     let storedUser = captureUserFromSearch(location.search)
     const fromHash = parseOlaOauthCallback(location.hash)
-    const fromSearch = parseOlaOauthCallback(location.search)
-    const oauth = fromHash || fromSearch
+    const oauth = parseOlaOauthFromLocation(location)
+    const olaCallback = isOlaOauthCallback(location)
+    const liveReturn = peekOlaOauthReturn()
+    const callbackMobile = liveReturn?.mobile || peekOlaAuthTestMobile()
+    if (callbackMobile && !storedUser?.mobile) {
+      storedUser = persistUserPatch({ mobile: callbackMobile })
+    }
+
     if (oauth?.accessToken) {
-      const expected = peekOlaOauthState()
-      const stateOk = !oauth.state || !expected || oauth.state === expected
-      if (stateOk) {
-        storedUser = storeOlaAccessToken(oauth)
-        // Hash (and Ola-style query with expires_in) → persist via SET API.
-        // Bare ?access_token= from Android is session-only; skip GET/SET.
-        if (fromHash || oauth.expiresIn || oauth.tokenType) {
-          markOlaOauthPendingSave()
-          persistOlaTokenToBackend()
-        }
+      storedUser = storeOlaAccessToken(oauth)
+      // Hash (and Ola-style query with expires_in) → persist via SET API.
+      // Bare ?access_token= from Android is session-only; skip GET/SET.
+      if (fromHash || oauth.expiresIn || oauth.tokenType) {
+        markOlaOauthPendingSave()
+        persistOlaTokenToBackend()
       }
     }
     if (storedUser) setUser(storedUser)
+
+    if (olaCallback) {
+      const bounce = parseSafeOlaReturnUrl(liveReturn?.url)
+      if (bounce) {
+        if (liveReturn.resume) rememberOlaOauthResume(liveReturn.resume)
+        const bouncedSearch = sessionStrippedSearch(stripOlaOauthSearch(bounce.search))
+        navigate({ pathname: bounce.pathname, search: bouncedSearch, hash: '' }, { replace: true })
+        clearOlaOauthReturn()
+        return
+      }
+    }
 
     if (location.pathname === '/journey' && !hasRequiredTripParams(location.search)) {
       const saved = peekOlaAuthTestReturn()
@@ -152,7 +171,7 @@ function AppContextSync() {
     const currentSearch = location.search.startsWith('?')
       ? location.search.slice(1)
       : location.search
-    const hashNeedsClear = Boolean(oauth?.accessToken && location.hash)
+    const hashNeedsClear = Boolean((oauth?.accessToken || olaCallback) && location.hash)
 
     if (cleanedSearch !== currentSearch || hashNeedsClear) {
       navigate(
