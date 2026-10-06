@@ -16,6 +16,7 @@ import {
 } from '../../constants/lastMile'
 import { getOlaRideEstimateForJourneyCached } from '../../api/ola'
 import { searchRefexForJourney } from '../../api/refex'
+import { ensureOlaToken } from '../../lib/olaLink'
 import { resolveCabMapPoints } from '../../lib/googleMaps'
 import { preloadMap } from '../../lib/mapProvider'
 import './LastMilePage.css'
@@ -172,30 +173,40 @@ export function LastMilePage({
     }
 
     const controller = new AbortController()
+    let cancelled = false
     setOlaVehicles([])
     setLiveStatus('loading')
     setLiveError('')
 
-    getOlaRideEstimateForJourneyCached({
-      journey,
-      trip,
-      serviceId,
-      signal: controller.signal,
-      refresh: true,
-    })
-      .then((result) => {
-        if (controller.signal.aborted) return
+    ;(async () => {
+      const auth = await ensureOlaToken({
+        resume: { kind: 'cab', providerId: 'ola', serviceId },
+      })
+      if (cancelled || auth.source === 'oauth') return
+
+      try {
+        const result = await getOlaRideEstimateForJourneyCached({
+          journey,
+          trip,
+          serviceId,
+          signal: controller.signal,
+          refresh: true,
+        })
+        if (cancelled || controller.signal.aborted) return
         setOlaVehicles(result.vehicles)
         setLiveStatus('ready')
-      })
-      .catch((error) => {
-        if (error.name === 'AbortError') return
+      } catch (error) {
+        if (error.name === 'AbortError' || cancelled) return
         setOlaVehicles([])
         setLiveStatus('error')
         setLiveError(error.message || 'Could not load Ola ride estimates.')
-      })
+      }
+    })()
 
-    return () => controller.abort()
+    return () => {
+      cancelled = true
+      controller.abort()
+    }
   }, [providerId, journey, trip, serviceId])
 
   useEffect(() => {

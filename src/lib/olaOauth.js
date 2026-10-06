@@ -3,12 +3,14 @@ import {
   olaOauthClientId,
   olaOauthRedirectUri,
   olaOauthScope,
+  olaOauthState,
 } from '../api/config'
 
-const STATE_KEY = 'mt:ola-oauth:state'
-const RETURN_KEY = 'mt:ola-oauth:return'
 const ATTEMPTED_KEY = 'mt:ola-oauth:attempted'
 const RESUME_KEY = 'mt:ola-oauth:resume'
+/** Single slot — Ola callback query is fixed, so we cannot key by `state`. */
+const RETURN_KEY = 'mt:ola-oauth:return'
+const PENDING_SAVE_KEY = 'mt:ola-oauth:pending-save'
 
 const CALLBACK_QUERY_KEYS = new Set([
   'access_token',
@@ -17,19 +19,30 @@ const CALLBACK_QUERY_KEYS = new Set([
   'expires_in',
   'refresh_token',
   'scope',
+  'state',
 ])
-
-function randomState() {
-  const bytes = new Uint8Array(16)
-  crypto.getRandomValues(bytes)
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
-}
 
 function readParams(source) {
   const raw = String(source || '')
   if (!raw) return new URLSearchParams()
   const trimmed = raw.startsWith('#') || raw.startsWith('?') ? raw.slice(1) : raw
   return new URLSearchParams(trimmed)
+}
+
+function mergedCallbackParams(location) {
+  const merged = readParams(location?.search)
+  const hash = readParams(location?.hash)
+  for (const [key, value] of hash.entries()) merged.set(key, value)
+  return merged
+}
+
+function writeReturnEntry(entry) {
+  if (typeof localStorage === 'undefined') return
+  try {
+    localStorage.setItem(RETURN_KEY, JSON.stringify(entry))
+  } catch {
+    /* quota / private mode */
+  }
 }
 
 export function isOlaOauthConfigured() {
@@ -58,7 +71,19 @@ export function parseOlaOauthCallback(source) {
 }
 
 export function parseOlaOauthFromLocation(location) {
-  return parseOlaOauthCallback(location?.hash) || parseOlaOauthCallback(location?.search)
+  return parseOlaOauthCallback(`?${mergedCallbackParams(location).toString()}`)
+}
+
+export function isOlaOauthCallback(location) {
+  if (parseOlaOauthFromLocation(location)) return true
+  const params = mergedCallbackParams(location)
+  return Boolean(
+    params.get('scope') ||
+      params.get('token_type') ||
+      params.get('expires_in') ||
+      params.get('state') ||
+      params.get('refresh_token'),
+  )
 }
 
 export function stripOlaOauthSearch(search = '') {
@@ -80,8 +105,9 @@ export function currentPageUrl() {
   return `${window.location.origin}${window.location.pathname}${window.location.search}`
 }
 
+/** Registered Ola callback — always the whitelist URI, never the live query URL. */
 export function resolveOlaRedirectUri() {
-  return olaOauthRedirectUri || currentPageUrl()
+  return olaOauthRedirectUri || 'https://mmtsjp.iamgds.com/journey'
 }
 
 export function buildOlaAuthorizeUrl({ redirectUri, state } = {}) {
@@ -91,7 +117,7 @@ export function buildOlaAuthorizeUrl({ redirectUri, state } = {}) {
     client_id: olaOauthClientId,
     redirect_uri: redirectUri || resolveOlaRedirectUri(),
     scope: olaOauthScope || 'profile booking',
-    state: state || randomState(),
+    state: state || olaOauthState || 'state123',
   })
   const base = olaOauthAuthorizeUrl.includes('?')
     ? `${olaOauthAuthorizeUrl}&`
@@ -99,10 +125,55 @@ export function buildOlaAuthorizeUrl({ redirectUri, state } = {}) {
   return `${base}${params.toString()}`
 }
 
-export function rememberOlaOauthReturn(pathWithSearch) {
-  if (typeof sessionStorage === 'undefined') return
-  sessionStorage.setItem(RETURN_KEY, pathWithSearch || `${window.location.pathname}${window.location.search}`)
-  sessionStorage.setItem(STATE_KEY, sessionStorage.getItem(STATE_KEY) || randomState())
+export function saveOlaOauthReturn({ url, resume, mobile } = {}) {
+  const path = String(url || '').trim()
+  if (!path) return
+  writeReturnEntry({
+    url: path,
+    resume: resume || null,
+    mobile: String(mobile || '').trim() || null,
+  })
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem('mt:ola-oauth:returns')
+  }
+}
+
+/** Read the saved return URL. Does not delete — clear only after a successful restore. */
+export function peekOlaOauthReturn() {
+  if (typeof localStorage === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(RETURN_KEY)
+    if (!raw) return null
+    const entry = JSON.parse(raw)
+    if (!entry || typeof entry !== 'object') return null
+    return {
+      url: String(entry.url || ''),
+      resume: entry.resume || null,
+      mobile: String(entry.mobile || '').trim() || null,
+    }
+  } catch {
+    return null
+  }
+}
+
+export function clearOlaOauthReturn() {
+  if (typeof localStorage === 'undefined') return
+  localStorage.removeItem(RETURN_KEY)
+  localStorage.removeItem('mt:ola-oauth:returns')
+}
+
+export function parseSafeOlaReturnUrl(url) {
+  if (typeof window === 'undefined') return null
+  const raw = String(url || '').trim()
+  if (!raw.startsWith('/') || raw.startsWith('//')) return null
+  try {
+    const parsed = new URL(raw, window.location.origin)
+    if (parsed.origin !== window.location.origin) return null
+    const search = parsed.search.startsWith('?') ? parsed.search.slice(1) : parsed.search
+    return { pathname: parsed.pathname, search }
+  } catch {
+    return null
+  }
 }
 
 export function rememberOlaOauthResume(resume) {
@@ -126,24 +197,10 @@ export function takeOlaOauthResume() {
   return value
 }
 
-export function takeOlaOauthReturn() {
-  if (typeof sessionStorage === 'undefined') return ''
-  const value = sessionStorage.getItem(RETURN_KEY) || ''
-  sessionStorage.removeItem(RETURN_KEY)
-  return value
-}
-
-export function peekOlaOauthState() {
-  if (typeof sessionStorage === 'undefined') return ''
-  return sessionStorage.getItem(STATE_KEY) || ''
-}
-
 export function markOlaOauthAttempted() {
   if (typeof sessionStorage === 'undefined') return
   sessionStorage.setItem(ATTEMPTED_KEY, '1')
 }
-
-const PENDING_SAVE_KEY = 'mt:ola-oauth:pending-save'
 
 export function markOlaOauthPendingSave() {
   if (typeof sessionStorage === 'undefined') return
@@ -165,10 +222,9 @@ export function hasOlaOauthAttempted() {
 export function clearOlaOauthAttempt() {
   if (typeof sessionStorage === 'undefined') return
   sessionStorage.removeItem(ATTEMPTED_KEY)
-  sessionStorage.removeItem(STATE_KEY)
 }
 
-function pageUrlWithParams(extraParams) {
+function currentReturnPath(extraParams) {
   if (typeof window === 'undefined') return ''
   const page = new URL(window.location.href)
   page.hash = ''
@@ -178,19 +234,21 @@ function pageUrlWithParams(extraParams) {
       else page.searchParams.set(key, String(value))
     }
   }
-  return `${page.origin}${page.pathname}${page.search}`
+  return `${page.pathname}${page.search}`
 }
 
 /** Navigate this WebView to Ola login; callback returns to redirect_uri with #access_token=. */
-export function startOlaOauth({ extraParams } = {}) {
+export function startOlaOauth({ extraParams, resume, mobile } = {}) {
   if (typeof window === 'undefined' || !isOlaOauthConfigured()) return false
-  const state = randomState()
-  const currentUrl = pageUrlWithParams(extraParams)
-  const redirectUri = olaOauthRedirectUri || currentUrl
-  sessionStorage.setItem(STATE_KEY, state)
-  rememberOlaOauthReturn(`${window.location.pathname}${window.location.search}`)
+  const resumePayload = resume || peekOlaOauthResume()
+  saveOlaOauthReturn({
+    url: currentReturnPath(extraParams),
+    resume: resumePayload,
+    mobile,
+  })
+  if (resumePayload) rememberOlaOauthResume(resumePayload)
   markOlaOauthAttempted()
-  const url = buildOlaAuthorizeUrl({ redirectUri, state })
+  const url = buildOlaAuthorizeUrl({ redirectUri: resolveOlaRedirectUri() })
   if (!url) return false
   window.location.assign(url)
   return true

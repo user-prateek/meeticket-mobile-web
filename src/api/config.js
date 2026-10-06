@@ -29,15 +29,22 @@ export const olaAccessToken = import.meta.env.VITE_OLA_ACCESS_TOKEN || ''
 export const olaAffiliateUid = String(import.meta.env.VITE_OLA_AFFILIATE_UID || '').trim()
 /**
  * Ola user OAuth (implicit): open authorize URL, callback returns #access_token=.
- * Client id from Ola developer account. Redirect URI defaults to the current page.
+ * Working authorize: https://devapi.olacabs.com/oauth2/authorize
+ * Redirect URI must be the registered bare callback: https://mmtsjp.iamgds.com/journey
  */
 export const olaOauthAuthorizeUrl = String(
-  import.meta.env.VITE_OLA_OAUTH_AUTHORIZE_URL || 'https://devapi-stg.olacabs-dev.in/oauth2/authorize',
+  import.meta.env.VITE_OLA_OAUTH_AUTHORIZE_URL || 'https://devapi.olacabs.com/oauth2/authorize',
 ).replace(/\/$/, '')
-export const olaOauthClientId = String(import.meta.env.VITE_OLA_CLIENT_ID || '').trim()
+export const olaOauthClientId = String(
+  import.meta.env.VITE_OLA_CLIENT_ID || 'MjY4YWEwNDUtNWY3Ni00NmI2LTk4OWYtZDRmOGNhOWYyN2Zi',
+).trim()
 export const olaOauthScope = String(import.meta.env.VITE_OLA_OAUTH_SCOPE || 'profile booking').trim()
-/** Optional registered callback. Empty = use the current /journey or /ride URL. */
-export const olaOauthRedirectUri = String(import.meta.env.VITE_OLA_OAUTH_REDIRECT_URI || '').trim()
+/** Ola echoes this `state` unchanged — not a per-attempt identifier. */
+export const olaOauthState = String(import.meta.env.VITE_OLA_OAUTH_STATE || 'state123').trim()
+/** Registered callback. Must match Ola whitelist exactly. */
+export const olaOauthRedirectUri = String(
+  import.meta.env.VITE_OLA_OAUTH_REDIRECT_URI || 'https://mmtsjp.iamgds.com/journey',
+).trim()
 
 /**
  * Refex MeeTicket API host (staging/production).
