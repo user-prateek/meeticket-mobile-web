@@ -15,7 +15,12 @@ import {
 } from './lib/olaOauth'
 import { storeOlaAccessToken } from './lib/olaToken'
 import { sessionStrippedSearch } from './lib/sessionParams'
-import { captureJourneyModeFromSearch, demoJourneyPath } from './lib/tripQuery'
+import { captureJourneyModeFromSearch, demoJourneyPath, hasRequiredTripParams } from './lib/tripQuery'
+import {
+  clearOlaAuthTestReturn,
+  parseOlaAuthTestReturn,
+  peekOlaAuthTestReturn,
+} from './lib/olaAuthTest'
 import { appContextAtom, userAtom } from './store/journey'
 import { BookingsPage } from './pages/BookingsPage'
 import { JourneyPage } from './pages/JourneyPage'
@@ -54,6 +59,9 @@ const LiveTrackingPage = lazy(() =>
 )
 const MapOpenPage = lazy(() =>
   import('./pages/MapOpenPage').then((m) => ({ default: m.MapOpenPage })),
+)
+const OlaAuthPage = lazy(() =>
+  import('./pages/OlaAuthPage').then((m) => ({ default: m.OlaAuthPage })),
 )
 
 function RouteFallback() {
@@ -127,6 +135,16 @@ function AppContextSync() {
     }
     if (storedUser) setUser(storedUser)
 
+    if (location.pathname === '/journey' && !hasRequiredTripParams(location.search)) {
+      const saved = peekOlaAuthTestReturn()
+      const bounce = parseOlaAuthTestReturn(saved)
+      if (bounce) {
+        navigate({ pathname: bounce.pathname, search: bounce.search, hash: '' }, { replace: true })
+        clearOlaAuthTestReturn()
+        return
+      }
+    }
+
     const cleanedSearch = sessionStrippedSearch(
       stripOlaOauthSearch(location.search.startsWith('?') ? location.search : `?${location.search}`),
     )
@@ -163,6 +181,7 @@ export default function App() {
           <Route path="/payment/checkout" element={<PaymentCheckoutPage />} />
           <Route path="/payment/callback" element={<PaymentCallbackPage />} />
           <Route path="/map-open" element={<MapOpenPage />} />
+          <Route path="/ola_auth" element={<OlaAuthPage />} />
           <Route
             path="*"
             element={
