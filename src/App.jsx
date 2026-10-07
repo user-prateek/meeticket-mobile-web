@@ -27,7 +27,8 @@ import {
   peekOlaAuthTestMobile,
   peekOlaAuthTestReturn,
 } from './lib/olaAuthTest'
-import { appContextAtom, userAtom } from './store/journey'
+import { captureShowCabFromSearch, getShowCab, persistShowCab } from './lib/showCab'
+import { appContextAtom, showCabAtom, userAtom } from './store/journey'
 import { BookingsPage } from './pages/BookingsPage'
 import { JourneyPage } from './pages/JourneyPage'
 
@@ -117,11 +118,13 @@ function AppContextSync() {
   const navigate = useNavigate()
   const setUser = useSetAtom(userAtom)
   const setAppContext = useSetAtom(appContextAtom)
+  const setShowCab = useSetAtom(showCabAtom)
 
   useEffect(() => {
     const appContext = captureAppContextFromSearch(location.search)
     setAppContext(appContext)
     captureJourneyModeFromSearch(location.search)
+    captureShowCabFromSearch(location.pathname, location.search)
 
     let storedUser = captureUserFromSearch(location.search)
     const fromHash = parseOlaOauthCallback(location.hash)
@@ -132,6 +135,8 @@ function AppContextSync() {
     if (callbackMobile && !storedUser?.mobile) {
       storedUser = persistUserPatch({ mobile: callbackMobile })
     }
+    if (liveReturn?.showCab) persistShowCab(true)
+    setShowCab(getShowCab())
 
     if (oauth?.accessToken) {
       storedUser = storeOlaAccessToken(oauth)
@@ -179,7 +184,7 @@ function AppContextSync() {
         { replace: true },
       )
     }
-  }, [location.hash, location.pathname, location.search, navigate, setAppContext, setUser])
+  }, [location.hash, location.pathname, location.search, navigate, setAppContext, setShowCab, setUser])
 
   return null
 }

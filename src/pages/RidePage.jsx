@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react'
-import { useLocation } from 'react-router-dom'
-import { useSetAtom } from 'jotai'
+import { Navigate, useLocation } from 'react-router-dom'
+import { useAtomValue, useSetAtom } from 'jotai'
 import { helplineNumber } from '../api/config'
 import { AppLogo, BackIcon, ChevronIcon, PhoneIcon } from '../components/icons'
 import { LAST_MILE_PROVIDERS } from '../constants/lastMile'
@@ -10,8 +10,8 @@ import { cabDirectPath } from '../lib/cabDirect'
 import { ensureOlaToken } from '../lib/olaLink'
 import { peekOlaOauthResume, takeOlaOauthResume } from '../lib/olaOauth'
 import { hasUsableOlaUserToken } from '../lib/olaToken'
-import { hasRequiredTripParams, parseTripQuery } from '../lib/tripQuery'
-import { lastMileSelectionAtom, tripAtom } from '../store/journey'
+import { hasRequiredTripParams, parseTripQuery, tripToSearch } from '../lib/tripQuery'
+import { lastMileSelectionAtom, showCabAtom, tripAtom } from '../store/journey'
 import './RidePage.css'
 
 const AGGREGATOR_COPY = {
@@ -29,6 +29,7 @@ export function RidePage() {
   const navigate = useAppNavigate()
   const setTrip = useSetAtom(tripAtom)
   const setLastMile = useSetAtom(lastMileSelectionAtom)
+  const showCab = useAtomValue(showCabAtom)
 
   const paramsOk = hasRequiredTripParams(location.search)
   const trip = useMemo(() => parseTripQuery(location.search), [location.search])
@@ -76,6 +77,10 @@ export function RidePage() {
   }, [goToProvider, paramsOk])
 
   const telHref = helplineNumber ? `tel:${helplineNumber.replace(/[^\d+]/g, '')}` : undefined
+
+  if (!showCab) {
+    return <Navigate to={paramsOk ? `/journey${tripToSearch(trip)}` : '/journey'} replace />
+  }
 
   return (
     <section className="mt-ride">

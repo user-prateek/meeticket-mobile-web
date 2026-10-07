@@ -24,8 +24,8 @@ import {
 } from '../lib/cabDirect'
 import { preloadMap } from '../lib/mapProvider'
 import { buildSuccessPath } from '../lib/successUrl'
-import { hasRequiredTripParams, parseTripQuery } from '../lib/tripQuery'
-import { lastMileSelectionAtom, orderAtom, tripAtom, userAtom } from '../store/journey'
+import { hasRequiredTripParams, parseTripQuery, tripToSearch } from '../lib/tripQuery'
+import { lastMileSelectionAtom, orderAtom, showCabAtom, tripAtom, userAtom } from '../store/journey'
 
 /**
  * /cab?id=1&service=pickup|drop&provider=&mode=&vehicle=&order=
@@ -40,6 +40,7 @@ export function CabPage() {
   const storedTrip = useAtomValue(tripAtom)
   const setTrip = useSetAtom(tripAtom)
   const user = useAtomValue(userAtom)
+  const showCab = useAtomValue(showCabAtom)
   const setOrder = useSetAtom(orderAtom)
   const setLastMileSelection = useSetAtom(lastMileSelectionAtom)
   const selectJourney = useSelectJourney()
@@ -85,6 +86,15 @@ export function CabPage() {
     if (!isDirect || !directJourney) return
     selectJourney(directJourney)
   }, [isDirect, directJourney, selectJourney])
+
+  if (!showCab) {
+    return (
+      <Navigate
+        to={withAppContext(trip ? `/journey${tripToSearch(trip)}` : '/journey')}
+        replace
+      />
+    )
+  }
 
   if (isDirect && !directJourney) {
     return <Navigate to={withAppContext(rideHomePath(storedTrip))} replace />

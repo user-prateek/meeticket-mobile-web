@@ -41,7 +41,7 @@ import {
 } from '../lib/fareClasses'
 import { tripToSearch } from '../lib/tripQuery'
 import { showAlertAtom } from '../store/alert'
-import { journeyOptionsAtom, lastMileSelectionAtom, orderAtom, tripAtom, userAtom } from '../store/journey'
+import { journeyOptionsAtom, lastMileSelectionAtom, orderAtom, showCabAtom, tripAtom, userAtom } from '../store/journey'
 import olaLogo from '../assets/brands/ola.png'
 import rapidoLogo from '../assets/brands/rapido.png'
 import refexLogo from '../assets/brands/refex.png'
@@ -504,6 +504,7 @@ function AccessArrow({ checked }) {
 function PickupServiceCard({
   journey,
   trip,
+  showCab = false,
   needRide,
   modeId,
   providerId,
@@ -560,7 +561,8 @@ function PickupServiceCard({
         ) : (
           <span className="mt-pickup__km is-empty" aria-hidden="true" />
         )}
-        {/* <label className="mt-pickup__check">
+        {showCab ? (
+        <label className="mt-pickup__check">
           <span className="mt-pickup__check-input">
             <input type="checkbox" checked={needRide} onChange={onToggleNeedRide} />
           </span>
@@ -578,10 +580,11 @@ function PickupServiceCard({
               {mode.label}
             </span>
           ))}
-        </div> */}
+        </div>
+        ) : null}
       </div>
 
-      {/* {showVehicleSlots ? (
+      {showCab ? (showVehicleSlots ? (
         <div className="mt-pickup__options">
           <div
             className="mt-provider-options"
@@ -648,7 +651,7 @@ function PickupServiceCard({
             )
           })}
         </div>
-      )} */}
+      )) : null}
     </article>
   )
 }
@@ -656,6 +659,7 @@ function PickupServiceCard({
 function JourneyDetailView({
   journey,
   trip,
+  showCab = false,
   lastMile,
   needRide,
   modeId,
@@ -697,6 +701,7 @@ function JourneyDetailView({
           <PickupServiceCard
             journey={journey}
             trip={trip}
+            showCab={showCab}
             needRide={needRide}
             modeId={modeId}
             providerId={lastMile.providerId}
@@ -773,6 +778,7 @@ export function JourneyDetailPage() {
   const navigate = useAppNavigate()
   const trip = useAtomValue(tripAtom)
   const user = useAtomValue(userAtom)
+  const showCab = useAtomValue(showCabAtom)
   const [storedLastMile, setLastMileSelection] = useAtom(lastMileSelectionAtom)
   const setOrder = useSetAtom(orderAtom)
   const setJourneyOptions = useSetAtom(journeyOptionsAtom)
@@ -1150,6 +1156,7 @@ export function JourneyDetailPage() {
     <JourneyDetailView
       journey={journeyWithFares}
       trip={trip}
+      showCab={showCab}
       lastMile={lastMile}
       needRide={needRide}
       modeId={modeId}

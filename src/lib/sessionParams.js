@@ -25,6 +25,9 @@ const SESSION_QUERY_KEYS = new Set([
   'ola_access_token',
   'token_type',
   'expires_in',
+  'sc',
+  'show_cab',
+  'showcab',
 ])
 
 /** Trip keys Flutter puts on `/journey` — never strip these. */

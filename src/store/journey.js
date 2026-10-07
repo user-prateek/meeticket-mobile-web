@@ -1,5 +1,6 @@
 import { atom } from 'jotai'
 import { atomWithStorage, createJSONStorage } from 'jotai/utils'
+import { getShowCab } from '../lib/showCab'
 
 /** Survive refresh on /cab, /journey-detail, /success (tab-scoped). */
 const storage = createJSONStorage(() => sessionStorage)
@@ -45,6 +46,9 @@ export const orderAtom = persist('mt:order:v1', null)
  * null / missing vehicleId means none selected.
  */
 export const lastMileSelectionAtom = persist('mt:last-mile:v2', null)
+
+/** First-mile cab UI. Default false; `/journey?sc=1` turns it on for the session. */
+export const showCabAtom = atom(getShowCab())
 
 export const selectedJourneyAtom = atom((get) => {
   const id = get(selectedJourneyIdAtom)

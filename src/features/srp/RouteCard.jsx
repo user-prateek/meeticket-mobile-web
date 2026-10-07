@@ -26,7 +26,7 @@ import {
 } from '../../lib/fareClasses'
 import { ensureOlaToken } from '../../lib/olaLink'
 import { peekOlaOauthResume, takeOlaOauthResume } from '../../lib/olaOauth'
-import { tripAtom } from '../../store/journey'
+import { showCabAtom, tripAtom } from '../../store/journey'
 import olaLogo from '../../assets/brands/ola.png'
 import rapidoLogo from '../../assets/brands/rapido.png'
 import refexLogo from '../../assets/brands/refex.png'
@@ -533,6 +533,7 @@ export function RouteCard({
   onSelect,
   onLastMileChange,
 }) {
+  const showCab = useAtomValue(showCabAtom)
   const resumeHere = srpOlaResume(option.id)
   const [lastMile, setLastMile] = useState(
     () => resumeHere?.lastMile || LAST_MILE_MODE_DEFAULT,
@@ -851,7 +852,8 @@ export function RouteCard({
                 ) : (
                   <span className="mt-card__access-km is-empty" aria-hidden="true" />
                 )}
-                {/* <div className={`mt-card__ride-check-container${needRide ? ' checked' : ''}`}>
+                {showCab ? (
+                <div className={`mt-card__ride-check-container${needRide ? ' checked' : ''}`}>
                   <div className="mt-card__ride-modes" role="group" aria-label="First mile modes">
                     <label
                       className="mt-card__ride-check"
@@ -975,7 +977,8 @@ export function RouteCard({
                         )}
                       </div>
                     ) : null}
-                </div> */}
+                </div>
+                ) : null}
               </div>
 
               {compact && !singleHasFareOptions ? (

@@ -5,6 +5,7 @@ import {
   olaOauthScope,
   olaOauthState,
 } from '../api/config'
+import { getShowCab } from './showCab'
 
 const ATTEMPTED_KEY = 'mt:ola-oauth:attempted'
 const RESUME_KEY = 'mt:ola-oauth:resume'
@@ -125,13 +126,14 @@ export function buildOlaAuthorizeUrl({ redirectUri, state } = {}) {
   return `${base}${params.toString()}`
 }
 
-export function saveOlaOauthReturn({ url, resume, mobile } = {}) {
+export function saveOlaOauthReturn({ url, resume, mobile, showCab } = {}) {
   const path = String(url || '').trim()
   if (!path) return
   writeReturnEntry({
     url: path,
     resume: resume || null,
     mobile: String(mobile || '').trim() || null,
+    showCab: Boolean(showCab),
   })
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem('mt:ola-oauth:returns')
@@ -150,6 +152,7 @@ export function peekOlaOauthReturn() {
       url: String(entry.url || ''),
       resume: entry.resume || null,
       mobile: String(entry.mobile || '').trim() || null,
+      showCab: Boolean(entry.showCab),
     }
   } catch {
     return null
@@ -245,6 +248,7 @@ export function startOlaOauth({ extraParams, resume, mobile } = {}) {
     url: currentReturnPath(extraParams),
     resume: resumePayload,
     mobile,
+    showCab: getShowCab(),
   })
   if (resumePayload) rememberOlaOauthResume(resumePayload)
   markOlaOauthAttempted()
