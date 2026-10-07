@@ -128,6 +128,7 @@ export function parseTripQuery(source) {
   const mode = parseJourneyMode(
     firstParam(params, ['mode']) ?? getCapturedJourneyMode(),
   )
+  const showCab = firstParam(params, ['sc', 'show_cab', 'showcab']) === '1'
 
   return {
     fromPlace,
@@ -142,6 +143,7 @@ export function parseTripQuery(source) {
     accessMode,
     egressMode,
     candidates,
+    showCab,
   }
 }
 
@@ -162,6 +164,7 @@ export function tripToSearchParams(trip) {
   params.set('access_mode', trip.accessMode || DEFAULT_ACCESS_MODE)
   params.set('egress_mode', trip.egressMode || DEFAULT_EGRESS_MODE)
   params.set('candidates', String(trip.candidates === 2 ? 2 : 1))
+  if (trip.showCab) params.set('sc', '1')
   return params
 }
 

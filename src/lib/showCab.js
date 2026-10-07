@@ -35,7 +35,8 @@ export function captureShowCabFromSearch(pathname, search) {
   const raw = String(params.get('sc') || params.get('show_cab') || params.get('showcab') || '').trim()
   if (raw === '1') return persistShowCab(true)
 
-  if (hasRequiredTripParams(search)) return persistShowCab(false)
+  // Bare /journey (Ola callback) must not clear a session already turned on.
+  if (!hasRequiredTripParams(search)) return getShowCab()
 
-  return getShowCab()
+  return persistShowCab(false)
 }

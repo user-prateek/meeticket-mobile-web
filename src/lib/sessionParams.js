@@ -25,13 +25,10 @@ const SESSION_QUERY_KEYS = new Set([
   'ola_access_token',
   'token_type',
   'expires_in',
-  'sc',
-  'show_cab',
-  'showcab',
 ])
 
 /** Trip keys Flutter puts on `/journey` — never strip these. */
-const PRESERVE_QUERY_KEYS = new Set(['mode'])
+const PRESERVE_QUERY_KEYS = new Set(['mode', 'sc', 'show_cab', 'showcab'])
 
 export function isSessionQueryParam(key) {
   const k = String(key || '').toLowerCase()
