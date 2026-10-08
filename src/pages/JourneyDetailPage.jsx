@@ -562,25 +562,27 @@ function PickupServiceCard({
           <span className="mt-pickup__km is-empty" aria-hidden="true" />
         )}
         {showCab ? (
-        <label className="mt-pickup__check">
-          <span className="mt-pickup__check-input">
-            <input type="checkbox" checked={needRide} onChange={onToggleNeedRide} />
-          </span>
-          <span>need ride to {rideTarget}</span>
-        </label>
-        <div className="mt-pickup__mode-hints" aria-hidden="true">
-          {rideModes.map((mode) => (
-            <span key={mode.id} className="mt-pickup__mode-hint">
-              <ModeIcon
-                mode={mode.mode || mode.id}
-                size={16}
-                color="#6b7280"
-                className="mt-pickup__mode-icon"
-              />
-              {mode.label}
-            </span>
-          ))}
-        </div>
+          <>
+            <label className="mt-pickup__check">
+              <span className="mt-pickup__check-input">
+                <input type="checkbox" checked={needRide} onChange={onToggleNeedRide} />
+              </span>
+              <span>need ride to {rideTarget}</span>
+            </label>
+            <div className="mt-pickup__mode-hints" aria-hidden="true">
+              {rideModes.map((mode) => (
+                <span key={mode.id} className="mt-pickup__mode-hint">
+                  <ModeIcon
+                    mode={mode.mode || mode.id}
+                    size={16}
+                    color="#6b7280"
+                    className="mt-pickup__mode-icon"
+                  />
+                  {mode.label}
+                </span>
+              ))}
+            </div>
+          </>
         ) : null}
       </div>
 
