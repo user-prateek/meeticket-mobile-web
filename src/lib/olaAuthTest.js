@@ -1,6 +1,6 @@
-import { buildOlaAuthorizeUrl, createOlaOauthState, rememberOlaOauthState } from './olaOauth'
+import { buildOlaAuthorizeUrl, createOlaOauthState, rememberOlaOauthState, saveOlaOauthReturn } from './olaOauth'
 
-/** Isolated Ola callback test — do not reuse live `mt:ola-oauth:return`. State uses the shared key. */
+/** Test return page. OAuth state and `mt:ola-oauth:return` are the same keys as the live flow. */
 const RETURN_KEY = 'mt:ola-auth-test:return'
 const MOBILE_KEY = 'mt:ola-auth-test:mobile'
 
@@ -37,6 +37,16 @@ export function startOlaAuthTest(mobile) {
   saveOlaAuthTestReturn(OLA_AUTH_TEST_RETURN_URL, mobile)
   const state = createOlaOauthState()
   rememberOlaOauthState(state)
+  try {
+    const parsed = new URL(OLA_AUTH_TEST_RETURN_URL)
+    saveOlaOauthReturn({
+      url: `${parsed.pathname}${parsed.search}`,
+      mobile,
+      showCab: true,
+    })
+  } catch {
+    /* return URL is restored only when it parses */
+  }
   const url = buildOlaAuthorizeUrl({ state })
   if (!url || typeof window === 'undefined') return false
   window.location.assign(url)

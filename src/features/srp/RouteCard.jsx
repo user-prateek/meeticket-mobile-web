@@ -24,6 +24,7 @@ import {
   formatSegmentFareRange,
   cheapestFareOptionId,
 } from '../../lib/fareClasses'
+import { useOlaUserAccessToken } from '../../hooks/useOlaUserToken'
 import { ensureOlaToken } from '../../lib/olaLink'
 import { peekOlaOauthResume, takeOlaOauthResume } from '../../lib/olaOauth'
 import { showCabAtom, tripAtom } from '../../store/journey'
@@ -534,6 +535,7 @@ export function RouteCard({
   onLastMileChange,
 }) {
   const showCab = useAtomValue(showCabAtom)
+  const olaToken = useOlaUserAccessToken()
   const resumeHere = srpOlaResume(option.id)
   const [lastMile, setLastMile] = useState(
     () => resumeHere?.lastMile || LAST_MILE_MODE_DEFAULT,
@@ -632,7 +634,7 @@ export function RouteCard({
   }, [providerExpanded, selectedProviderId, option.id, trip])
 
   useEffect(() => {
-    if (!providerExpanded || selectedProviderId !== 'ola' || !isProviderEnabled('ola')) {
+    if (!providerExpanded || selectedProviderId !== 'ola' || !isProviderEnabled('ola') || !olaToken) {
       return undefined
     }
 
@@ -645,6 +647,7 @@ export function RouteCard({
       journey: option,
       trip,
       serviceId: 'pickup',
+      accessToken: olaToken,
       signal: controller.signal,
       refresh: true,
     })
@@ -661,7 +664,7 @@ export function RouteCard({
       })
 
     return () => controller.abort()
-  }, [providerExpanded, selectedProviderId, option.id, trip])
+  }, [providerExpanded, selectedProviderId, option.id, trip, olaToken])
 
   // Keep selection only if the slot still exists — do not auto-pick a vehicle.
   useEffect(() => {
@@ -777,11 +780,14 @@ export function RouteCard({
     setSelectedVehicleId(null)
     setLiveError('')
     setLiveStatus(id === 'ola' || id === 'refex' ? 'loading' : 'idle')
-    if (id === 'ola') {
+    if (id === 'ola' && !olaToken) {
+      setProviderExpanded(false)
+      setSelectedProviderId(null)
+      setLiveStatus('idle')
       if (olaLinkingRef.current) return
       olaLinkingRef.current = true
       try {
-        const result = await ensureOlaToken({
+        await ensureOlaToken({
           resume: {
             kind: 'srp',
             journeyId: option.id,
@@ -790,7 +796,6 @@ export function RouteCard({
             needRide: true,
           },
         })
-        if (result.source === 'oauth') return
       } finally {
         olaLinkingRef.current = false
       }

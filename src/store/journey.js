@@ -50,6 +50,13 @@ export const lastMileSelectionAtom = persist('mt:last-mile:v2', null)
 /** First-mile cab UI. Default false; `/journey?sc=1` turns it on for the session. */
 export const showCabAtom = atom(getShowCab())
 
+/**
+ * User Ola bearer. Set when `/journey` reads `ola_access_token` or `access_token`.
+ * Shape: `{ accessToken, expiresAt, expiresIn } | null`
+ */
+export const OLA_USER_TOKEN_KEY = 'mt:ola-user-token'
+export const olaAccessTokenAtom = persist(OLA_USER_TOKEN_KEY, null)
+
 export const selectedJourneyAtom = atom((get) => {
   const id = get(selectedJourneyIdAtom)
   if (id != null) {

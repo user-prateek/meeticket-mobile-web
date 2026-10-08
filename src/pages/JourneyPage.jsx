@@ -107,8 +107,11 @@ export function JourneyPage() {
     const params = new URLSearchParams(location.search)
     if (params.get('mode') === String(trip.mode)) return
     params.set('mode', String(trip.mode))
-    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true })
-  }, [trip, location.pathname, location.search, navigate])
+    navigate(
+      { pathname: location.pathname, search: params.toString(), hash: location.hash },
+      { replace: true },
+    )
+  }, [trip, location.hash, location.pathname, location.search, navigate])
 
   const { options, status, error, reload } = useJourneyOptions(paramsOk ? trip : null)
 

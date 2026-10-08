@@ -1,6 +1,5 @@
 import { PostRequest } from './client'
 import { ordersApiKey, ordersBaseUrl } from './config'
-import { storeOlaAccessToken } from '../lib/olaToken'
 
 function ordersAuthHeaders() {
   if (!ordersApiKey) {
@@ -75,20 +74,17 @@ export async function saveOlaAccessToken(
   { signal } = {},
 ) {
   const url = olaTokenUrl(mobile)
-  if (!url) throw new Error('Ola token URL is not configured')
+  //if (!url) throw new Error('Ola token URL is not configured')
   const token = String(accessToken || '').trim()
-  if (!token) throw new Error('Ola access token is missing')
+  //if (!token) throw new Error('Ola access token is missing')
 
   const payload = { access_token: token }
   const seconds = Number(expiresIn)
   if (Number.isFinite(seconds) && seconds > 0) payload.expires_in = seconds
 
-  const data = await PostRequest(url, payload, {
+  return PostRequest(url, payload, {
     signal,
     method: 'PUT',
     headers: ordersAuthHeaders(),
   })
-
-  storeOlaAccessToken({ accessToken: token, expiresIn })
-  return data
 }

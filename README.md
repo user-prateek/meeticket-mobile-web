@@ -44,9 +44,9 @@ Triggered when the user checks **Need a ride** and taps **Ola** on `/journey` or
 1. If an Ola token is already in session (including Android `?access_token=`), use it.
 2. Else `GET /api/ola/tokens/{mobile}` — reuse a stored token if present.
 3. Else open Ola authorize. `redirect_uri` is the registered callback `https://mmtsjp.iamgds.com/journey`, percent-encoded. `scope=profile booking` and a new `state` are separate parameters, not part of that URI.
-4. Ola returns to `/journey#access_token=…&token_type=bearer&expires_in=…&scope=…&state=…`. The app keeps the token only when `state` matches, then `PUT /api/ola/tokens/{mobile}` `{ access_token, expires_in }`.
+4. Ola returns to `https://mmtsjp.iamgds.com/journey#access_token=…&state=…&scope=profile%20booking&token_type=bearer&expires_in=…`. The app keeps the token only when `state` matches, then `PUT /api/ola/tokens/{mobile}` `{ access_token, expires_in }`.
 
-Authorize URL uses `VITE_OLA_CLIENT_ID` + `VITE_OLA_OAUTH_AUTHORIZE_URL`. Include `mobile` on the entry URL.
+`GET /v1/products` sends `Authorization: Bearer` from the journey query token and `x-app-token` from `VITE_OLA_CLIENT_ID`. That same client id is used on the authorize URL with `VITE_OLA_OAUTH_AUTHORIZE_URL`. Include `mobile` on the entry URL.
 
 ## API
 

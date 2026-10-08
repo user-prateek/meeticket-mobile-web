@@ -14,15 +14,14 @@ export const ordersApiKey = import.meta.env.VITE_ORDERS_API_KEY || ''
 /**
  * Ola Ride Availability / Estimate API (via iamgds gateway).
  * Working: https://olaapi.iamgds.com/v1/products
- * Auth: Authorization: Bearer {VITE_OLA_ACCESS_TOKEN}
- * Optional: VITE_OLA_APP_TOKEN → x-app-token (only if set).
+ * Auth: Authorization Bearer = journey query token in jotai.
+ * x-app-token = VITE_OLA_CLIENT_ID.
  * Direct browser calls (CORS on server). Restart `npm run dev` after env changes.
  */
 export const olaBaseUrl = (import.meta.env.VITE_OLA_BASE_URL || 'https://olaapi.iamgds.com').replace(
   /\/$/,
   '',
 )
-export const olaAppToken = import.meta.env.VITE_OLA_APP_TOKEN || ''
 /** Bearer token — env fallback when the user has not completed Ola OAuth. */
 export const olaAccessToken = import.meta.env.VITE_OLA_ACCESS_TOKEN || ''
 /** Optional Ola partner affiliate uid for bookings/create. Backend may also fill this. */
@@ -30,7 +29,8 @@ export const olaAffiliateUid = String(import.meta.env.VITE_OLA_AFFILIATE_UID || 
 /**
  * Ola user OAuth (implicit): open authorize URL, callback returns #access_token=.
  * Working authorize: https://devapi.olacabs.com/oauth2/authorize
- * Redirect URI must be the registered bare callback: https://mmtsjp.iamgds.com/journey
+ * Redirect URI is the registered journey path. Ola returns
+ * https://mmtsjp.iamgds.com/journey#access_token=…&state=…&scope=profile%20booking&token_type=bearer&expires_in=…
  */
 export const olaOauthAuthorizeUrl = String(
   import.meta.env.VITE_OLA_OAUTH_AUTHORIZE_URL || 'https://devapi.olacabs.com/oauth2/authorize',

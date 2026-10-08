@@ -1,32 +1,18 @@
-import { fetchOlaAccessToken, olaTokenMobile } from '../api/olaTokens'
+import { olaTokenMobile } from '../api/olaTokens'
 import { isOlaOauthConfigured, rememberOlaOauthResume, startOlaOauth } from './olaOauth'
-import { readStoredOlaToken, storeOlaAccessToken } from './olaToken'
+import { readStoredOlaToken } from './olaToken'
 import { getUserContext } from './userContext'
 
 /**
- * Resolve an Ola user token for the current session.
- * Session / GET reuse first; otherwise open Ola authorize. Callback is registered `/journey`;
- * the real page URL is restored from localStorage, then that key is removed.
+ * User token already in the session atom → caller may hit the products API.
+ * Otherwise save the current URL and leave for Ola OAuth.
  */
 export async function ensureOlaToken({ extraParams, resume } = {}) {
   if (readStoredOlaToken()) return { ok: true, source: 'session' }
-
-  const mobile = olaTokenMobile(getUserContext()?.mobile)
-  if (mobile) {
-    try {
-      const stored = await fetchOlaAccessToken(mobile)
-      if (stored?.accessToken) {
-        storeOlaAccessToken(stored)
-        return { ok: true, source: 'api' }
-      }
-    } catch {
-      // Lookup failed — fall through to OAuth when configured.
-    }
-  }
-
   if (!isOlaOauthConfigured()) return { ok: false, source: 'unconfigured' }
 
+  const mobile = olaTokenMobile(getUserContext()?.mobile)
   if (resume) rememberOlaOauthResume(resume)
-  startOlaOauth({ extraParams, resume, mobile })
-  return { ok: false, source: 'oauth' }
+  const started = startOlaOauth({ extraParams, resume, mobile })
+  return started ? { ok: false, source: 'oauth' } : { ok: false, source: 'unconfigured' }
 }

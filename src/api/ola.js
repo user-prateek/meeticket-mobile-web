@@ -4,7 +4,7 @@ import olaGoAc from '../assets/vehicles/ola_go_ac.png'
 import { formatFare } from '../constants/lastMile'
 import { getOlaAccessToken } from '../lib/olaToken'
 import { isOlaOauthConfigured } from '../lib/olaOauth'
-import { olaAppToken, urls } from './config'
+import { olaOauthClientId, urls } from './config'
 
 /**
  * Ola GET /v1/products — types match Ride Availability/Estimate docs.
@@ -499,11 +499,11 @@ function userFacingOlaMessage(code, fallback) {
   if (code === 'INVALID_CITY') return 'Ola is not available in this city.'
   if (code === 'INVALID_CITY_CAR_CATEGORY') return 'This Ola category is not available here.'
   if (code === 'OLA_TOKEN_MISSING') {
-    return 'Ola is not linked. Sign in with Ola, or set VITE_OLA_ACCESS_TOKEN for local fallback.'
+    return 'Ola is not linked. Sign in with Ola.'
   }
-  if (code === 'invalid_partner_key') return 'Ola partner token is invalid. Check VITE_OLA_APP_TOKEN.'
-  if (code === 'invalid_token' || code === 'UNAUTHORIZED' || code === 'HTTP_401') {
-    return 'Ola access token is missing or expired. Refresh VITE_OLA_ACCESS_TOKEN.'
+  if (code === 'invalid_partner_key') return 'Ola partner token is invalid. Check VITE_OLA_CLIENT_ID.'
+  if (code === 'invalid_token') {
+    return 'Ola access token is missing or expired. Sign in with Ola.'
   }
   return fallback || 'Could not load Ola ride estimates.'
 }
@@ -571,6 +571,13 @@ export async function getRideEstimate(params, { signal } = {}) {
   if (!bearer) {
     throw createOlaError('OLA_TOKEN_MISSING', userFacingOlaMessage('OLA_TOKEN_MISSING'))
   }
+  const appToken = String(olaOauthClientId || '').trim()
+  if (!appToken) {
+    throw createOlaError(
+      'OLA_CLIENT_ID_MISSING',
+      'Ola partner token is missing. Set VITE_OLA_CLIENT_ID.',
+    )
+  }
 
   const query = buildOlaProductsQuery({
     ...params,
@@ -582,14 +589,10 @@ export async function getRideEstimate(params, { signal } = {}) {
     serviceType: params.serviceType || 'p2p',
   })
 
-  // Match working curl: accept + Authorization Bearer only.
   const headers = {
     accept: 'application/json',
     Authorization: `Bearer ${bearer}`,
-  }
-  // Optional legacy header — only if configured.
-  if (olaAppToken) {
-    headers['x-app-token'] = olaAppToken
+    'x-app-token': appToken,
   }
 
   const search = new URLSearchParams()
@@ -601,7 +604,7 @@ export async function getRideEstimate(params, { signal } = {}) {
   console.info('[ola] products request', {
     url,
     hasBearer: true,
-    hasAppToken: Boolean(olaAppToken),
+    hasAppToken: true,
     pickup_lat: query.pickup_lat,
     pickup_lng: query.pickup_lng,
     drop_lat: query.drop_lat,
@@ -687,7 +690,7 @@ export async function getOlaRideEstimateForJourney(
 const olaEstimateCache = new Map()
 const olaEstimateInflight = new Map()
 
-function olaCacheKey({ journey, trip, serviceId = 'pickup', category, pickupMode = 'now' }) {
+function olaCacheKey({ journey, trip, serviceId = 'pickup', category, pickupMode = 'now', accessToken }) {
   const endpoints = resolveOlaTripEndpoints({ journey, trip, serviceId })
   return [
     serviceId,
@@ -697,14 +700,15 @@ function olaCacheKey({ journey, trip, serviceId = 'pickup', category, pickupMode
     endpoints.dropLng,
     category || '',
     pickupMode || 'now',
+    accessToken ? 'user' : 'none',
   ].join('|')
 }
 
 /** In-session cache + inflight dedupe. Caller `signal` only ignores stale UI updates. */
 export function getOlaRideEstimateForJourneyCached(
-  { journey, trip, serviceId = 'pickup', category, pickupMode = 'now', signal, refresh = false } = {},
+  { journey, trip, serviceId = 'pickup', category, pickupMode = 'now', accessToken, signal, refresh = false } = {},
 ) {
-  const key = olaCacheKey({ journey, trip, serviceId, category, pickupMode })
+  const key = olaCacheKey({ journey, trip, serviceId, category, pickupMode, accessToken })
 
   let request
   if (!refresh && olaEstimateCache.has(key)) {
@@ -714,7 +718,7 @@ export function getOlaRideEstimateForJourneyCached(
   } else {
     request = getOlaRideEstimateForJourney(
       { journey, trip, serviceId, category, pickupMode },
-      {},
+      { accessToken },
     )
       .then((result) => {
         olaEstimateCache.set(key, result)

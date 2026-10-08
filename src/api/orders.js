@@ -70,7 +70,7 @@ function olaAccessTokenValue() {
 function requireOlaAccessToken() {
   const token = olaAccessTokenValue()
   if (!token) {
-    throw new Error('Ola access token is missing. Link an Ola account or set VITE_OLA_ACCESS_TOKEN.')
+    throw new Error('Ola access token is missing. Link an Ola account.')
   }
   return token
 }

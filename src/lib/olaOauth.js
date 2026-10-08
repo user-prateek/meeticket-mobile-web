@@ -12,6 +12,8 @@ const RESUME_KEY = 'mt:ola-oauth:resume'
 const RETURN_KEY = 'mt:ola-oauth:return'
 const PENDING_SAVE_KEY = 'mt:ola-oauth:pending-save'
 const STATE_KEY = 'mt:ola-oauth:state'
+/** Full Ola redirect, kept so the same callback URL can be opened again in testing. */
+const LAST_CALLBACK_KEY = 'mt:ola-oauth:last-callback'
 /** Same document only — lets a strict-mode remount accept the callback it already checked. */
 let acceptedCallbackKey = ''
 
@@ -68,6 +70,49 @@ export function peekOlaOauthState() {
 export function clearOlaOauthState() {
   if (typeof localStorage === 'undefined') return
   localStorage.removeItem(STATE_KEY)
+}
+
+function readLastOlaCallback() {
+  if (typeof localStorage === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(LAST_CALLBACK_KEY)
+    if (!raw) return null
+    const entry = JSON.parse(raw)
+    if (!entry || typeof entry !== 'object') return null
+    return entry
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Log Ola's redirect and keep it in localStorage.
+ * A later visit to that same URL restores `state` and the journey return so the callback can run again.
+ */
+export function captureOlaCallbackUrl(href) {
+  const url = String(href || '').trim()
+  if (!url || typeof localStorage === 'undefined') return ''
+  const existing = readLastOlaCallback()
+  const sameUrl = existing?.url === url
+  if (sameUrl) {
+    if (!peekOlaOauthState() && existing.state) rememberOlaOauthState(existing.state)
+    if (!peekOlaOauthReturn()?.url && existing.returnEntry?.url) {
+      saveOlaOauthReturn(existing.returnEntry)
+    }
+  }
+  const snapshot = {
+    url,
+    state: peekOlaOauthState() || (sameUrl ? existing?.state : null) || null,
+    returnEntry: peekOlaOauthReturn() || (sameUrl ? existing?.returnEntry : null) || null,
+  }
+  try {
+    localStorage.setItem(LAST_CALLBACK_KEY, JSON.stringify(snapshot))
+  } catch {
+    /* quota / private mode */
+  }
+  console.info('[ola] callback url', url)
+  console.info('[ola] callback url saved in localStorage', LAST_CALLBACK_KEY)
+  return url
 }
 
 /** True when Ola echoed the `state` saved before this authorize redirect. */
@@ -153,7 +198,7 @@ export function currentPageUrl() {
   return `${window.location.origin}${window.location.pathname}${window.location.search}`
 }
 
-/** Registered Ola callback — always the whitelist URI, never the live query URL. */
+/** Registered Ola callback. The token comes back in the hash, not the query. */
 export function resolveOlaRedirectUri() {
   return olaOauthRedirectUri || 'https://mmtsjp.iamgds.com/journey'
 }
@@ -212,6 +257,79 @@ export function clearOlaOauthReturn() {
   if (typeof localStorage === 'undefined') return
   localStorage.removeItem(RETURN_KEY)
   localStorage.removeItem('mt:ola-oauth:returns')
+}
+
+/** Put the user token on the saved journey URL without dropping its other query params. */
+export function appendOlaTokenToReturnUrl(url, token, expiresIn) {
+  if (typeof window === 'undefined') return null
+  const raw = String(url || '').trim()
+  const tokenValue = String(token || '').trim()
+  if (!raw || !tokenValue) return null
+  if (!(raw.startsWith('/') || raw.startsWith(window.location.origin))) return null
+  if (raw.startsWith('//')) return null
+  try {
+    const parsed = new URL(raw, window.location.origin)
+    if (parsed.origin !== window.location.origin) return null
+    if (!parsed.pathname.startsWith('/') || parsed.pathname.startsWith('//')) return null
+    parsed.searchParams.delete('access_token')
+    parsed.searchParams.set('ola_access_token', tokenValue)
+    const seconds = Number(expiresIn)
+    if (Number.isFinite(seconds) && seconds > 0) {
+      parsed.searchParams.set('expires_in', String(Math.floor(seconds)))
+    }
+    const hash = parsed.hash.includes('access_token') ? '' : parsed.hash
+    return {
+      pathname: parsed.pathname,
+      search: parsed.search.startsWith('?') ? parsed.search.slice(1) : '',
+      hash,
+    }
+  } catch {
+    return null
+  }
+}
+
+function callbackFromHash(hash) {
+  const parsed = parseOlaOauthCallback(hash)
+  const params = readParams(hash)
+  let isCallback = Boolean(parsed?.accessToken)
+  if (!isCallback) {
+    for (const key of params.keys()) {
+      if (CALLBACK_QUERY_KEYS.has(String(key).toLowerCase())) {
+        isCallback = true
+        break
+      }
+    }
+  }
+  return { parsed, isCallback }
+}
+
+/**
+ * Hash captured at page load, before any in-page replace drops `#access_token`.
+ * Ola's redirect is
+ * /journey#access_token=…&state=…&scope=profile%20booking&token_type=bearer&expires_in=…
+ */
+let bootOlaHash = ''
+let bootOlaHref = ''
+
+/** True when this navigation is Ola's implicit callback (`#access_token=`), not a journey query token. */
+export function readOlaHashCallback(location) {
+  const live = callbackFromHash(location?.hash)
+  if (live.isCallback) return live
+  if (bootOlaHash) return callbackFromHash(bootOlaHash)
+  return live
+}
+
+export function clearBootOlaCallback() {
+  bootOlaHash = ''
+  bootOlaHref = ''
+}
+
+/** Full callback URL from this page load, even if the router has already dropped the hash. */
+export function olaCallbackHref() {
+  if (typeof window !== 'undefined' && callbackFromHash(window.location.hash).isCallback) {
+    return window.location.href
+  }
+  return bootOlaHref
 }
 
 export function parseSafeOlaReturnUrl(url) {
@@ -307,4 +425,13 @@ export function startOlaOauth({ extraParams, resume, mobile } = {}) {
   if (!url) return false
   window.location.assign(url)
   return true
+}
+
+if (typeof window !== 'undefined') {
+  const boot = callbackFromHash(window.location.hash)
+  if (boot.isCallback) {
+    bootOlaHash = window.location.hash
+    bootOlaHref = window.location.href
+    captureOlaCallbackUrl(bootOlaHref)
+  }
 }

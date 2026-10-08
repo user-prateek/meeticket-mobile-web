@@ -31,6 +31,7 @@ import { formatMetroStationName } from '../api/journey'
 import { useAppNavigate } from '../hooks/useAppNavigate'
 import { useJourneyOptionById, useSelectJourney } from '../hooks/useJourneyOptions'
 import { withAppContext } from '../lib/appContext'
+import { useOlaUserAccessToken } from '../hooks/useOlaUserToken'
 import { ensureOlaToken } from '../lib/olaLink'
 import { peekOlaOauthResume, takeOlaOauthResume } from '../lib/olaOauth'
 import {
@@ -781,6 +782,7 @@ export function JourneyDetailPage() {
   const trip = useAtomValue(tripAtom)
   const user = useAtomValue(userAtom)
   const showCab = useAtomValue(showCabAtom)
+  const olaToken = useOlaUserAccessToken()
   const [storedLastMile, setLastMileSelection] = useAtom(lastMileSelectionAtom)
   const setOrder = useSetAtom(orderAtom)
   const setJourneyOptions = useSetAtom(journeyOptionsAtom)
@@ -889,7 +891,7 @@ export function JourneyDetailPage() {
   }, [needRide, providerId, journey, trip])
 
   useEffect(() => {
-    if (!needRide || providerId !== 'ola' || !isProviderEnabled('ola')) {
+    if (!needRide || providerId !== 'ola' || !isProviderEnabled('ola') || !olaToken) {
       return undefined
     }
 
@@ -902,6 +904,7 @@ export function JourneyDetailPage() {
       journey,
       trip,
       serviceId: 'pickup',
+      accessToken: olaToken,
       signal: controller.signal,
       refresh: true,
     })
@@ -918,7 +921,7 @@ export function JourneyDetailPage() {
       })
 
     return () => controller.abort()
-  }, [needRide, providerId, journey, trip])
+  }, [needRide, providerId, journey, trip, olaToken])
 
   const liveVehicles =
     providerId === 'refex' ? refexVehicles : providerId === 'ola' ? olaVehicles : undefined
@@ -1074,15 +1077,15 @@ export function JourneyDetailPage() {
     setSlotError('')
     setSlotStatus(nextProviderId === 'ola' || nextProviderId === 'refex' ? 'loading' : 'idle')
     syncSelection(nextProviderId, null, nextMode, true)
-    if (nextProviderId === 'ola') {
+    if (nextProviderId === 'ola' && !olaToken) {
+      setSlotStatus('idle')
       if (olaLinkingRef.current) return
       olaLinkingRef.current = true
       try {
-        const result = await ensureOlaToken({
+        await ensureOlaToken({
           extraParams: { provider: 'ola' },
           resume: { kind: 'detail', journeyId: journey.id, providerId: 'ola' },
         })
-        if (result.source === 'oauth') return
       } finally {
         olaLinkingRef.current = false
       }

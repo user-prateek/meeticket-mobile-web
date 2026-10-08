@@ -1,4 +1,4 @@
-import { olaAccessToken as envOlaAccessToken } from '../api/config'
+import { OLA_USER_TOKEN_KEY } from '../store/journey'
 import { getUserContext, persistUserPatch } from './userContext'
 
 function isExpired(expiresAt) {
@@ -8,15 +8,36 @@ function isExpired(expiresAt) {
   return Date.now() >= at - 60_000
 }
 
+export function usableOlaAccessToken(value) {
+  const accessToken = String(value?.accessToken || '').trim()
+  if (!accessToken || isExpired(value?.expiresAt)) return ''
+  return accessToken
+}
+
+function readPersistedOlaUserToken() {
+  if (typeof sessionStorage === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem(OLA_USER_TOKEN_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
 export function readStoredOlaToken(user = getUserContext()) {
+  const persisted = usableOlaAccessToken(readPersistedOlaUserToken())
+  if (persisted) return persisted
   const accessToken = String(user?.olaAccessToken || '').trim()
   if (!accessToken || isExpired(user?.olaTokenExpiresAt)) return ''
   return accessToken
 }
 
-/** User OAuth token first, then env fallback used by estimates / orders. */
+/** User Ola bearer from the session atom. x-app-token is VITE_OLA_CLIENT_ID. */
 export function getOlaAccessToken() {
-  return readStoredOlaToken() || String(envOlaAccessToken || '').trim()
+  return readStoredOlaToken()
 }
 
 export function storeOlaAccessToken({ accessToken, expiresAt, expiresIn } = {}) {

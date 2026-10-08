@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useOlaUserAccessToken } from '../../hooks/useOlaUserToken'
 import { CabMap } from '../../components/CabMap'
 import { InlineSpinner, isLiveSlotLoading } from '../../components/InlineSpinner'
 import { BackIcon, ModeIcon } from '../../components/icons'
@@ -16,7 +17,6 @@ import {
 } from '../../constants/lastMile'
 import { getOlaRideEstimateForJourneyCached } from '../../api/ola'
 import { searchRefexForJourney } from '../../api/refex'
-import { ensureOlaToken } from '../../lib/olaLink'
 import { resolveCabMapPoints } from '../../lib/googleMaps'
 import { preloadMap } from '../../lib/mapProvider'
 import './LastMilePage.css'
@@ -70,6 +70,7 @@ export function LastMilePage({
   const [bookError, setBookError] = useState('')
 
   const provider = getLastMileProvider(providerId)
+  const olaToken = useOlaUserAccessToken()
 
   const liveVehicles =
     providerId === 'refex' ? refexVehicles : providerId === 'ola' ? olaVehicles : undefined
@@ -175,20 +176,22 @@ export function LastMilePage({
     const controller = new AbortController()
     let cancelled = false
     setOlaVehicles([])
-    setLiveStatus('loading')
     setLiveError('')
 
-    ;(async () => {
-      const auth = await ensureOlaToken({
-        resume: { kind: 'cab', providerId: 'ola', serviceId },
-      })
-      if (cancelled || auth.source === 'oauth') return
+    if (!olaToken) {
+      setLiveStatus('idle')
+      return () => controller.abort()
+    }
 
+    setLiveStatus('loading')
+
+    ;(async () => {
       try {
         const result = await getOlaRideEstimateForJourneyCached({
           journey,
           trip,
           serviceId,
+          accessToken: olaToken,
           signal: controller.signal,
           refresh: true,
         })
@@ -207,7 +210,7 @@ export function LastMilePage({
       cancelled = true
       controller.abort()
     }
-  }, [providerId, journey, trip, serviceId])
+  }, [providerId, journey, trip, serviceId, olaToken])
 
   useEffect(() => {
     if (vehicles.length === 0) {
