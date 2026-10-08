@@ -9,6 +9,7 @@ import { persistOlaTokenToBackend, useSaveOlaTokenOnCallback } from './hooks/use
 import { captureUserFromSearch, persistUserPatch } from './lib/userContext'
 import {
   clearOlaOauthReturn,
+  isGluedOlaJourneyPath,
   isOlaOauthCallback,
   markOlaOauthPendingSave,
   parseOlaOauthCallback,
@@ -70,6 +71,12 @@ const MapOpenPage = lazy(() =>
 const OlaAuthPage = lazy(() =>
   import('./pages/OlaAuthPage').then((m) => ({ default: m.OlaAuthPage })),
 )
+
+function UnknownRoute() {
+  const { pathname } = useLocation()
+  if (isGluedOlaJourneyPath(pathname)) return null
+  return <Navigate to={demoJourneyPath()} replace />
+}
 
 function RouteFallback() {
   const path = useLocation().pathname
@@ -142,7 +149,7 @@ function AppContextSync() {
       storedUser = storeOlaAccessToken(oauth)
       // Hash (and Ola-style query with expires_in) → persist via SET API.
       // Bare ?access_token= from Android is session-only; skip GET/SET.
-      if (fromHash || oauth.expiresIn || oauth.tokenType) {
+      if (fromHash || isGluedOlaJourneyPath(location.pathname) || oauth.expiresIn || oauth.tokenType) {
         markOlaOauthPendingSave()
         persistOlaTokenToBackend()
       }
@@ -160,7 +167,9 @@ function AppContextSync() {
       }
     }
 
-    if (location.pathname === '/journey' && !hasRequiredTripParams(location.search)) {
+    const onJourney =
+      location.pathname === '/journey' || isGluedOlaJourneyPath(location.pathname)
+    if (onJourney && !hasRequiredTripParams(location.search)) {
       const saved = peekOlaAuthTestReturn()
       const bounce = parseOlaAuthTestReturn(saved)
       if (bounce) {
@@ -176,11 +185,14 @@ function AppContextSync() {
     const currentSearch = location.search.startsWith('?')
       ? location.search.slice(1)
       : location.search
-    const hashNeedsClear = Boolean((oauth?.accessToken || olaCallback) && location.hash)
+    const nextPathname = isGluedOlaJourneyPath(location.pathname) ? '/journey' : location.pathname
+    const hashNeedsClear = Boolean(
+      (oauth?.accessToken || olaCallback) && (location.hash || nextPathname !== location.pathname),
+    )
 
-    if (cleanedSearch !== currentSearch || hashNeedsClear) {
+    if (cleanedSearch !== currentSearch || hashNeedsClear || nextPathname !== location.pathname) {
       navigate(
-        { pathname: location.pathname, search: cleanedSearch, hash: '' },
+        { pathname: nextPathname, search: cleanedSearch, hash: '' },
         { replace: true },
       )
     }
@@ -225,7 +237,7 @@ export default function App() {
                     <Route path="/success" element={<SuccessPage />} />
                     <Route path="/gotohome" element={<GoToHomePage />} />
                     <Route path="/" element={<Navigate to={demoJourneyPath()} replace />} />
-                    <Route path="*" element={<Navigate to={demoJourneyPath()} replace />} />
+                    <Route path="*" element={<UnknownRoute />} />
                   </Routes>
                 </Suspense>
               </MobileShell>

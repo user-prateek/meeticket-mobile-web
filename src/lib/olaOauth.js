@@ -30,11 +30,54 @@ function readParams(source) {
   return new URLSearchParams(trimmed)
 }
 
+/** Ola sometimes returns `/journey&scope=...&state=...#access_token=...` with no `?`. */
+function gluedJourneyParams(pathname) {
+  const path = String(pathname || '')
+  const marker = '/journey&'
+  if (!path.startsWith(marker)) return null
+  const params = readParams(path.slice(marker.length))
+  for (const key of params.keys()) {
+    if (CALLBACK_QUERY_KEYS.has(String(key).toLowerCase())) return params
+  }
+  return null
+}
+
+export function isGluedOlaJourneyPath(pathname) {
+  return Boolean(gluedJourneyParams(pathname))
+}
+
 function mergedCallbackParams(location) {
   const merged = readParams(location?.search)
   const hash = readParams(location?.hash)
   for (const [key, value] of hash.entries()) merged.set(key, value)
+  const glued = gluedJourneyParams(location?.pathname)
+  if (glued) {
+    for (const [key, value] of glued.entries()) {
+      if (!merged.has(key)) merged.set(key, value)
+    }
+  }
   return merged
+}
+
+/**
+ * Rewrite `/journey&scope=...&state=...#access_token=...` to `/journey#access_token=...`
+ * before the router treats the `&...` suffix as the pathname.
+ */
+export function normalizeGluedOlaCallbackUrl() {
+  if (typeof window === 'undefined') return false
+  const glued = gluedJourneyParams(window.location.pathname)
+  if (!glued) return false
+
+  const hashParams = readParams(window.location.hash)
+  for (const [key, value] of glued.entries()) {
+    if (!CALLBACK_QUERY_KEYS.has(String(key).toLowerCase())) continue
+    if (!hashParams.has(key)) hashParams.set(key, value)
+  }
+
+  const hash = hashParams.toString()
+  const next = `/journey${window.location.search}${hash ? `#${hash}` : ''}`
+  window.history.replaceState(window.history.state, '', next)
+  return true
 }
 
 function writeReturnEntry(entry) {
