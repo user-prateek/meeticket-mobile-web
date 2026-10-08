@@ -39,9 +39,7 @@ export const olaOauthClientId = String(
   import.meta.env.VITE_OLA_CLIENT_ID || 'MjY4YWEwNDUtNWY3Ni00NmI2LTk4OWYtZDRmOGNhOWYyN2Zi',
 ).trim()
 export const olaOauthScope = String(import.meta.env.VITE_OLA_OAUTH_SCOPE || 'profile booking').trim()
-/** Ola echoes this `state` unchanged — not a per-attempt identifier. */
-export const olaOauthState = String(import.meta.env.VITE_OLA_OAUTH_STATE || 'state123').trim()
-/** Registered callback. Must match Ola whitelist exactly. */
+/** Registered callback. Must match Ola whitelist exactly. `state` is generated per attempt. */
 export const olaOauthRedirectUri = String(
   import.meta.env.VITE_OLA_OAUTH_REDIRECT_URI || 'https://mmtsjp.iamgds.com/journey',
 ).trim()

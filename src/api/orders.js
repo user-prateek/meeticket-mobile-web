@@ -813,13 +813,23 @@ export async function buildDropOrderPayload({ journey, trip, lastMile, selectedV
   })
 }
 
+function redactOlaAccessToken(value) {
+  if (Array.isArray(value)) return value.map(redactOlaAccessToken)
+  if (!value || typeof value !== 'object') return value
+  const next = {}
+  for (const [key, child] of Object.entries(value)) {
+    next[key] = key === 'ola_access_token' ? '[redacted]' : redactOlaAccessToken(child)
+  }
+  return next
+}
+
 export async function createOrder(payload, { signal, journeyId } = {}) {
   if (!urls.orders) {
     throw new Error('Orders API URL is not configured')
   }
 
   if (import.meta.env.DEV) {
-    console.info('[orders] POST', urls.orders, { payload })
+    console.info('[orders] POST', urls.orders, { payload: redactOlaAccessToken(payload) })
   }
 
   const data = await PostRequest(urls.orders, payload, {

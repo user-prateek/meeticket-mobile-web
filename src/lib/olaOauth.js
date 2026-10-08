@@ -3,15 +3,17 @@ import {
   olaOauthClientId,
   olaOauthRedirectUri,
   olaOauthScope,
-  olaOauthState,
 } from '../api/config'
 import { getShowCab } from './showCab'
 
 const ATTEMPTED_KEY = 'mt:ola-oauth:attempted'
 const RESUME_KEY = 'mt:ola-oauth:resume'
-/** Single slot — Ola callback query is fixed, so we cannot key by `state`. */
+/** Single return slot. `state` is checked separately, not used as the storage key. */
 const RETURN_KEY = 'mt:ola-oauth:return'
 const PENDING_SAVE_KEY = 'mt:ola-oauth:pending-save'
+const STATE_KEY = 'mt:ola-oauth:state'
+/** Same document only — lets a strict-mode remount accept the callback it already checked. */
+let acceptedCallbackKey = ''
 
 const CALLBACK_QUERY_KEYS = new Set([
   'access_token',
@@ -30,54 +32,56 @@ function readParams(source) {
   return new URLSearchParams(trimmed)
 }
 
-/** Ola sometimes returns `/journey&scope=...&state=...#access_token=...` with no `?`. */
-function gluedJourneyParams(pathname) {
-  const path = String(pathname || '')
-  const marker = '/journey&'
-  if (!path.startsWith(marker)) return null
-  const params = readParams(path.slice(marker.length))
-  for (const key of params.keys()) {
-    if (CALLBACK_QUERY_KEYS.has(String(key).toLowerCase())) return params
-  }
-  return null
-}
-
-export function isGluedOlaJourneyPath(pathname) {
-  return Boolean(gluedJourneyParams(pathname))
-}
-
 function mergedCallbackParams(location) {
   const merged = readParams(location?.search)
   const hash = readParams(location?.hash)
   for (const [key, value] of hash.entries()) merged.set(key, value)
-  const glued = gluedJourneyParams(location?.pathname)
-  if (glued) {
-    for (const [key, value] of glued.entries()) {
-      if (!merged.has(key)) merged.set(key, value)
-    }
-  }
   return merged
 }
 
-/**
- * Rewrite `/journey&scope=...&state=...#access_token=...` to `/journey#access_token=...`
- * before the router treats the `&...` suffix as the pathname.
- */
-export function normalizeGluedOlaCallbackUrl() {
-  if (typeof window === 'undefined') return false
-  const glued = gluedJourneyParams(window.location.pathname)
-  if (!glued) return false
-
-  const hashParams = readParams(window.location.hash)
-  for (const [key, value] of glued.entries()) {
-    if (!CALLBACK_QUERY_KEYS.has(String(key).toLowerCase())) continue
-    if (!hashParams.has(key)) hashParams.set(key, value)
+export function createOlaOauthState() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
   }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+}
 
-  const hash = hashParams.toString()
-  const next = `/journey${window.location.search}${hash ? `#${hash}` : ''}`
-  window.history.replaceState(window.history.state, '', next)
-  return true
+export function rememberOlaOauthState(state) {
+  const value = String(state || '').trim()
+  if (!value || typeof localStorage === 'undefined') return
+  try {
+    localStorage.setItem(STATE_KEY, value)
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+export function peekOlaOauthState() {
+  if (typeof localStorage === 'undefined') return ''
+  try {
+    return String(localStorage.getItem(STATE_KEY) || '').trim()
+  } catch {
+    return ''
+  }
+}
+
+export function clearOlaOauthState() {
+  if (typeof localStorage === 'undefined') return
+  localStorage.removeItem(STATE_KEY)
+}
+
+/** True when Ola echoed the `state` saved before this authorize redirect. */
+export function acceptOlaOauthState(returnedState, accessToken) {
+  const actual = String(returnedState || '').trim()
+  const token = String(accessToken || '').trim()
+  const key = `${actual}:${token}`
+  const expected = peekOlaOauthState()
+  if (expected && actual && expected === actual) {
+    acceptedCallbackKey = key
+    clearOlaOauthState()
+    return true
+  }
+  return Boolean(acceptedCallbackKey && acceptedCallbackKey === key)
 }
 
 function writeReturnEntry(entry) {
@@ -156,12 +160,14 @@ export function resolveOlaRedirectUri() {
 
 export function buildOlaAuthorizeUrl({ redirectUri, state } = {}) {
   if (!isOlaOauthConfigured()) return ''
+  const oauthState = String(state || '').trim() || createOlaOauthState()
+  if (!String(state || '').trim()) rememberOlaOauthState(oauthState)
   const params = new URLSearchParams({
     response_type: 'token',
     client_id: olaOauthClientId,
     redirect_uri: redirectUri || resolveOlaRedirectUri(),
     scope: olaOauthScope || 'profile booking',
-    state: state || olaOauthState || 'state123',
+    state: oauthState,
   })
   const base = olaOauthAuthorizeUrl.includes('?')
     ? `${olaOauthAuthorizeUrl}&`
@@ -295,7 +301,9 @@ export function startOlaOauth({ extraParams, resume, mobile } = {}) {
   })
   if (resumePayload) rememberOlaOauthResume(resumePayload)
   markOlaOauthAttempted()
-  const url = buildOlaAuthorizeUrl({ redirectUri: resolveOlaRedirectUri() })
+  const state = createOlaOauthState()
+  rememberOlaOauthState(state)
+  const url = buildOlaAuthorizeUrl({ redirectUri: resolveOlaRedirectUri(), state })
   if (!url) return false
   window.location.assign(url)
   return true

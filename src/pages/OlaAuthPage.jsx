@@ -1,14 +1,9 @@
 import { getUserContext } from '../lib/userContext'
-import {
-  OLA_AUTH_TEST_AUTHORIZE_URL,
-  OLA_AUTH_TEST_RETURN_URL,
-  saveOlaAuthTestReturn,
-} from '../lib/olaAuthTest'
+import { startOlaAuthTest } from '../lib/olaAuthTest'
 
 export function OlaAuthPage() {
-  function startOlaAuthTest() {
-    saveOlaAuthTestReturn(OLA_AUTH_TEST_RETURN_URL, getUserContext()?.mobile)
-    window.location.assign(OLA_AUTH_TEST_AUTHORIZE_URL)
+  function onLogin() {
+    startOlaAuthTest(getUserContext()?.mobile)
   }
 
   return (
@@ -24,7 +19,7 @@ export function OlaAuthPage() {
     >
       <button
         type="button"
-        onClick={startOlaAuthTest}
+        onClick={onLogin}
         style={{
           fontSize: 16,
           fontWeight: 600,
