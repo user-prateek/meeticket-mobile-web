@@ -2,15 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import tgsrtcLogo from '../../assets/brands/tgsrtc.png'
 import hyderabadMetroLogo from '../../assets/brands/hyderabad-metro.png'
 import metroTabIcon from '../../assets/icons/metro.png'
+import mapGuideIcon from '../../assets/icons/map-guide.png'
 import {
   AppLogo,
   BackIcon,
   CalendarIcon,
   CashBillIcon,
+  ChevronIcon,
   ClockIcon,
   CloseIcon,
   InfoIcon,
-  MapGuideIcon,
   ModeIcon,
   PencilIcon,
   PersonIcon,
@@ -42,7 +43,7 @@ import './TicketsPage.cab.css'
 import './TicketsPage.metro.css'
 import './TicketsPage.qr-flip.css'
 
-function TicketsHeader({ onBack, onCall, mapGuideOpen, onMapGuide, mapGuideOptions }) {
+function TicketsHeader({ onBack, onCall }) {
   return (
     <header className="mt-tickets__header">
       <button type="button" className="mt-tickets__icon-btn" onClick={onBack} aria-label="Go back">
@@ -50,35 +51,37 @@ function TicketsHeader({ onBack, onCall, mapGuideOpen, onMapGuide, mapGuideOptio
       </button>
       <AppLogo width={60} height={58} className="mt-tickets__logo" />
       <div className="mt-tickets__header-actions">
-        <div className="mt-tickets__map-guide-wrap">
-          <button
-            type="button"
-            className={`mt-tickets__map-guide${mapGuideOpen ? ' is-open' : ''}`}
-            onClick={(event) => {
-              event.stopPropagation()
-              onMapGuide?.()
-            }}
-            aria-label="Map Guide"
-            aria-expanded={mapGuideOpen}
-            aria-haspopup="dialog"
-          >
-            <MapGuideIcon size={18} className="mt-tickets__map-guide-icon" />
-            <span className="mt-tickets__map-guide-label">
-              <span>Map</span>
-              <span>Guide</span>
-            </span>
-          </button>
-          <MapGuidePopup
-            open={mapGuideOpen}
-            options={mapGuideOptions}
-            onClose={() => onMapGuide?.(false)}
-          />
-        </div>
         <button type="button" className="mt-tickets__call-btn" onClick={onCall} aria-label="Call support">
           <PhoneIcon size={18} />
         </button>
       </div>
     </header>
+  )
+}
+
+/** Sits under mode tabs and journey tabs, outside the tab panel, so it stays on every tab. */
+function MapGuideBar({ open, onToggle, options }) {
+  return (
+    <div className="mt-map-guide-slot">
+      <button
+        type="button"
+        className={`mt-map-guide${open ? ' is-open' : ''}`}
+        onClick={(event) => {
+          event.stopPropagation()
+          onToggle?.()
+        }}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+      >
+        <img src={mapGuideIcon} alt="" className="mt-map-guide__icon" draggable={false} />
+        <span className="mt-map-guide__copy">
+          <span className="mt-map-guide__title">Map Guide</span>
+          <span className="mt-map-guide__subtitle">View Routes and Stops</span>
+        </span>
+        <ChevronIcon size={18} className="mt-map-guide__chevron" />
+      </button>
+      <MapGuidePopup open={open} options={options} onClose={() => onToggle?.(false)} />
+    </div>
   )
 }
 
@@ -1074,14 +1077,9 @@ export function TicketsPage({
   if (!normalized) {
     return (
       <section className="mt-tickets">
-        <TicketsHeader
-          onBack={onBack}
-          onCall={onCall}
-          mapGuideOpen={mapGuideOpen}
-          onMapGuide={handleMapGuide}
-          mapGuideOptions={mapGuideOptions}
-        />
+        <TicketsHeader onBack={onBack} onCall={onCall} />
         <ModeTabs activeId="bus" enabledById={{ metro: false, bus: false, cab: false, other: false }} onChange={() => {}} />
+        <MapGuideBar open={mapGuideOpen} onToggle={handleMapGuide} options={mapGuideOptions} />
         <p className="mt-ticket-empty">No active booking found.</p>
       </section>
     )
@@ -1092,13 +1090,7 @@ export function TicketsPage({
 
   return (
     <section className="mt-tickets">
-      <TicketsHeader
-        onBack={onBack}
-        onCall={onCall}
-        mapGuideOpen={mapGuideOpen}
-        onMapGuide={handleMapGuide}
-        mapGuideOptions={mapGuideOptions}
-      />
+      <TicketsHeader onBack={onBack} onCall={onCall} />
       {normalized.isPolling && ticket?.bookingState !== 'searching' ? (
         <p className="mt-tickets__polling" role="status">
           Confirming your bookings…
@@ -1108,6 +1100,7 @@ export function TicketsPage({
       {showJourneyTabs ? (
         <JourneyTabs journeys={journeys} activeIndex={journeyIndex} onChange={setJourneyIndex} />
       ) : null}
+      <MapGuideBar open={mapGuideOpen} onToggle={handleMapGuide} options={mapGuideOptions} />
 
       {ticket?.bookingState === 'cancelled' ? (
         <p className="mt-tickets__cancelled-banner" role="status">

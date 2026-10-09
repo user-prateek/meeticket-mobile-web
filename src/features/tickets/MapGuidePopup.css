@@ -12,26 +12,25 @@
 .mt-map-guide-popup {
   position: absolute;
   top: calc(100% + 8px);
-  /* Line up with the header content box: phone button + gap sit to the right of this wrap. */
-  right: calc(-1 * (var(--tk-call, 18px) + var(--tk-space-8, 8px)));
+  left: 0;
   z-index: 70;
   box-sizing: border-box;
-  width: min(398px, calc(100vw - 32px));
-  width: 100cqi;
-  padding: 10px 12px 12px;
+  width: calc(100% - 20px);
+  padding: 10px 16px 12px;
   border: 1.5px solid var(--mt-navy, #060496);
   border-radius: 12px;
   background: #fff;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+  margin: 0 10px;
 }
 
 .mt-map-guide-popup__caret {
   position: absolute;
   top: -7px;
-  /* Center the caret on the Map Guide button, which sits left of the phone control. */
-  right: calc(var(--tk-call, 18px) + var(--tk-space-8, 8px) + 29px);
+  left: 50%;
   width: 14px;
   height: 14px;
+  margin-left: -7px;
   border-top: 1.5px solid var(--mt-navy, #060496);
   border-left: 1.5px solid var(--mt-navy, #060496);
   background: #fff;
