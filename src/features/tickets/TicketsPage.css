@@ -9,6 +9,7 @@
 .mt-tickets__header {
   position: relative;
   z-index: 60;
+  container-type: inline-size;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -59,10 +60,6 @@
   background: var(--tk-surface);
   color: var(--tk-primary);
   cursor: pointer;
-}
-
-.mt-tickets__map-guide.is-open {
-  background: #e8f1ff;
 }
 
 .mt-tickets__map-guide-icon {

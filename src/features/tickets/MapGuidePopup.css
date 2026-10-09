@@ -11,26 +11,29 @@
 
 .mt-map-guide-popup {
   position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
+  top: calc(100% + 8px);
+  /* Line up with the header content box: phone button + gap sit to the right of this wrap. */
+  right: calc(-1 * (var(--tk-call, 18px) + var(--tk-space-8, 8px)));
   z-index: 70;
   box-sizing: border-box;
-  width: min(248px, calc(100vw - 24px));
-  padding: 10px;
-  border: 1.5px solid var(--tk-primary, #003399);
+  width: min(398px, calc(100vw - 32px));
+  width: 100cqi;
+  padding: 10px 12px 12px;
+  border: 1.5px solid var(--mt-navy, #060496);
   border-radius: 12px;
   background: #fff;
-  box-shadow: 0 8px 24px rgba(0, 34, 102, 0.12);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
 }
 
 .mt-map-guide-popup__caret {
   position: absolute;
   top: -7px;
-  right: 34px;
-  width: 12px;
-  height: 12px;
-  border-top: 1.5px solid var(--tk-primary, #003399);
-  border-left: 1.5px solid var(--tk-primary, #003399);
+  /* Center the caret on the Map Guide button, which sits left of the phone control. */
+  right: calc(var(--tk-call, 18px) + var(--tk-space-8, 8px) + 29px);
+  width: 14px;
+  height: 14px;
+  border-top: 1.5px solid var(--mt-navy, #060496);
+  border-left: 1.5px solid var(--mt-navy, #060496);
   background: #fff;
   transform: rotate(45deg);
 }
@@ -38,48 +41,52 @@
 .mt-map-guide-popup__list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
 }
 
 .mt-map-guide-popup__option {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
+  min-height: 48px;
   margin: 0;
-  padding: 10px 12px;
+  padding: 12px 10px;
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #1a1a1a;
+  color: #1c1c1c;
   text-align: left;
   cursor: pointer;
 }
 
 .mt-map-guide-popup__option.is-selected {
-  background: #e8f1ff;
+  background: #d9e5ff;
 }
 
 .mt-map-guide-popup__radio {
   box-sizing: border-box;
   flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-  border: 2px solid #9aa3b2;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #1c1c1c;
   border-radius: 50%;
   background: #fff;
 }
 
 .mt-map-guide-popup__radio.is-on {
-  border-color: var(--tk-primary, #003399);
-  background:
-    radial-gradient(circle at center, var(--tk-primary, #003399) 0 5px, #fff 6px 100%);
+  border-color: var(--mt-primary, #407afe);
+  background: radial-gradient(
+    circle at center,
+    var(--mt-primary, #407afe) 0 5px,
+    #fff 5.5px 100%
+  );
 }
 
 .mt-map-guide-popup__label {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.25;
 }
 
 .mt-map-guide-popup__cta {
@@ -87,15 +94,15 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  margin-top: 10px;
-  min-height: 42px;
-  padding: 10px 14px;
+  margin-top: 8px;
+  min-height: 48px;
+  padding: 12px 14px;
   border: 0;
   border-radius: 8px;
-  background: var(--tk-button, #003399);
+  background: var(--tk-button, #060496);
   color: #fff;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
 }
 
