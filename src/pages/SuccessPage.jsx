@@ -11,6 +11,7 @@ import { PG_STATUS_POLL_MS, usePgStatusPolling } from '../hooks/usePgStatusPolli
 import { withAppContext } from '../lib/appContext'
 import { isCabDirectJourney } from '../lib/cabDirect'
 import { OLA_SEARCHING_PREVIEW, buildOlaSearchingPreviewBooking } from '../lib/successPreview'
+import { loadBusTicketByOrder } from '../features/busTicket/session'
 import { buildSuccessPath, useSuccessBackNavigation } from '../lib/successUrl'
 import {
   journeyOptionsAtom,
@@ -53,6 +54,7 @@ export function SuccessPage() {
   const urlOrderId = params.get('order') || params.get('order_id')
   const isOlaSearchingPreview = params.get('preview') === OLA_SEARCHING_PREVIEW
   const orderId = urlOrderId || getOrderId(storedOrder)
+  const instantBus = params.get('flow') === 'bus' || Boolean(loadBusTicketByOrder(orderId))
 
   const [pgStatus, setPgStatus] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -61,10 +63,12 @@ export function SuccessPage() {
   const [dropFromLabel, setDropFromLabel] = useState('')
 
   useEffect(() => {
-    if (isOlaSearchingPreview) return
-    if (urlOrderId || !orderId) return
-    navigate(buildSuccessPath({ orderId }), { replace: true })
-  }, [isOlaSearchingPreview, navigate, orderId, urlOrderId])
+    if (isOlaSearchingPreview || !orderId) return
+    const needsOrder = !urlOrderId
+    const needsFlow = instantBus && params.get('flow') !== 'bus'
+    if (!needsOrder && !needsFlow) return
+    navigate(buildSuccessPath({ orderId, flow: instantBus ? 'bus' : undefined }), { replace: true })
+  }, [instantBus, isOlaSearchingPreview, navigate, orderId, params, urlOrderId])
 
   const onPgUpdate = useCallback((status) => {
     setPgStatus(status)
@@ -184,6 +188,7 @@ export function SuccessPage() {
         onCall={() => window.alert('Calling support…')}
         onDropService={handleDropService}
         onCancelled={handleCancelled}
+        instant={instantBus}
       />
       <DropServiceSheet
         open={dropOpen}

@@ -68,6 +68,14 @@ const MapOpenPage = lazy(() =>
 const OlaAuthPage = lazy(() =>
   import('./pages/OlaAuthPage').then((m) => ({ default: m.OlaAuthPage })),
 )
+const BusTicketStopsPage = lazy(() =>
+  import('./features/busTicket/BusTicketStopsPage').then((m) => ({ default: m.BusTicketStopsPage })),
+)
+const BusTicketSummaryPage = lazy(() =>
+  import('./features/busTicket/BusTicketSummaryPage').then((m) => ({
+    default: m.BusTicketSummaryPage,
+  })),
+)
 
 function RouteFallback() {
   const path = useLocation().pathname
@@ -258,6 +266,8 @@ export default function App() {
                     <Route path="/cab" element={<CabPage />} />
                     <Route path="/live-tracking" element={<LiveTrackingPage />} />
                     <Route path="/bookings" element={<BookingsPage />} />
+                    <Route path="/bus" element={<BusTicketStopsPage />} />
+                    <Route path="/bus/summary" element={<BusTicketSummaryPage />} />
                     <Route path="/success" element={<SuccessPage />} />
                     <Route path="/gotohome" element={<GoToHomePage />} />
                     <Route path="/" element={<HomeRoute />} />

@@ -1003,9 +1003,10 @@ export function TicketsPage({
   onCall,
   onCancelled,
   onDropService,
+  instant = false,
 }) {
   const normalized = normalizeBooking(booking)
-  const [tabId, setTabId] = useState(() => initialTabId(normalized))
+  const [tabId, setTabId] = useState(() => (instant ? 'bus' : initialTabId(normalized)))
   const [journeyIndex, setJourneyIndex] = useState(0)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [reasonId, setReasonId] = useState('find-driver')
@@ -1060,9 +1061,10 @@ export function TicketsPage({
     return map
   }, [normalized])
 
-  const journeys = getTabJourneys(normalized, tabId)
+  const activeTabId = instant ? 'bus' : tabId
+  const journeys = getTabJourneys(normalized, activeTabId)
   const ticket = journeys[journeyIndex] ?? journeys[0]
-  const showJourneyTabs = journeys.length > 1
+  const showJourneyTabs = !instant && journeys.length > 1
   const activeTab = PRIMARY_TICKET_TABS.find((tab) => tab.id === tabId)
 
   useEffect(() => {
@@ -1071,22 +1073,28 @@ export function TicketsPage({
 
   useEffect(() => {
     if (!normalized) return
+    if (instant) {
+      setTabId('bus')
+      return
+    }
     setTabId((current) => (isTabEnabled(normalized, current) ? current : initialTabId(normalized)))
-  }, [normalized?.id, normalized?.defaultTab])
+  }, [instant, normalized?.id, normalized?.defaultTab])
 
   if (!normalized) {
     return (
       <section className="mt-tickets">
         <TicketsHeader onBack={onBack} onCall={onCall} />
-        <ModeTabs activeId="bus" enabledById={{ metro: false, bus: false, cab: false, other: false }} onChange={() => {}} />
+        {instant ? null : (
+          <ModeTabs activeId="bus" enabledById={{ metro: false, bus: false, cab: false, other: false }} onChange={() => {}} />
+        )}
         <MapGuideBar open={mapGuideOpen} onToggle={handleMapGuide} options={mapGuideOptions} />
         <p className="mt-ticket-empty">No active booking found.</p>
       </section>
     )
   }
 
-  const busKey = `${normalized.id}-${tabId}-${ticket?.id ?? journeyIndex}`
-  const tabEnabled = isTabEnabled(normalized, tabId)
+  const busKey = `${normalized.id}-${activeTabId}-${ticket?.id ?? journeyIndex}`
+  const tabEnabled = instant ? Boolean(ticket) : isTabEnabled(normalized, tabId)
 
   return (
     <section className="mt-tickets">
@@ -1096,7 +1104,9 @@ export function TicketsPage({
           Confirming your bookings…
         </p>
       ) : null}
-      <ModeTabs activeId={tabId} enabledById={enabledById} onChange={handleTabChange} />
+      {instant ? null : (
+        <ModeTabs activeId={tabId} enabledById={enabledById} onChange={handleTabChange} />
+      )}
       {showJourneyTabs ? (
         <JourneyTabs journeys={journeys} activeIndex={journeyIndex} onChange={setJourneyIndex} />
       ) : null}
@@ -1122,7 +1132,7 @@ export function TicketsPage({
               trip,
             })
           : (
-            <EmptyTabPanel tabLabel={activeTab?.label ?? 'ticket'} />
+            <EmptyTabPanel tabLabel={instant ? 'TGSRTC' : activeTab?.label ?? 'ticket'} />
           )}
       </div>
 

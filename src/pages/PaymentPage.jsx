@@ -38,6 +38,7 @@ export function PaymentPage() {
   const journeyId = params.get('id')
   const journey = useJourneyOptionById(journeyId)
   const cabDirect = isCabDirectRequest(params, lastMile, journey)
+  const busFlow = params.get('flow') === 'bus'
 
   const orderId = getOrderId(storedOrder)
   const pg = useMemo(() => getPaytmPgData(storedOrder?.pgInitiate), [storedOrder?.pgInitiate])
@@ -69,11 +70,12 @@ export function PaymentPage() {
       navigate(
         buildSuccessPath({
           orderId: resolvedOrderId,
+          flow: busFlow ? 'bus' : undefined,
         }),
         { replace: true },
       )
     },
-    [navigate, storedOrder],
+    [busFlow, navigate, storedOrder],
   )
 
   const goToFailed = useCallback(
@@ -82,11 +84,15 @@ export function PaymentPage() {
       navigatedRef.current = true
       setPollingActive(false)
       setOrder({ ...storedOrder, pgStatus })
+      if (busFlow) {
+        navigate('/payment/failed?flow=bus', { replace: true })
+        return
+      }
       const failed = new URLSearchParams({ id: String(journey?.id ?? journeyId ?? '') })
       if (cabDirect) failed.set('direct', '1')
       navigate(`/payment/failed?${failed.toString()}`, { replace: true })
     },
-    [cabDirect, journey?.id, journeyId, navigate, setOrder, storedOrder],
+    [busFlow, cabDirect, journey?.id, journeyId, navigate, setOrder, storedOrder],
   )
 
   const onPgUpdate = useCallback(
@@ -130,7 +136,7 @@ export function PaymentPage() {
     }
   }
 
-  if (!journey) {
+  if (!journey && !busFlow) {
     const fallback = cabDirect
       ? rideHomePath(trip)
       : trip
@@ -140,6 +146,9 @@ export function PaymentPage() {
   }
 
   if (!storedOrder?.pgInitiate || !pg.checkoutJsUrl) {
+    if (busFlow) {
+      return <Navigate to={withAppContext('/bus/summary')} replace />
+    }
     if (storedOrder?.payAtPickupOnly) {
       const paidOrderId = getOrderId(storedOrder)
       return (
@@ -161,6 +170,10 @@ export function PaymentPage() {
   }
 
   function backToDetail() {
+    if (busFlow) {
+      navigate('/bus/summary')
+      return
+    }
     if (cabDirect) {
       navigate(
         cabDirectPath({

@@ -81,6 +81,17 @@ export const qrBaseUrl = import.meta.env.DEV && qrDirectBaseUrl ? '/qr-api' : qr
 export const qrApiKey = import.meta.env.VITE_QR_API_KEY || ''
 export const helplineNumber = String(import.meta.env.VITE_HELPLINE_NUMBER || '').trim()
 
+/**
+ * Onboard bus ticket API. Docs use http://127.0.0.1:8101; the app uses the
+ * same host as the orders API unless VITE_BUS_TICKET_BASE_URL is set.
+ * GET {base}/vehicles/{id}/stops
+ * GET {base}/fares?from_stop_id&to_stop_id&chalo_route_id
+ */
+const busTicketDirectBaseUrl = (
+  import.meta.env.VITE_BUS_TICKET_BASE_URL || ordersDirectBaseUrl
+).replace(/\/$/, '')
+export const busTicketBaseUrl = busTicketDirectBaseUrl
+
 /** GET endpoints end with `?`. POST endpoints do not.
  * Metro + TGSRTC journey also send `use_live_distance=true` and
  * `live_distance_provider=google|osrm` from `VITE_MAP_PROVIDER` (see journey.js).

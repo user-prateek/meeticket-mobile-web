@@ -230,6 +230,9 @@ function buildLastMilePayload(journeyId, { providerId, vehicle, needRide = false
     fareInr: wantsRide ? vehicle?.fareInr ?? null : null,
     fareMaxInr: wantsRide ? vehicle?.fareMaxInr ?? null : null,
     fareDisplay: wantsRide ? vehicle?.fareDisplay || null : null,
+    fareId: wantsRide && !isSummary ? vehicle?.fareId || null : null,
+    categoryId: wantsRide && !isSummary ? vehicle?.categoryId || null : null,
+    pickupMode: wantsRide && !isSummary ? vehicle?.pickupMode || null : null,
     payAtPickup: wantsRide ? Boolean(vehicle?.payAtPickup || providerId === 'ola') : false,
     refexSearchId: wantsRide && !isSummary ? vehicle?.searchId || null : null,
   }

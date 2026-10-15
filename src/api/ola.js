@@ -196,7 +196,12 @@ export function selectOlaDisplayFare(estimate) {
     }
   }
 
-  const fareId = estimate.upfront?.fare_id || null
+  const fareId =
+    estimate.upfront?.fare_id ||
+    estimate.upfront?.fareId ||
+    estimate.fare_id ||
+    estimate.fareId ||
+    null
 
   const min = estimate.amount_min != null ? Number(estimate.amount_min) : null
   const max = estimate.amount_max != null ? Number(estimate.amount_max) : null
@@ -507,12 +512,6 @@ function userFacingOlaMessage(code, fallback) {
   }
   return fallback || 'Could not load Ola ride estimates.'
 }
-const OLA_HARDCODED_COORDS = {
-  pickupLat: 12.9502,
-  pickupLng: 77.6417,
-  dropLat: 13.0950287,
-  dropLng: 77.6496671,
-}
 function readOlaCoord(value) {
   if (value == null || value === '') return null
   const n = Number(value)
@@ -542,12 +541,12 @@ export function resolveOlaTripEndpoints({ journey, trip, serviceId = 'pickup' } 
   )
 
   return {
-    pickupLat: OLA_HARDCODED_COORDS.pickupLat,
-    pickupLng: OLA_HARDCODED_COORDS.pickupLng,
-    dropLat: OLA_HARDCODED_COORDS.dropLat,
-    dropLng: OLA_HARDCODED_COORDS.dropLng,
-    hasPickup: true,
-    hasDrop: true,
+    pickupLat,
+    pickupLng,
+    dropLat,
+    dropLng,
+    hasPickup: pickupLat != null && pickupLng != null,
+    hasDrop: dropLat != null && dropLng != null,
   }
 }
 

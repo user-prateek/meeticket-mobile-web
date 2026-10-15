@@ -45,10 +45,15 @@ export function mapLegFareOptions(leg) {
       const routes = Array.isArray(option.routes) ? option.routes : []
       const matchedRoute = pickRouteForLeg(routes, legRouteId)
 
+      const fareId = [option?.fare_id, option?.fareId, matchedRoute?.fare_id, matchedRoute?.fareId]
+        .map((value) => (value == null || value === '' ? '' : String(value)))
+        .find(Boolean)
+
       return {
         id: `${legRouteId || 'leg'}-fare-${index}`,
         label: formatFareClassLabel(option),
         fareInr,
+        fareId: fareId || null,
         routeId: matchedRoute?.chalo_route_id || matchedRoute?.route_id || legRouteId || null,
       }
     })
@@ -113,6 +118,7 @@ export function applyFareSelections(segments = [], selections = {}) {
       selectedFareOptionId: option.id,
       fareClassLabel: option.label,
       fareInr: option.fareInr,
+      fareId: option.fareId || segment.fareId || null,
       routeId: option.routeId || segment.routeId,
     }
   })

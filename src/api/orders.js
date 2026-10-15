@@ -434,7 +434,20 @@ function buildCabAggSpecificInfo({ lastMile, selectedVehicle, legInfo } = {}) {
     const max = readPositiveInr(selectedVehicle.fareMaxInr, lastMile?.fareMaxInr, min)
     const category =
       stringId(selectedVehicle.categoryId || lastMile?.categoryId) || undefined
-    const fareId = stringId(selectedVehicle.fareId || lastMile?.fareId) || undefined
+    const fareId =
+      stringId(
+        selectedVehicle.fareId ||
+          lastMile?.fareId ||
+          selectedVehicle.rawEstimate?.upfront?.fare_id ||
+          selectedVehicle.rawEstimate?.upfront?.fareId ||
+          selectedVehicle.rawEstimate?.fare_id ||
+          selectedVehicle.rawEstimate?.fareId,
+      ) || undefined
+    if (!fareId) {
+      throw new Error(
+        'This Ola estimate has no fare id, so the ride cannot be booked yet.',
+      )
+    }
     const pickupMode =
       stringId(selectedVehicle.pickupMode || lastMile?.pickupMode) || 'now'
     const coupon =
@@ -634,6 +647,33 @@ function buildTransitLegInfo(segment, trip, { metroBearerToken, stopCoords, jour
 }
 
 /**
+ * Orders API requires `fare_id` on each bus/metro leg.
+ * Prefer an id from the journey engine. TGSRTC fare_options currently only
+ * carry fare + chalo route, so the chosen route id is the fare-tier id.
+ */
+function resolveTransitFareId(segment, amountPaise) {
+  const explicit = stringId(segment?.fareId || segment?.fare_id)
+  if (explicit) return explicit
+
+  const options = Array.isArray(segment?.fareOptions) ? segment.fareOptions : []
+  const selected =
+    options.find((option) => option.id === segment?.selectedFareOptionId) ||
+    options.find((option) => option.routeId && option.routeId === segment?.routeId) ||
+    null
+  const optionFareId = stringId(selected?.fareId)
+  if (optionFareId) return optionFareId
+
+  if (segment?.mode === 'bus') {
+    const routeId = stringId(selected?.routeId || segment?.routeId)
+    if (routeId) return routeId
+  }
+
+  const inr = readPositiveInr(segment?.fareInr, amountPaise > 0 ? amountPaise / 100 : 0)
+  if (inr > 0) return Number.isInteger(inr) ? String(inr) : String(inr)
+  return ''
+}
+
+/**
  * Bus / metro hops in journey order — each booked hop is one orders API leg.
  * Consecutive metro hops collapse to one through-ticket. Cab is prepended separately.
  */
@@ -655,9 +695,15 @@ function buildTransitLegs(journey, trip, { chainStart, metroBearerToken } = {}) 
     Object.assign(leg_info, times)
     nextChainStart = parseOrderDateTime(times.ExpectedEndTime)
 
+    const fare_id = resolveTransitFareId(segment, amount_paise)
+    if (!fare_id) {
+      throw new Error(`Fare id is missing for the ${segment.mode === 'bus' ? 'bus' : 'metro'} leg`)
+    }
+
     legs.push({
       leg_type: LEG_TYPE[segment.mode] || String(segment.mode || '').toUpperCase(),
       leg_info,
+      fare_id,
       amount_paise,
       payment_mode: PAYMENT_MODE,
     })

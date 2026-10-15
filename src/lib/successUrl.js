@@ -12,10 +12,14 @@ export function sanitizeReturnTo(value) {
   return path
 }
 
-/** Build /success?order=ORD-… (+ optional returnTo for non-checkout entry points). */
-export function buildSuccessPath({ orderId, returnTo, fromCheckout } = {}) {
+/**
+ * Build /success?order=ORD-…
+ * `flow=bus` is the instant onboard-bus success page: one TGSRTC ticket, no mode tabs.
+ */
+export function buildSuccessPath({ orderId, returnTo, fromCheckout, flow } = {}) {
   const params = new URLSearchParams()
   if (orderId) params.set('order', String(orderId))
+  if (flow) params.set('flow', String(flow))
   // After PG, success is order-id only — tickets/Map Guide come from pg/status.
   // returnTo is still allowed for in-app opens (e.g. bookings list).
   const safeReturn = sanitizeReturnTo(returnTo)

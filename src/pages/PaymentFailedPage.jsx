@@ -39,6 +39,7 @@ export function PaymentFailedPage() {
   // }
 
   function detailPath() {
+    if (params.get('flow') === 'bus') return '/bus/summary'
     if (cabDirect) {
       return cabDirectPath({
         trip,

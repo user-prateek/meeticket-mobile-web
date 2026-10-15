@@ -327,6 +327,7 @@ function mapTransitHops(block, mode, prefix) {
       fareInr: hopFareInr,
       fareOptions,
       selectedFareOptionId: selectedFareOption?.id || null,
+      fareId: selectedFareOption?.fareId || leg.fare_id || leg.fareId || null,
       title,
       subtitle: title,
       detailTitle: lineLabel(mode, leg),

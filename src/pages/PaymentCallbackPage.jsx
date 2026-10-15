@@ -8,6 +8,7 @@ import { useJourneyOptionById } from '../hooks/useJourneyOptions'
 import { PG_STATUS_POLL_MS, usePgStatusPolling } from '../hooks/usePgStatusPolling'
 import { withAppContext } from '../lib/appContext'
 import { buildSuccessPath } from '../lib/successUrl'
+import { loadBusTicketByOrder } from '../features/busTicket/session'
 import { orderAtom } from '../store/journey'
 import '../components/PaymentRedirectScreen.css'
 
@@ -57,6 +58,7 @@ export function PaymentCallbackPage() {
       navigate(
         buildSuccessPath({
           orderId: resolvedOrderId,
+          flow: loadBusTicketByOrder(resolvedOrderId) ? 'bus' : undefined,
         }),
         { replace: true },
       )
@@ -69,9 +71,14 @@ export function PaymentCallbackPage() {
       if (navigatedRef.current) return
       navigatedRef.current = true
       setOrder({ ...storedOrder, pgStatus })
+      const failedOrderId = getOrderId(storedOrder) ?? pgStatus?.order_id ?? orderId
+      if (loadBusTicketByOrder(failedOrderId)) {
+        navigate('/payment/failed?flow=bus', { replace: true })
+        return
+      }
       navigate(`/payment/failed?id=${journeyId ?? journey?.id ?? ''}`, { replace: true })
     },
-    [journey?.id, journeyId, navigate, setOrder, storedOrder],
+    [journey?.id, journeyId, navigate, orderId, setOrder, storedOrder],
   )
 
   const onPgUpdate = useCallback(
