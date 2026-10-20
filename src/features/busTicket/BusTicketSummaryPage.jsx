@@ -121,7 +121,12 @@ export function BusTicketSummaryPage() {
     <section className="bt-page">
       <BusTicketHeader variant="menu" onBack={() => navigate('/bus')} />
       <div className="bt-scroll">
-        <BusRouteMap stops={rideStops} />
+        <BusRouteMap
+          fromLat={draft.lat}
+          fromLng={draft.lng}
+          toLat={source.stop_lat}
+          toLng={source.stop_lon}
+        />
         <article className="bt-card bt-summary-card">
           <div className="bt-place bt-place--plain">
             <PinIcon />

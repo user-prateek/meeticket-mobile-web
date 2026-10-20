@@ -1,4 +1,4 @@
-import { busTicketBaseUrl, tgsrtcBaseUrl } from '../../api/config'
+import { tgsrtcBaseUrl } from '../../api/config'
 import { GetRequest } from '../../api/client'
 import { sampleFare } from './sampleStops'
 
@@ -59,10 +59,10 @@ export async function fetchVehicleStops(vehicleId, { signal } = {}) {
 }
 
 export async function fetchStopFare({ fromStopId, toStopId, chaloRouteId }, { signal } = {}) {
-  if (!busTicketBaseUrl) throw new Error('Bus ticket API is not configured')
+  if (!tgsrtcBaseUrl) throw new Error('Bus ticket API is not configured')
   try {
     const data = await GetRequest(
-      `${busTicketBaseUrl}/fares?`,
+      `${tgsrtcBaseUrl}/fares?`,
       {
         from_stop_id: fromStopId,
         to_stop_id: toStopId,
