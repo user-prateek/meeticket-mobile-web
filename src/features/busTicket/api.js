@@ -1,6 +1,6 @@
-import { busTicketBaseUrl } from '../../api/config'
+import { busTicketBaseUrl, tgsrtcBaseUrl } from '../../api/config'
 import { GetRequest } from '../../api/client'
-import { sampleFare, sampleVehicleStops } from './sampleStops'
+import { sampleFare } from './sampleStops'
 
 function mapStopsPayload(data, vehicleId) {
   const stops = Array.isArray(data?.stops) ? data.stops : []
@@ -13,10 +13,6 @@ function mapStopsPayload(data, vehicleId) {
     serviceCategory: data.service_category || '',
     stops,
   }
-}
-
-function useSampleStops(vehicleId) {
-  return mapStopsPayload(sampleVehicleStops, vehicleId || sampleVehicleStops.vehicle_id)
 }
 
 function useSampleFare() {
@@ -53,19 +49,13 @@ export function readBusTicketQuery(params) {
 export async function fetchVehicleStops(vehicleId, { signal } = {}) {
   const id = String(vehicleId || '').trim()
   if (!id) throw new Error('Bus id is missing from the link')
-  if (!busTicketBaseUrl) throw new Error('Bus ticket API is not configured')
-  try {
-    const data = await GetRequest(
-      `${busTicketBaseUrl}/vehicles/${encodeURIComponent(id)}/stops`,
-      {},
-      { signal },
-    )
-    return mapStopsPayload(data, id)
-  } catch (error) {
-    if (error?.name === 'AbortError') throw error
-    if (import.meta.env.DEV) return useSampleStops(id)
-    throw error
-  }
+  if (!tgsrtcBaseUrl) throw new Error('Bus ticket API is not configured')
+  const data = await GetRequest(
+    `${tgsrtcBaseUrl}/vehicles/${encodeURIComponent(id)}/stops`,
+    {},
+    { signal },
+  )
+  return mapStopsPayload(data, id)
 }
 
 export async function fetchStopFare({ fromStopId, toStopId, chaloRouteId }, { signal } = {}) {

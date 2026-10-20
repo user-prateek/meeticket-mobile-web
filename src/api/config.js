@@ -82,9 +82,9 @@ export const qrApiKey = import.meta.env.VITE_QR_API_KEY || ''
 export const helplineNumber = String(import.meta.env.VITE_HELPLINE_NUMBER || '').trim()
 
 /**
- * Onboard bus ticket API. Docs use http://127.0.0.1:8101; the app uses the
+ * Onboard bus ticket fares. Docs use http://127.0.0.1:8101; the app uses the
  * same host as the orders API unless VITE_BUS_TICKET_BASE_URL is set.
- * GET {base}/vehicles/{id}/stops
+ * Vehicle stops use tgsrtcBaseUrl: GET /vehicles/{id}/stops
  * GET {base}/fares?from_stop_id&to_stop_id&chalo_route_id
  */
 const busTicketDirectBaseUrl = (
