@@ -1,12 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { loadLeaflet, OSM_ATTRIBUTION, OSM_TILE_URL } from '../../lib/osmMaps'
 
-const WALK_ROUTER_BASE = (
-  String(import.meta.env.VITE_OSM_ROUTER_URL || '').trim() || 'https://router.project-osrm.org'
-).replace(/\/$/, '')
+const WALK_ROUTER_BASE = String(import.meta.env.VITE_OSM_ROUTER_URL || '').trim().replace(/\/$/, '')
 
 /** Street walking route used only by the onboard bus ticket map. */
 async function fetchBusWalkRoute({ fromLat, fromLng, toLat, toLng }) {
+  if (!WALK_ROUTER_BASE) throw new Error('VITE_OSM_ROUTER_URL is not configured')
   const coords = `${Number(fromLng)},${Number(fromLat)};${Number(toLng)},${Number(toLat)}`
   const response = await fetch(
     `${WALK_ROUTER_BASE}/route/v1/foot/${coords}?overview=full&geometries=geojson`,

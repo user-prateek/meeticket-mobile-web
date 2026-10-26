@@ -4,8 +4,18 @@ import { buildOlaAuthorizeUrl, createOlaOauthState, rememberOlaOauthState, saveO
 const RETURN_KEY = 'mt:ola-auth-test:return'
 const MOBILE_KEY = 'mt:ola-auth-test:mobile'
 
-export const OLA_AUTH_TEST_RETURN_URL =
-  'https://mmtsjp.iamgds.com/journey?from_lat=17.398553&from_lon=78.436501&to_lat=17.4015441&to_lon=78.5681716&from=Mehdipatnam&to=Uppal&mode=3&access_mode=walk&egress_mode=walk&candidates=2'
+const OLA_AUTH_TEST_QUERY =
+  'from_lat=17.398553&from_lon=78.436501&to_lat=17.4015441&to_lon=78.5681716&from=Mehdipatnam&to=Uppal&mode=3&access_mode=walk&egress_mode=walk&candidates=2'
+
+export const OLA_AUTH_TEST_RETURN_URL = (() => {
+  const redirect = String(import.meta.env.VITE_OLA_OAUTH_REDIRECT_URI || '').trim()
+  if (!redirect) return ''
+  try {
+    return `${new URL(redirect).origin}/journey?${OLA_AUTH_TEST_QUERY}`
+  } catch {
+    return ''
+  }
+})()
 
 export function saveOlaAuthTestReturn(url = OLA_AUTH_TEST_RETURN_URL, mobile) {
   if (typeof localStorage === 'undefined') return

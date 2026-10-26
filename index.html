@@ -7,12 +7,12 @@
     <meta name="theme-color" content="#060496" />
     <title>Meeticket</title>
     <!-- Warm DNS/TLS for journey engines while HTML + JS download. -->
-    <link rel="preconnect" href="https://metrommdl.iamgds.com" crossorigin />
-    <link rel="preconnect" href="https://tgsrtcengine.iamgds.com" crossorigin />
-    <link rel="preconnect" href="https://mntengine.iamgds.com" crossorigin />
-    <link rel="dns-prefetch" href="https://metrommdl.iamgds.com" />
-    <link rel="dns-prefetch" href="https://tgsrtcengine.iamgds.com" />
-    <link rel="dns-prefetch" href="https://mntengine.iamgds.com" />
+    <link rel="preconnect" href="%VITE_METRO_BASE_URL%" crossorigin />
+    <link rel="preconnect" href="%VITE_TGSRTC_BASE_URL%" crossorigin />
+    <link rel="preconnect" href="%VITE_MIX_BASE_URL%" crossorigin />
+    <link rel="dns-prefetch" href="%VITE_METRO_BASE_URL%" />
+    <link rel="dns-prefetch" href="%VITE_TGSRTC_BASE_URL%" />
+    <link rel="dns-prefetch" href="%VITE_MIX_BASE_URL%" />
     <!-- Critical boot UI: paints before any JS so WebView is never blank. -->
     <style>
       html, body { margin: 0; height: 100%; background: #e8e8ec; color: #111; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
@@ -177,25 +177,27 @@
                 use_live_distance: 'true',
                 live_distance_provider: liveDistanceProvider,
               }
+              function engineUrl(base, query) {
+                var host = String(base || '').replace(/\/$/, '')
+                if (!host || host.indexOf('%VITE_') === 0) return ''
+                return host + '/journey?' + query
+              }
               var sources = {}
-              if (mode === 1 || mode === 3) {
-                sources.metro = jsonFetch(
-                  'https://metrommdl.iamgds.com/journey?' +
-                    buildQuery(Object.assign({}, common, liveDistance)),
-                )
-              }
-              if (mode === 2 || mode === 3) {
-                sources.tgsrtc = jsonFetch(
-                  'https://tgsrtcengine.iamgds.com/journey?' +
-                    buildQuery(Object.assign({}, common, liveDistance, { candidates: '2' })),
-                )
-              }
-              if (mode === 3) {
-                sources.mix = jsonFetch(
-                  'https://mntengine.iamgds.com/journey?' +
-                    buildQuery(Object.assign({}, common, { candidates: '2' })),
-                )
-              }
+              var metroUrl = engineUrl(
+                '%VITE_METRO_BASE_URL%',
+                buildQuery(Object.assign({}, common, liveDistance)),
+              )
+              var tgsrtcUrl = engineUrl(
+                '%VITE_TGSRTC_BASE_URL%',
+                buildQuery(Object.assign({}, common, liveDistance, { candidates: '2' })),
+              )
+              var mixUrl = engineUrl(
+                '%VITE_MIX_BASE_URL%',
+                buildQuery(Object.assign({}, common, { candidates: '2' })),
+              )
+              if ((mode === 1 || mode === 3) && metroUrl) sources.metro = jsonFetch(metroUrl)
+              if ((mode === 2 || mode === 3) && tgsrtcUrl) sources.tgsrtc = jsonFetch(tgsrtcUrl)
+              if (mode === 3 && mixUrl) sources.mix = jsonFetch(mixUrl)
               window.__MT_JOURNEY_PREFETCH__ = {
                 key: [fromLat, fromLon, toLat, toLon, mode, accessMode, egressMode, candidates].join('|'),
                 sources: sources,

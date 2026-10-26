@@ -4,8 +4,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const refexTarget = (env.VITE_REFEX_BASE_URL || '').replace(/\/$/, '')
-  const ordersTarget = (env.VITE_ORDERS_BASE_URL || 'https://mmts.iamgds.com').replace(/\/$/, '')
-  const qrTarget = (env.VITE_QR_BASE_URL || 'https://meeticketqr.iamgds.com').replace(/\/$/, '')
+  const ordersTarget = (env.VITE_ORDERS_BASE_URL || '').replace(/\/$/, '')
+  const qrTarget = (env.VITE_QR_BASE_URL || '').replace(/\/$/, '')
 
   const proxy = {}
   if (refexTarget) {

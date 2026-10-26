@@ -200,7 +200,7 @@ export function currentPageUrl() {
 
 /** Registered Ola callback. The token comes back in the hash, not the query. */
 export function resolveOlaRedirectUri() {
-  return olaOauthRedirectUri || 'https://mmtsjp.iamgds.com/journey'
+  return olaOauthRedirectUri
 }
 
 export function buildOlaAuthorizeUrl({ redirectUri, state } = {}) {

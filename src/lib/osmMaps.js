@@ -1,21 +1,14 @@
 /** OpenStreetMap tiles + public OSRM routing + Nominatim reverse geocode. */
 
-export const OSM_TILE_URL =
-  String(import.meta.env.VITE_OSM_TILE_URL || '').trim() ||
-  'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+export const OSM_TILE_URL = String(import.meta.env.VITE_OSM_TILE_URL || '').trim()
 
 export const OSM_ATTRIBUTION =
   String(import.meta.env.VITE_OSM_TILE_ATTRIBUTION || '').trim() ||
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 
-const OSM_ROUTER_BASE = (
-  String(import.meta.env.VITE_OSM_ROUTER_URL || '').trim() || 'https://router.project-osrm.org'
-).replace(/\/$/, '')
+const OSM_ROUTER_BASE = String(import.meta.env.VITE_OSM_ROUTER_URL || '').trim().replace(/\/$/, '')
 
-const OSM_NOMINATIM_BASE = (
-  String(import.meta.env.VITE_OSM_NOMINATIM_URL || '').trim() ||
-  'https://nominatim.openstreetmap.org'
-).replace(/\/$/, '')
+const OSM_NOMINATIM_BASE = String(import.meta.env.VITE_OSM_NOMINATIM_URL || '').trim().replace(/\/$/, '')
 
 let leafletPromise = null
 
@@ -75,6 +68,7 @@ export async function fetchOsmDrivingRoute({ fromLat, fromLng, toLat, toLng, sig
     throw new Error('OSRM route needs origin and destination coordinates')
   }
   if (signal?.aborted) throw abortError()
+  if (!OSM_ROUTER_BASE) throw new Error('VITE_OSM_ROUTER_URL is not configured')
 
   const coords = `${Number(fromLon)},${Number(fromLat)};${Number(toLon)},${Number(toLat)}`
   const url = `${OSM_ROUTER_BASE}/route/v1/driving/${coords}?overview=full&geometries=geojson`
@@ -121,6 +115,7 @@ function osmShortName(data) {
  */
 export async function reverseGeocodeOsm(lat, lon, { signal } = {}) {
   if (lat == null || lon == null) return null
+  if (!OSM_NOMINATIM_BASE) return null
   if (signal?.aborted) throw abortError()
 
   const params = new URLSearchParams({
