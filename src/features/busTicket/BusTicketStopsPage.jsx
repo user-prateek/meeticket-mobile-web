@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useSetAtom } from 'jotai'
 import { useAppNavigate } from '../../hooks/useAppNavigate'
+import { showAlertAtom } from '../../store/alert'
 import { fetchVehicleStops, readBusTicketQuery } from './api'
 import { pickBoardingStop } from './boardingStop'
 import { BookBar, BusTicketHeader } from './BusTicketChrome'
@@ -44,6 +46,7 @@ function StopList({ title, hint, stops, selectedId, onSelect, selectedOnGreen = 
 export function BusTicketStopsPage() {
   const [params] = useSearchParams()
   const navigate = useAppNavigate()
+  const showAlert = useSetAtom(showAlertAtom)
   const query = useMemo(() => readBusTicketQuery(params), [params])
   const [trip, setTrip] = useState(null)
   const [error, setError] = useState('')
@@ -79,7 +82,11 @@ export function BusTicketStopsPage() {
       })
       .catch((err) => {
         if (err?.name === 'AbortError') return
-        setError(err?.message || 'Could not load bus stops')
+        const message = err?.message || 'Could not load bus stops'
+        if (err?.status === 409) {
+          showAlert({ msg: message, error: true })
+        }
+        setError(message)
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false)

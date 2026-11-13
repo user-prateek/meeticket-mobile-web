@@ -46,15 +46,71 @@ export function readBusTicketQuery(params) {
   }
 }
 
+async function readResponseData(response) {
+  const text = await response.text()
+  if (!text) return null
+  try {
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
+}
+
+/** 409 body: `{ detail: { error, message } }`. `message` is the line shown to the rider. */
+function conflictReason(data) {
+  const detail = data?.detail
+  if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
+    const message = String(detail.message || '').trim()
+    if (message) return { code: String(detail.error || '').trim(), message }
+    const code = String(detail.error || '').trim()
+    if (code === 'no_active_trip') {
+      return { code, message: 'This bus has no live trip right now.' }
+    }
+    if (code === 'trip_not_found') {
+      return { code, message: 'This bus trip is not available.' }
+    }
+    if (code) return { code, message: code }
+  }
+  return { code: '', message: 'This bus is not available for tickets right now.' }
+}
+
 export async function fetchVehicleStops(vehicleId, { signal } = {}) {
   const id = String(vehicleId || '').trim()
   if (!id) throw new Error('Bus id is missing from the link')
   if (!tgsrtcBaseUrl) throw new Error('Bus ticket API is not configured')
-  const data = await GetRequest(
-    `${tgsrtcBaseUrl}/vehicles/${encodeURIComponent(id)}/stops`,
-    {},
-    { signal },
-  )
+
+  const response = await fetch(`${tgsrtcBaseUrl}/vehicles/${encodeURIComponent(id)}/stops`, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+    signal,
+  })
+  const data = await readResponseData(response)
+
+  if (response.status === 404) {
+    const detail =
+      typeof data?.detail === 'string' && data.detail.trim()
+        ? data.detail.trim()
+        : 'Bus not found'
+    const err = new Error(detail)
+    err.status = 404
+    err.code = 'not_found'
+    throw err
+  }
+
+  if (response.status === 409) {
+    const reason = conflictReason(data)
+    const err = new Error(reason.message)
+    err.status = 409
+    err.code = reason.code || 'conflict'
+    throw err
+  }
+
+  if (!response.ok) {
+    const err = new Error(`Request failed (${response.status})`)
+    err.status = response.status
+    throw err
+  }
+
   return mapStopsPayload(data, id)
 }
 
