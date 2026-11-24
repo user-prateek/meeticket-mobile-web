@@ -1,0 +1,249 @@
+.js-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: #f4f6f8;
+}
+
+.js-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 12px 8px;
+}
+
+.js-status {
+  margin: 12px 4px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.js-card {
+  margin-bottom: 12px;
+  padding: 14px;
+  border: 1px solid #e6ebf2;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+.js-route {
+  display: grid;
+  grid-template-columns: auto 1fr 88px;
+  gap: 10px;
+  align-items: center;
+}
+
+.js-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: #ff5a1f;
+  color: #fff;
+  font-weight: 800;
+}
+
+.js-badge svg {
+  flex-shrink: 0;
+  color: #fff;
+}
+
+.js-class {
+  display: inline-flex;
+  margin-bottom: 2px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.js-route p,
+.js-status {
+  margin: 0;
+}
+
+.js-route p {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.lb-bus {
+  width: 88px;
+  height: 52px;
+  object-fit: contain;
+  display: block;
+}
+
+.js-passengers {
+  display: grid;
+  grid-template-columns: 37px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  border-color: #bfdbfe;
+  background: #ecf2ff;
+}
+
+.js-passengers__icon {
+  display: grid;
+  place-items: center;
+  width: 37px;
+  height: 37px;
+}
+
+.js-passengers__icon svg {
+  display: block;
+}
+
+.js-passengers strong,
+.js-passengers span {
+  display: block;
+}
+
+.js-passengers strong {
+  font-size: 15px;
+}
+
+.js-passengers span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.js-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.js-stepper button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #fff;
+  color: #111827;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.js-stepper button:disabled {
+  color: #cbd5e1;
+}
+
+.js-stepper b {
+  min-width: 12px;
+  text-align: center;
+}
+
+.js-plan {
+  padding: 12px 14px 16px;
+}
+
+.js-leg {
+  position: relative;
+}
+
+.js-stop {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+  padding: 6px 0;
+}
+
+.js-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+}
+
+.js-mark svg {
+  display: block;
+}
+
+.js-stop span {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.js-stop strong {
+  display: block;
+  margin-top: 1px;
+  color: #111827;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.js-edit {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.js-edit-spacer {
+  width: 32px;
+  height: 32px;
+}
+
+/* Dashed connector + distance chip between stops (matches design). */
+.js-gap {
+  position: relative;
+  height: 36px;
+}
+
+.js-gap::before {
+  content: '';
+  position: absolute;
+  left: 16px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-image: linear-gradient(#60a5fa 55%, rgba(255, 255, 255, 0) 0%);
+  background-position: 0 0;
+  background-size: 2px 9px;
+  background-repeat: repeat-y;
+}
+
+.js-gap__chip {
+  position: absolute;
+  left: 26px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.js-bar {
+  flex-shrink: 0;
+  padding: 8px 14px calc(14px + env(safe-area-inset-bottom));
+  background: #f4f6f8;
+}
+
+.js-book {
+  width: 100%;
+  height: 52px;
+  border: 0;
+  border-radius: 12px;
+  background: #1e3a8a;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+}

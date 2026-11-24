@@ -58,19 +58,21 @@ function readJson(response, label) {
 }
 
 /**
- * Driving route via OSRM.
+ * Driving route via OSRM (road-snapped).
+ * `waypoints` — [{ lat, lng }, …] in visit order (2+ points).
  * Returns { path, distanceM, durationSec }.
  */
-export async function fetchOsmDrivingRoute({ fromLat, fromLng, toLat, toLng, signal } = {}) {
-  const fromLon = fromLng
-  const toLon = toLng
-  if ([fromLat, fromLon, toLat, toLon].some((n) => !Number.isFinite(Number(n)))) {
-    throw new Error('OSRM route needs origin and destination coordinates')
+export async function fetchOsmDrivingRouteVia(waypoints, { signal } = {}) {
+  const points = (Array.isArray(waypoints) ? waypoints : [])
+    .map((point) => ({ lat: Number(point?.lat), lng: Number(point?.lng ?? point?.lon) }))
+    .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng))
+  if (points.length < 2) {
+    throw new Error('OSRM route needs at least two waypoints')
   }
   if (signal?.aborted) throw abortError()
   if (!OSM_ROUTER_BASE) throw new Error('VITE_OSM_ROUTER_URL is not configured')
 
-  const coords = `${Number(fromLon)},${Number(fromLat)};${Number(toLon)},${Number(toLat)}`
+  const coords = points.map((point) => `${point.lng},${point.lat}`).join(';')
   const url = `${OSM_ROUTER_BASE}/route/v1/driving/${coords}?overview=full&geometries=geojson`
 
   const response = await fetch(url, { signal })
@@ -90,6 +92,17 @@ export async function fetchOsmDrivingRoute({ fromLat, fromLng, toLat, toLng, sig
     distanceM: Number(route.distance) || 0,
     durationSec: Number(route.duration) || 0,
   }
+}
+
+/** Driving route via OSRM. Returns { path, distanceM, durationSec }. */
+export async function fetchOsmDrivingRoute({ fromLat, fromLng, toLat, toLng, signal } = {}) {
+  return fetchOsmDrivingRouteVia(
+    [
+      { lat: fromLat, lng: fromLng },
+      { lat: toLat, lng: toLng },
+    ],
+    { signal },
+  )
 }
 
 function osmShortName(data) {

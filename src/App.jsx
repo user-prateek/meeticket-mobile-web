@@ -76,6 +76,18 @@ const BusTicketSummaryPage = lazy(() =>
     default: m.BusTicketSummaryPage,
   })),
 )
+const BusOptionsPage = lazy(() =>
+  import('./features/busRoutes/RoutesPage').then((m) => ({ default: m.RoutesPage })),
+)
+const BusRoutePage = lazy(() =>
+  import('./features/busRoutes/RouteDetailPage').then((m) => ({ default: m.RouteDetailPage })),
+)
+const BusSummaryPage = lazy(() =>
+  import('./features/busRoutes/JourneySummaryPage').then((m) => ({ default: m.JourneySummaryPage })),
+)
+const BusTicketPage = lazy(() =>
+  import('./features/busRoutes/JourneyTicketPage').then((m) => ({ default: m.JourneyTicketPage })),
+)
 
 function RouteFallback() {
   const path = useLocation().pathname
@@ -267,6 +279,10 @@ export default function App() {
                     <Route path="/live-tracking" element={<LiveTrackingPage />} />
                     <Route path="/bookings" element={<BookingsPage />} />
                     <Route path="/bus" element={<BusTicketStopsPage />} />
+                    <Route path="/livebus" element={<BusOptionsPage />} />
+                    <Route path="/livebus/route" element={<BusRoutePage />} />
+                    <Route path="/livebus/summary" element={<BusSummaryPage />} />
+                    <Route path="/livebus/ticket" element={<BusTicketPage />} />
                     <Route path="/bus/summary" element={<BusTicketSummaryPage />} />
                     <Route path="/success" element={<SuccessPage />} />
                     <Route path="/gotohome" element={<GoToHomePage />} />

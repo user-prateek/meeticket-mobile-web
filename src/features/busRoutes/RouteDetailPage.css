@@ -1,0 +1,490 @@
+.rd-page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  background: #e7eef2;
+}
+
+.rd-page.is-stops {
+  background: #f4f7fb;
+}
+
+.rd-top {
+  position: absolute;
+  z-index: 500;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rd-page.is-stops .rd-top {
+  position: relative;
+  top: auto;
+  left: auto;
+  right: auto;
+  margin: 10px 10px 0;
+}
+
+.rd-back {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #243044;
+  font-size: 26px;
+  line-height: 1;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.16);
+}
+
+.rd-switch {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.12);
+}
+
+.rd-switch button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.rd-switch button.is-active {
+  background: #1d4ed8;
+  color: #fff;
+}
+
+.rd-map {
+  position: relative;
+  z-index: 0;
+  flex: 1;
+  min-height: 180px;
+  background: #d7e3d4;
+}
+
+.rd-map.leaflet-container {
+  width: 100%;
+  height: 100%;
+}
+
+.rd-pin-host,
+.rd-pin-host.leaflet-marker-icon {
+  background: none;
+  border: none;
+}
+
+.rd-pin {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(16, 24, 40, 0.3);
+  transform: translate(-11px, -11px);
+}
+
+.rd-pin--start {
+  background: #2563eb;
+}
+
+.rd-pin--end {
+  width: 18px;
+  height: 18px;
+  background: #e11d2e;
+  border-radius: 999px;
+  transform: translate(-9px, -9px);
+}
+
+.rd-pin__stop {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: #fff;
+}
+
+.rd-bus {
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+/* Body center sits on the polyline; rotate around that point. */
+.rd-bus__body {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.35));
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.rd-bus__label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, calc(-100% - 18px));
+  padding: 4px 8px;
+  border: 1.5px solid #2563eb;
+  border-radius: 999px;
+  background: #fff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(16, 24, 40, 0.18);
+  pointer-events: none;
+}
+
+.rd-sheet {
+  position: relative;
+  z-index: 2;
+  margin-top: -18px;
+  max-height: 52%;
+  overflow: auto;
+  padding: 14px 14px 16px;
+  border-radius: 18px 18px 0 0;
+  background: #fff;
+  box-shadow: 0 -8px 24px rgba(16, 24, 40, 0.08);
+}
+
+.rd-sheet.is-stops {
+  flex: 1;
+  max-height: none;
+  margin: 10px 10px 12px;
+  border-radius: 16px;
+}
+
+.rd-route {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rd-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: #ff5a1f;
+  color: #fff;
+  font-weight: 800;
+}
+
+.rd-badge svg {
+  flex-shrink: 0;
+  color: #fff;
+}
+
+.rd-route__copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.rd-route__copy p,
+.rd-class,
+.rd-status,
+.rd-note,
+.rd-departures > p {
+  margin: 0;
+}
+
+.rd-class {
+  display: inline-flex;
+  margin-bottom: 2px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.rd-route__copy p {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.rd-fare {
+  color: #1d4ed8;
+  font-size: 18px;
+}
+
+.rd-close {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #111;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.rd-status {
+  margin-top: 12px;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rd-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #ecf2ff;
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.rd-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.rd-facts p,
+.rd-board {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.rd-facts p {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  column-gap: 8px;
+  align-items: center;
+}
+
+.rd-facts__icon {
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+}
+
+.rd-facts__icon svg {
+  display: block;
+  width: 36px;
+  height: 36px;
+}
+
+.rd-facts span,
+.rd-board span span {
+  display: block;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.rd-departures > p {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.rd-facts strong,
+.rd-board strong {
+  display: block;
+  margin-top: 2px;
+  color: #111827;
+  font-size: 15px;
+}
+
+.rd-board {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  margin-top: 8px;
+  border: 0;
+  text-align: left;
+  background: #ecf2ff;
+}
+
+.rd-departures {
+  margin-top: 14px;
+}
+
+.rd-departures > div {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  overflow-x: auto;
+}
+
+.rd-departures button {
+  min-width: 72px;
+  padding: 8px 6px;
+  border: 1px solid #dbe3ee;
+  border-radius: 12px;
+  background: #fff;
+  color: #1d4ed8;
+  font-weight: 800;
+}
+
+.rd-departures button small {
+  display: block;
+  font-size: 11px;
+}
+
+.rd-departures button.is-active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.rd-buy {
+  width: 100%;
+  height: 48px;
+  margin-top: 14px;
+  border: 0;
+  border-radius: 12px;
+  background: #1e3a8a;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.rd-timeline {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+/* Straight spine — never shift margin for cards. */
+.rd-timeline li {
+  position: relative;
+  margin-left: 18px;
+  padding: 0 0 14px 14px;
+  border-left: 3px solid #dbe3ee;
+}
+
+.rd-timeline li.is-traveled,
+.rd-timeline li.is-pickup {
+  border-left-color: #2563eb;
+}
+
+.rd-timeline li::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 6px;
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: #cbd5e1; /* yet to travel */
+}
+
+.rd-timeline li.is-passed::before,
+.rd-timeline li.is-pickup::before {
+  background: #2563eb; /* completed + boarding */
+}
+
+.rd-timeline li.is-start::before {
+  opacity: 0; /* bus marker replaces the first dot */
+}
+
+.rd-timeline__bus {
+  position: absolute;
+  left: -14px;
+  top: 2px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 0 0 3px #fff;
+}
+
+.rd-timeline__body {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  align-items: start;
+}
+
+/* Highlight cards sit beside the line — they do not bend it. */
+.rd-timeline li.is-pickup .rd-timeline__body {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #ecf2ff;
+  border: 1px solid #bfdbfe;
+}
+
+.rd-timeline li.is-drop .rd-timeline__body {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.rd-timeline li.is-pickup .rd-timeline__name,
+.rd-timeline li.is-pickup .rd-timeline__time,
+.rd-timeline li.is-pickup .rd-timeline__hint {
+  color: #1d4ed8;
+}
+
+.rd-timeline li.is-drop .rd-timeline__name,
+.rd-timeline li.is-drop .rd-timeline__time,
+.rd-timeline li.is-drop .rd-timeline__hint {
+  color: #15803d;
+}
+
+.rd-timeline__name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.rd-timeline__time {
+  grid-column: 2;
+  grid-row: 1;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.rd-timeline__hint {
+  grid-column: 1;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+}

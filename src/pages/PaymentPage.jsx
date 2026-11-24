@@ -39,6 +39,7 @@ export function PaymentPage() {
   const journey = useJourneyOptionById(journeyId)
   const cabDirect = isCabDirectRequest(params, lastMile, journey)
   const busFlow = params.get('flow') === 'bus'
+  const livebusFlow = params.get('flow') === 'livebus'
 
   const orderId = getOrderId(storedOrder)
   const pg = useMemo(() => getPaytmPgData(storedOrder?.pgInitiate), [storedOrder?.pgInitiate])
@@ -67,6 +68,13 @@ export function PaymentPage() {
       setPollingActive(false)
 
       const resolvedOrderId = getOrderId(storedOrder) ?? pgStatus?.order_id
+      if (livebusFlow) {
+        // Livebus success UI — same pg/status API as journey, different page.
+        navigate(`/livebus/ticket?order=${encodeURIComponent(resolvedOrderId || '')}`, {
+          replace: true,
+        })
+        return
+      }
       navigate(
         buildSuccessPath({
           orderId: resolvedOrderId,
@@ -75,7 +83,7 @@ export function PaymentPage() {
         { replace: true },
       )
     },
-    [busFlow, navigate, storedOrder],
+    [busFlow, livebusFlow, navigate, storedOrder],
   )
 
   const goToFailed = useCallback(
@@ -84,6 +92,10 @@ export function PaymentPage() {
       navigatedRef.current = true
       setPollingActive(false)
       setOrder({ ...storedOrder, pgStatus })
+      if (livebusFlow) {
+        navigate('/payment/failed?flow=livebus', { replace: true })
+        return
+      }
       if (busFlow) {
         navigate('/payment/failed?flow=bus', { replace: true })
         return
@@ -92,7 +104,7 @@ export function PaymentPage() {
       if (cabDirect) failed.set('direct', '1')
       navigate(`/payment/failed?${failed.toString()}`, { replace: true })
     },
-    [busFlow, cabDirect, journey?.id, journeyId, navigate, setOrder, storedOrder],
+    [busFlow, cabDirect, journey?.id, journeyId, livebusFlow, navigate, setOrder, storedOrder],
   )
 
   const onPgUpdate = useCallback(
@@ -136,7 +148,7 @@ export function PaymentPage() {
     }
   }
 
-  if (!journey && !busFlow) {
+  if (!journey && !busFlow && !livebusFlow) {
     const fallback = cabDirect
       ? rideHomePath(trip)
       : trip
@@ -146,6 +158,9 @@ export function PaymentPage() {
   }
 
   if (!storedOrder?.pgInitiate || !pg.checkoutJsUrl) {
+    if (livebusFlow) {
+      return <Navigate to={withAppContext('/livebus')} replace />
+    }
     if (busFlow) {
       return <Navigate to={withAppContext('/bus/summary')} replace />
     }
@@ -170,6 +185,10 @@ export function PaymentPage() {
   }
 
   function backToDetail() {
+    if (livebusFlow) {
+      navigate('/livebus')
+      return
+    }
     if (busFlow) {
       navigate('/bus/summary')
       return

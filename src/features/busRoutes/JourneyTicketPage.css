@@ -1,0 +1,271 @@
+.tk-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: #f4f6f8;
+}
+
+.tk-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: calc(12px + env(safe-area-inset-top)) 12px 14px;
+  background: var(--mt-navy);
+  color: #fff;
+}
+
+.tk-back {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.tk-header h1 {
+  flex: 1;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.tk-lang {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.tk-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+}
+
+.tk-status {
+  margin: 8px 4px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.tk-card {
+  margin-bottom: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
+}
+
+.tk-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: -14px -14px 0;
+  padding: 12px 14px;
+  border-radius: 16px 16px 0 0;
+  background: #ecf2ff;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.tk-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tk-valid {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-top: 14px;
+}
+
+.tk-valid p,
+.tk-note {
+  margin: 0;
+}
+
+.tk-valid p {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tk-valid strong {
+  display: block;
+  margin-top: 2px;
+  color: #16a34a;
+  font-size: 28px;
+  letter-spacing: 0.04em;
+}
+
+.tk-valid small {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  max-width: 180px;
+  color: #16a34a;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.tk-valid img {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+}
+
+.tk-qr {
+  display: grid;
+  place-items: center;
+  margin: 16px auto;
+  width: 220px;
+  height: 220px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.tk-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.tk-valid-pill,
+.tk-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+.tk-valid-pill {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.tk-valid-pill.is-expired {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.tk-valid-pill i {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #fff;
+  font-style: normal;
+  font-size: 12px;
+}
+
+.tk-valid-pill.is-expired i {
+  background: #dc2626;
+}
+
+.tk-actions button:disabled {
+  opacity: 0.45;
+}
+
+.tk-actions button {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #334155;
+}
+
+.tk-note {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 14px -14px -14px;
+  padding: 12px 14px;
+  border-radius: 0 0 16px 16px;
+  background: #ecf2ff;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tk-note i {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.tk-ride__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tk-ride__head strong {
+  font-size: 16px;
+  letter-spacing: 0.02em;
+}
+
+.tk-ride__head .lb-bus {
+  width: 84px;
+  height: 48px;
+  object-fit: contain;
+  display: block;
+}
+
+.tk-ride__stop {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.tk-pin {
+  width: 16px;
+  height: 16px;
+  background: #2563eb;
+  clip-path: path('M8 0.5a4.6 4.6 0 0 0-4.6 4.6c0 3.4 4.6 8.4 4.6 8.4s4.6-5 4.6-8.4A4.6 4.6 0 0 0 8 0.5zm0 6.2a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2z');
+}
+
+.tk-ride__stop span {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tk-ride__stop strong {
+  display: block;
+  font-size: 15px;
+}
+
+.tk-ride__stop b {
+  color: #1d4ed8;
+  font-size: 18px;
+}

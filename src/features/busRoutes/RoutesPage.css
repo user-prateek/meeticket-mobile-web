@@ -1,0 +1,380 @@
+.br-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  background: #ecf2ff;
+  color: #1c1c1c;
+}
+
+.br-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  flex-shrink: 0;
+  background: #fff;
+  border-bottom: 1px solid #ececec;
+}
+
+.br-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 48px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: #fff;
+  color: #8b8b8b;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.br-tabs button.is-active {
+  color: #2f6bff;
+  border-bottom-color: #2f6bff;
+}
+
+.br-list.is-hidden {
+  display: none;
+}
+
+.br-map {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: #d7e3d4;
+}
+
+.br-map__canvas,
+.br-map__canvas.leaflet-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: #d7e3d4;
+}
+
+.br-bus-host,
+.br-bus-host.leaflet-marker-icon {
+  background: none;
+  border: none;
+}
+
+.br-bus {
+  position: relative;
+  width: 0;
+  height: 0;
+  cursor: pointer;
+}
+
+.br-bus__tag {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px 3px 6px;
+  border-radius: 10px;
+  background: #fff;
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.2);
+}
+
+.br-bus__tag-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.br-bus__rig {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 22px;
+  height: 46px;
+  transform-origin: center center;
+}
+
+.br-bus__body {
+  position: absolute;
+  left: 2px;
+  bottom: 0;
+  width: 18px;
+  height: 30px;
+  border-radius: 5px;
+  border: 1.5px solid rgba(15, 23, 42, 0.35);
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.35);
+}
+
+.br-bus__body::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  top: 4px;
+  height: 7px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+/* Directional nose — same color as bus body, ahead of travel. */
+.br-bus__arrow {
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  width: 0;
+  height: 0;
+  transform: translateX(-50%);
+  border-right: 8px solid transparent;
+  border-left: 8px solid transparent;
+  border-bottom: 11px solid currentColor;
+  filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.3));
+}
+
+.br-locate,
+.br-zoom {
+  position: absolute;
+  z-index: 500;
+  border: 0;
+  background: #fff;
+  color: #3a3a3a;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.16);
+}
+
+.br-locate {
+  top: 14px;
+  right: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+}
+
+.br-zoom {
+  right: 12px;
+  bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  width: 36px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.br-zoom button {
+  height: 36px;
+  border: 0;
+  background: #fff;
+  color: #3a3a3a;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.br-zoom button + button {
+  border-top: 1px solid #ececec;
+}
+
+.br-filters {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 12px 14px;
+  background: #fff;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.br-filters::-webkit-scrollbar {
+  display: none;
+}
+
+.br-filter {
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid #d5d5d5;
+  border-radius: 999px;
+  background: #fff;
+  color: #3a3a3a;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.br-filter.is-active {
+  border-color: #1c1c1c;
+  color: #111;
+  font-weight: 700;
+}
+
+.br-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 12px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #ecf2ff;
+}
+
+.br-status {
+  margin: 24px 8px;
+  text-align: center;
+  color: #6b6b6b;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.br-status p {
+  margin: 0 0 12px;
+}
+
+.br-retry {
+  height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--mt-navy);
+  color: #fff;
+  font-weight: 700;
+}
+
+.br-card {
+  padding: 14px 14px 12px;
+  border: 1px solid #ededed;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+.br-card__top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.br-badge {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  min-width: 58px;
+  max-width: 84px;
+  min-height: 52px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #ff5a1f;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.1;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.br-stops {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.br-stop {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.br-mark {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.br-mark.is-from {
+  background: #1f9d4c;
+}
+
+.br-mark.is-to {
+  border-radius: 2px;
+  background: #e11d2e;
+}
+
+.br-stop__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.br-stop__aside {
+  font-size: 14px;
+  font-weight: 800;
+  color: #149447;
+  white-space: nowrap;
+}
+
+.br-corridor {
+  margin: 10px 0 0 70px;
+  color: #8a8a8a;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.br-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.br-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.br-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: #f2f2f2;
+  color: #6d6d6d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.br-pill.is-scheduled {
+  background: #e7f8ee;
+  color: #149447;
+}
+
+.br-view {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #2f6bff;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}

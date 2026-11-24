@@ -75,6 +75,10 @@ export const helplineNumber = String(import.meta.env.VITE_HELPLINE_NUMBER || '')
 export const urls = {
   journey: `${baseUrl}/journey?`,
   tgsrtcJourney: `${tgsrtcBaseUrl}/journey?`,
+  /** Live bus SRP — GET nearby vehicles between rider and destination. */
+  nearbyBuses: tgsrtcBaseUrl ? `${tgsrtcBaseUrl}/nearby-buses?` : '',
+  /** Live bus detail — GET /vehicles/{id}/eta? (id is path; query built at call site). */
+  vehicleEta: tgsrtcBaseUrl ? `${tgsrtcBaseUrl}/vehicles` : '',
   mixJourney: `${mixBaseUrl}/journey?`,
   orders: ordersBaseUrl ? `${ordersBaseUrl}/api/orders` : '',
   olaProducts: olaBaseUrl ? `${olaBaseUrl}/v1/products?` : '',

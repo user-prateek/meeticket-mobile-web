@@ -4,7 +4,16 @@ import { osmDivIcon } from './osmMaps'
 /**
  * Leaflet marker whose icon is a React tree (same HTML markers as Google AdvancedMarker).
  */
-export function mountLeafletHtmlMarker({ L, map, position, zIndex = 0, node, className = 'mt-map-marker-host' }) {
+export function mountLeafletHtmlMarker({
+  L,
+  map,
+  position,
+  zIndex = 0,
+  node,
+  className = 'mt-map-marker-host',
+  interactive = false,
+  onClick,
+}) {
   const host = document.createElement('div')
   host.className = className
   const root = createRoot(host)
@@ -13,9 +22,11 @@ export function mountLeafletHtmlMarker({ L, map, position, zIndex = 0, node, cla
   const marker = L.marker([position.lat, position.lng], {
     icon: osmDivIcon(L, host, className),
     zIndexOffset: zIndex,
-    interactive: false,
-    keyboard: false,
+    interactive,
+    keyboard: interactive,
   }).addTo(map)
+
+  if (onClick) marker.on('click', onClick)
 
   return {
     setPosition(next) {
