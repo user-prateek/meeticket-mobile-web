@@ -66,9 +66,12 @@ function RouteCard({ card, onView }) {
   )
 }
 
+const NEARBY_POLL_MS = 10_000
+
 /**
  * /livebus?from_lat&from_lon&to_lat&to_lon&from&to
  * Same query as /journey. This screen lists direct TGSRTC routes only.
+ * Nearby buses are polled every 10s while this screen is mounted.
  */
 export function RoutesPage() {
   const location = useLocation()
@@ -92,21 +95,52 @@ export function RoutesPage() {
       setStatus('error')
       return undefined
     }
-    const controller = new AbortController()
-    setStatus('loading')
-    setError('')
-    fetchBusRouteOptions(trip, { signal: controller.signal })
-      .then((next) => {
+
+    let cancelled = false
+    let controller = null
+    let timer = null
+    let hasLoaded = false
+
+    async function load() {
+      controller?.abort()
+      controller = new AbortController()
+      if (!hasLoaded) {
+        setStatus('loading')
+        setError('')
+      }
+      try {
+        const next = await fetchBusRouteOptions(trip, { signal: controller.signal })
+        if (cancelled) return
         setRoutes(next)
         setStatus('ready')
-      })
-      .catch((err) => {
-        if (err?.name === 'AbortError') return
-        setRoutes([])
-        setError(err?.message || 'Could not load bus routes')
-        setStatus('error')
-      })
-    return () => controller.abort()
+        setError('')
+        hasLoaded = true
+      } catch (err) {
+        if (err?.name === 'AbortError' || cancelled) return
+        if (!hasLoaded) {
+          setRoutes([])
+          setError(err?.message || 'Could not load bus routes')
+          setStatus('error')
+        }
+      }
+    }
+
+    function scheduleNext() {
+      timer = window.setTimeout(async () => {
+        if (!cancelled && document.visibilityState === 'visible') await load()
+        if (!cancelled) scheduleNext()
+      }, NEARBY_POLL_MS)
+    }
+
+    load().then(() => {
+      if (!cancelled) scheduleNext()
+    })
+
+    return () => {
+      cancelled = true
+      controller?.abort()
+      window.clearTimeout(timer)
+    }
   }, [trip, reloadKey])
 
   const visible = useMemo(

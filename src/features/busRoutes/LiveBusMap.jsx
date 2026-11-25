@@ -130,16 +130,60 @@ function fitLiveBusView(map, L, buses, center, destination) {
   map.setView(mid, 18, { animate: false })
 }
 
+const MOVE_MS = 1200
+
+function easeInOut(t) {
+  return t < 0.5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2
+}
+
 function OsmLiveBusMap({ center, destination, buses, onSelect }) {
   const hostRef = useRef(null)
   const mapRef = useRef(null)
   const leafletRef = useRef(null)
-  const markersRef = useRef([])
+  const markersByIdRef = useRef(new Map())
+  const animByIdRef = useRef(new Map())
+  const busesByIdRef = useRef(new Map())
   const placesRef = useRef([])
   const fittedRef = useRef(false)
+  const placesKeyRef = useRef('')
   const centerRef = useRef(center)
+  const onSelectRef = useRef(onSelect)
   const [ready, setReady] = useState(false)
   centerRef.current = center
+  onSelectRef.current = onSelect
+
+  function cancelAnim(id) {
+    const frame = animByIdRef.current.get(id)
+    if (frame) window.cancelAnimationFrame(frame)
+    animByIdRef.current.delete(id)
+  }
+
+  function animateMarker(id, handle, from, to) {
+    cancelAnim(id)
+    const dist = metersBetween(from, to)
+    if (dist < 1) {
+      handle.setPosition(to)
+      handle.lastPos = to
+      return
+    }
+    const started = performance.now()
+    const tick = (now) => {
+      const t = Math.min(1, (now - started) / MOVE_MS)
+      const k = easeInOut(t)
+      const next = {
+        lat: from.lat + (to.lat - from.lat) * k,
+        lng: from.lng + (to.lng - from.lng) * k,
+      }
+      handle.setPosition(next)
+      if (t < 1) {
+        animByIdRef.current.set(id, window.requestAnimationFrame(tick))
+      } else {
+        animByIdRef.current.delete(id)
+        handle.lastPos = to
+      }
+    }
+    animByIdRef.current.set(id, window.requestAnimationFrame(tick))
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -162,8 +206,10 @@ function OsmLiveBusMap({ center, destination, buses, onSelect }) {
     })
     return () => {
       cancelled = true
-      markersRef.current.forEach((marker) => marker.clear())
-      markersRef.current = []
+      animByIdRef.current.forEach((frame) => window.cancelAnimationFrame(frame))
+      animByIdRef.current.clear()
+      markersByIdRef.current.forEach((marker) => marker.clear())
+      markersByIdRef.current.clear()
       placesRef.current.forEach((layer) => mapRef.current?.removeLayer(layer))
       placesRef.current = []
       mapRef.current?.remove()
@@ -175,47 +221,82 @@ function OsmLiveBusMap({ center, destination, buses, onSelect }) {
     const map = mapRef.current
     const L = leafletRef.current
     if (!ready || !map || !L) return
-    markersRef.current.forEach((marker) => marker.clear())
-    placesRef.current.forEach((layer) => map.removeLayer(layer))
-    const places = []
-    if (center) {
-      places.push(
-        L.circleMarker([center.lat, center.lng], {
-          radius: 8,
-          color: '#fff',
-          weight: 3,
-          fillColor: '#ff5a1f',
-          fillOpacity: 1,
-        })
-          .bindTooltip('You', { direction: 'top' })
-          .addTo(map),
-      )
+
+    const placesKey = [
+      center ? `${center.lat},${center.lng}` : '',
+      destination ? `${destination.lat},${destination.lng},${destination.name || ''}` : '',
+    ].join('|')
+    if (placesKey !== placesKeyRef.current) {
+      placesRef.current.forEach((layer) => map.removeLayer(layer))
+      const places = []
+      if (center) {
+        places.push(
+          L.circleMarker([center.lat, center.lng], {
+            radius: 8,
+            color: '#fff',
+            weight: 3,
+            fillColor: '#ff5a1f',
+            fillOpacity: 1,
+          })
+            .bindTooltip('You', { direction: 'top' })
+            .addTo(map),
+        )
+      }
+      if (destination) {
+        places.push(
+          L.circleMarker([destination.lat, destination.lng], {
+            radius: 8,
+            color: '#fff',
+            weight: 3,
+            fillColor: '#e11d2e',
+            fillOpacity: 1,
+          })
+            .bindTooltip(destination.name || 'Alight', { direction: 'top' })
+            .addTo(map),
+        )
+      }
+      placesRef.current = places
+      placesKeyRef.current = placesKey
     }
-    if (destination) {
-      places.push(
-        L.circleMarker([destination.lat, destination.lng], {
-          radius: 8,
-          color: '#fff',
-          weight: 3,
-          fillColor: '#e11d2e',
-          fillOpacity: 1,
-        })
-          .bindTooltip(destination.name || 'Alight', { direction: 'top' })
-          .addTo(map),
-      )
-    }
-    placesRef.current = places
-    markersRef.current = buses.map((bus, index) =>
-      mountLeafletHtmlMarker({
+
+    busesByIdRef.current = new Map(buses.map((bus) => [bus.id, bus]))
+    const nextIds = new Set(buses.map((bus) => bus.id))
+    markersByIdRef.current.forEach((handle, id) => {
+      if (nextIds.has(id)) return
+      cancelAnim(id)
+      handle.clear()
+      markersByIdRef.current.delete(id)
+    })
+
+    buses.forEach((bus, index) => {
+      const pos = pinPosition(bus, index, buses)
+      const existing = markersByIdRef.current.get(bus.id)
+      const canOpen = Boolean(bus.routeId || bus.vehicleId)
+      const node = <BusPin code={bus.code} color={bus.color} heading={bus.heading} />
+      if (existing) {
+        existing.update(node)
+        animateMarker(bus.id, existing, existing.lastPos || pos, pos)
+        return
+      }
+      const busId = bus.id
+      const handle = mountLeafletHtmlMarker({
         L,
         map,
-        position: pinPosition(bus, index, buses),
+        position: pos,
         className: 'br-bus-host',
-        interactive: Boolean(onSelect && (bus.routeId || bus.vehicleId)),
-        onClick: onSelect && (bus.routeId || bus.vehicleId) ? () => onSelect(bus) : undefined,
-        node: <BusPin code={bus.code} color={bus.color} heading={bus.heading} />,
-      }),
-    )
+        interactive: canOpen,
+        onClick: canOpen
+          ? () => {
+              const latest = busesByIdRef.current.get(busId)
+              if (latest) onSelectRef.current?.(latest)
+            }
+          : undefined,
+        node,
+      })
+      handle.lastPos = pos
+      markersByIdRef.current.set(bus.id, handle)
+    })
+
     const shouldFit = !fittedRef.current && (buses.length || center || destination)
     map.invalidateSize()
     if (!shouldFit) return undefined
@@ -234,7 +315,7 @@ function OsmLiveBusMap({ center, destination, buses, onSelect }) {
       window.clearTimeout(t1)
       window.clearTimeout(t2)
     }
-  }, [ready, buses, center, destination, onSelect])
+  }, [ready, buses, center, destination])
 
   function zoomBy(delta) {
     const map = mapRef.current

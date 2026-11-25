@@ -179,6 +179,14 @@ function coord(value) {
   return Number.isFinite(n) ? n : null
 }
 
+function busColor(key, index) {
+  const raw = String(key || '')
+  if (!raw) return BUS_COLORS[index % BUS_COLORS.length]
+  let hash = 0
+  for (let i = 0; i < raw.length; i += 1) hash = (hash * 31 + raw.charCodeAt(i)) >>> 0
+  return BUS_COLORS[hash % BUS_COLORS.length]
+}
+
 /** Degrees clockwise from north, boarding stop toward the alighting stop. */
 export function routeHeading(fromLat, fromLng, toLat, toLng) {
   if (![fromLat, fromLng, toLat, toLng].every((n) => Number.isFinite(n))) return 0
@@ -203,17 +211,30 @@ export function mapNearbyBus(item, index = 0) {
   const fare = Number(item?.fare)
   const eta = Number(item?.eta_minutes)
   const distanceM = Number(item?.distance_m)
-  const lat = coord(board.stop_lat)
-  const lng = coord(board.stop_lon)
+  // Prefer live vehicle coords when the API sends them; else boarding stop.
+  const lat =
+    coord(item?.lat) ??
+    coord(item?.vehicle_lat) ??
+    coord(item?.current_lat) ??
+    coord(board.stop_lat)
+  const lng =
+    coord(item?.lon) ??
+    coord(item?.lng) ??
+    coord(item?.vehicle_lon) ??
+    coord(item?.current_lon) ??
+    coord(board.stop_lon)
   const destLat = coord(dest.stop_lat)
   const destLng = coord(dest.stop_lon)
   const category = titleLabel(item?.service_category)
   const fareInr = Number.isFinite(fare) && fare > 0 ? Math.round(fare) : null
   const classId = serviceClassId(item?.service_category)
   const etaMinutes = Number.isFinite(eta) && eta >= 0 ? Math.round(eta) : null
+  const vehicleId = String(item?.vehicle_id || '')
+  const id = vehicleId || String(item?.trip_id || index)
+  const liveHeading = coord(item?.heading) ?? coord(item?.bearing)
   return {
-    id: String(item?.vehicle_id || item?.trip_id || index),
-    vehicleId: String(item?.vehicle_id || ''),
+    id,
+    vehicleId,
     tripId: String(item?.trip_id || ''),
     routeId: String(item?.chalo_route_id || ''),
     routeName: String(item?.route_name || ''),
@@ -227,7 +248,7 @@ export function mapNearbyBus(item, index = 0) {
     lng,
     destLat,
     destLng,
-    heading: routeHeading(lat, lng, destLat, destLng),
+    heading: liveHeading ?? routeHeading(lat, lng, destLat, destLng),
     fareInr,
     distanceM: Number.isFinite(distanceM) && distanceM > 0 ? distanceM : null,
     distanceLabel: formatDistance(distanceM),
@@ -235,7 +256,7 @@ export function mapNearbyBus(item, index = 0) {
     departLabel: etaMinutes != null ? `${etaMinutes} Min` : '',
     scheduled: false,
     category,
-    color: BUS_COLORS[index % BUS_COLORS.length],
+    color: busColor(id, index),
     choices: fareInr ? [{ fareInr, category, classId }] : [],
   }
 }
