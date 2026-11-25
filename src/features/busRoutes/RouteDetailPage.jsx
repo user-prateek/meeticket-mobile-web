@@ -4,6 +4,7 @@ import { useAppNavigate } from '../../hooks/useAppNavigate'
 import { parseTripQuery } from '../../lib/tripQuery'
 import { fetchRouteDetail } from './api'
 import { BusGlyph } from './BusGlyph'
+import { estimateBusAlongStops } from './mapVehicleEta'
 import { RouteLineMap } from './RouteLineMap'
 import './RouteDetailPage.css'
 
@@ -111,12 +112,16 @@ function MapGlyph() {
   )
 }
 
+const DETAIL_POLL_MS = 10_000
+const BUS_TICK_MS = 1_000
+
 function LiveBusDetailPage() {
   const location = useLocation()
   const navigate = useAppNavigate()
   const query = useMemo(() => readDetailQuery(location.search), [location.search])
   const [view, setView] = useState('map')
   const [detail, setDetail] = useState(null)
+  const [busLive, setBusLive] = useState(null)
   const [departureId, setDepartureId] = useState('')
   const [status, setStatus] = useState('loading')
   const [error, setError] = useState('')
@@ -137,30 +142,80 @@ function LiveBusDetailPage() {
       setError('Drop stop is missing')
       return undefined
     }
-    const controller = new AbortController()
-    setStatus('loading')
-    setError('')
-    fetchRouteDetail(
-      {
-        vehicleId: query.vehicleId,
-        custLat: query.custLat,
-        custLon: query.custLon,
-        dropStopId: query.dropStopId,
-      },
-      { signal: controller.signal },
-    )
-      .then((next) => {
+
+    let cancelled = false
+    let controller = null
+    let timer = null
+    let hasLoaded = false
+
+    async function load() {
+      controller?.abort()
+      controller = new AbortController()
+      if (!hasLoaded) {
+        setStatus('loading')
+        setError('')
+      }
+      try {
+        const next = await fetchRouteDetail(
+          {
+            vehicleId: query.vehicleId,
+            custLat: query.custLat,
+            custLon: query.custLon,
+            dropStopId: query.dropStopId,
+          },
+          { signal: controller.signal },
+        )
+        if (cancelled) return
         setDetail(next)
-        setDepartureId(next.departures[0]?.id || '')
+        setDepartureId((prev) => prev || next.departures[0]?.id || '')
         setStatus('ready')
-      })
-      .catch((err) => {
-        if (err?.name === 'AbortError') return
-        setError(err?.message || 'Could not load this route')
-        setStatus('error')
-      })
-    return () => controller.abort()
+        setError('')
+        hasLoaded = true
+      } catch (err) {
+        if (err?.name === 'AbortError' || cancelled) return
+        if (!hasLoaded) {
+          setError(err?.message || 'Could not load this route')
+          setStatus('error')
+        }
+      }
+    }
+
+    function scheduleNext() {
+      timer = window.setTimeout(async () => {
+        if (!cancelled && document.visibilityState === 'visible') await load()
+        if (!cancelled) scheduleNext()
+      }, DETAIL_POLL_MS)
+    }
+
+    load().then(() => {
+      if (!cancelled) scheduleNext()
+    })
+
+    return () => {
+      cancelled = true
+      controller?.abort()
+      window.clearTimeout(timer)
+    }
   }, [query.vehicleId, query.custLat, query.custLon, query.dropStopId])
+
+  // Between ETA polls, creep the bus along the current leg using stop clocks + now.
+  useEffect(() => {
+    if (!detail?.stops?.length) {
+      setBusLive(null)
+      return undefined
+    }
+    if (detail.bus?.source === 'live') {
+      setBusLive(detail.bus)
+      return undefined
+    }
+    function tick() {
+      const next = estimateBusAlongStops(detail.stops)
+      setBusLive(next ? { ...next, source: 'estimate' } : null)
+    }
+    tick()
+    const id = window.setInterval(tick, BUS_TICK_MS)
+    return () => window.clearInterval(id)
+  }, [detail])
 
   // Waypoints sorted by stop_sequence in mapVehicleEta — OSRM follows that order.
   const line = useMemo(() => {
@@ -176,6 +231,7 @@ function LiveBusDetailPage() {
   const mapRouteStart = detail?.routeStart || detail?.stops?.[0] || null
   const mapRouteEnd =
     detail?.routeEnd || (detail?.stops?.length ? detail.stops[detail.stops.length - 1] : null)
+  const mapBus = busLive || detail?.bus || null
 
   function buyTicket() {
     const params = new URLSearchParams(location.search.startsWith('?') ? location.search.slice(1) : location.search)
@@ -225,7 +281,7 @@ function LiveBusDetailPage() {
           stops={mapStops}
           routeStart={mapRouteStart}
           routeEnd={mapRouteEnd}
-          bus={detail.bus}
+          bus={mapBus}
           busLabel={detail.busLabel}
         />
       ) : null}

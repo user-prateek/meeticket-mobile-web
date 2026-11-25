@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { mountLeafletHtmlMarker } from '../../lib/leafletHtmlMarker'
 import {
   fetchOsmDrivingRouteVia,
@@ -6,7 +6,7 @@ import {
   OSM_ATTRIBUTION,
   OSM_TILE_URL,
 } from '../../lib/osmMaps'
-import { snapToRoute } from './routeGeometry'
+import { haversineM, snapToRoute } from './routeGeometry'
 
 /** Route start — plain blue circle (no vehicle glyph). */
 function StartPin() {
@@ -52,168 +52,286 @@ function asLatLngs(points) {
     .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng))
 }
 
+function routeKey(points, routeStart, routeEnd) {
+  const stops = asLatLngs(points)
+    .map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`)
+    .join('|')
+  const start = routeStart ? `${routeStart.lat},${routeStart.lng}` : ''
+  const end = routeEnd ? `${routeEnd.lat},${routeEnd.lng}` : ''
+  return `${stops}::${start}::${end}`
+}
+
+function easeInOut(t) {
+  return t < 0.5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2
+}
+
+const MOVE_MS = 900
+
 /**
  * Map plot (reference):
  * 1. first stop (min stop_sequence) highlighted
  * 2. intermediate stops as regular dots
  * 3. OSRM driving path through stops in sequence order
  * 4. last stop (max stop_sequence) highlighted
- * 5. bus at last is_crossed stop
+ * 5. bus at last is_crossed stop (animated on poll)
  */
 export function RouteLineMap({ points = [], stops = [], routeStart, routeEnd, bus, busLabel }) {
   const hostRef = useRef(null)
+  const mapRef = useRef(null)
+  const leafletRef = useRef(null)
+  const pathRef = useRef([])
+  const lineLayerRef = useRef(null)
+  const staticMarkersRef = useRef([])
+  const circleLayersRef = useRef([])
+  const busMarkerRef = useRef(null)
+  const busPosRef = useRef(null)
+  const animRef = useRef(0)
+  const fittedRef = useRef(false)
+  const builtKeyRef = useRef('')
+  const [ready, setReady] = useState(false)
 
+  function cancelAnim() {
+    if (animRef.current) window.cancelAnimationFrame(animRef.current)
+    animRef.current = 0
+  }
+
+  function animateBus(handle, from, to, heading, label) {
+    cancelAnim()
+    handle.update(<BusTag label={label} heading={heading} />)
+    const dist = haversineM(from, to)
+    if (dist < 1) {
+      handle.setPosition(to)
+      busPosRef.current = to
+      return
+    }
+    const started = performance.now()
+    const tick = (now) => {
+      const t = Math.min(1, (now - started) / MOVE_MS)
+      const k = easeInOut(t)
+      const next = {
+        lat: from.lat + (to.lat - from.lat) * k,
+        lng: from.lng + (to.lng - from.lng) * k,
+      }
+      handle.setPosition(next)
+      if (t < 1) {
+        animRef.current = window.requestAnimationFrame(tick)
+      } else {
+        animRef.current = 0
+        busPosRef.current = to
+      }
+    }
+    animRef.current = window.requestAnimationFrame(tick)
+  }
+
+  // Build / rebuild map only when the stop geometry changes (not on every bus poll).
   useEffect(() => {
     const host = hostRef.current
     if (!host) return undefined
 
     let cancelled = false
-    let map = null
-    let lineLayer = null
-    const markerHandles = []
-    const circleLayers = []
-    const waypoints = asLatLngs(points)
+    const key = routeKey(points, routeStart, routeEnd)
 
-    loadLeaflet()
-      .then(async (L) => {
-        if (cancelled || !hostRef.current) return
+    async function build() {
+      const L = await loadLeaflet()
+      if (cancelled || !hostRef.current) return
 
+      if (!mapRef.current) {
+        const waypoints = asLatLngs(points)
         const start = waypoints[0] || routeStart || routeEnd || { lat: 17.4, lng: 78.48 }
-        map = L.map(hostRef.current, {
+        leafletRef.current = L
+        mapRef.current = L.map(hostRef.current, {
           center: [start.lat, start.lng],
           zoom: 12,
           zoomControl: false,
           attributionControl: true,
         })
-        L.tileLayer(OSM_TILE_URL, { attribution: OSM_ATTRIBUTION, maxZoom: 19 }).addTo(map)
+        L.tileLayer(OSM_TILE_URL, { attribution: OSM_ATTRIBUTION, maxZoom: 19 }).addTo(mapRef.current)
+      }
 
-        let pathPoints = waypoints
-        if (waypoints.length > 1) {
-          try {
-            const route = await fetchOsmDrivingRouteVia(waypoints)
-            if (!cancelled && route?.path?.length) pathPoints = route.path
-          } catch (error) {
-            if (import.meta.env.DEV) {
-              console.warn('[livebus] OSRM road route unavailable', error)
-            }
-          }
-        }
-        if (cancelled || !map) return
+      if (builtKeyRef.current === key && pathRef.current.length) {
+        setReady(true)
+        return
+      }
 
-        const line = pathPoints.map((point) => [point.lat, point.lng])
-        lineLayer =
-          line.length > 1
-            ? L.polyline(line, { color: '#2f6bff', weight: 5, smoothFactor: 0 }).addTo(map)
-            : null
-
-        const startId = routeStart?.id
-        const endId = routeEnd?.id
-        // Intermediate stops only — start/end use dedicated markers.
-        asLatLngs(stops)
-          .map((stop, index) => ({ ...stop, id: stops[index]?.id, name: stops[index]?.name }))
-          .filter((stop) => stop.id !== startId && stop.id !== endId)
-          .forEach((stop) => {
-            const circle = L.circleMarker([stop.lat, stop.lng], {
-              radius: 5,
-              color: '#2f6bff',
-              weight: 2,
-              fillColor: '#ffffff',
-              fillOpacity: 1,
-            }).addTo(map)
-            if (stop.name) circle.bindTooltip(stop.name, { direction: 'top', opacity: 0.95 })
-            circleLayers.push(circle)
-          })
-
-        if (routeStart && Number.isFinite(Number(routeStart.lat)) && Number.isFinite(Number(routeStart.lng))) {
-          markerHandles.push(
-            mountLeafletHtmlMarker({
-              L,
-              map,
-              position: routeStart,
-              zIndex: 2,
-              className: 'rd-pin-host',
-              node: <StartPin />,
-            }),
-          )
+      const map = mapRef.current
+      cancelAnim()
+      busMarkerRef.current?.clear()
+      busMarkerRef.current = null
+      busPosRef.current = null
+      staticMarkersRef.current.forEach((marker) => marker.clear())
+      staticMarkersRef.current = []
+      circleLayersRef.current.forEach((layer) => {
+        try {
+          map.removeLayer(layer)
+        } catch {
+          /* gone */
         }
-        if (routeEnd && Number.isFinite(Number(routeEnd.lat)) && Number.isFinite(Number(routeEnd.lng))) {
-          markerHandles.push(
-            mountLeafletHtmlMarker({
-              L,
-              map,
-              position: routeEnd,
-              zIndex: 2,
-              className: 'rd-pin-host',
-              node: <EndPin />,
-            }),
-          )
-        }
-        if (bus && Number.isFinite(Number(bus.lat)) && Number.isFinite(Number(bus.lng))) {
-          // Always sit on the plotted OSRM line and face that segment's travel direction.
-          const snapped = snapToRoute(bus, pathPoints)
-          const busPos = snapped?.point || bus
-          const heading = Number.isFinite(Number(snapped?.heading)) ? Number(snapped.heading) : 0
-          markerHandles.push(
-            mountLeafletHtmlMarker({
-              L,
-              map,
-              position: busPos,
-              zIndex: 3,
-              className: 'rd-pin-host',
-              node: <BusTag label={busLabel} heading={heading} />,
-            }),
-          )
-        }
-
-        if (lineLayer) {
-          map.fitBounds(lineLayer.getBounds(), {
-            paddingTopLeft: [28, 64],
-            paddingBottomRight: [28, 36],
-          })
-        }
-        requestAnimationFrame(() => {
-          if (cancelled || !map) return
-          map.invalidateSize()
-          if (lineLayer) {
-            map.fitBounds(lineLayer.getBounds(), {
-              paddingTopLeft: [28, 64],
-              paddingBottomRight: [28, 36],
-            })
-          }
-        })
       })
-      .catch(() => {})
+      circleLayersRef.current = []
+      if (lineLayerRef.current) {
+        try {
+          map.removeLayer(lineLayerRef.current)
+        } catch {
+          /* gone */
+        }
+        lineLayerRef.current = null
+      }
+
+      const waypoints = asLatLngs(points)
+      let pathPoints = waypoints
+      if (waypoints.length > 1) {
+        try {
+          const route = await fetchOsmDrivingRouteVia(waypoints)
+          if (!cancelled && route?.path?.length) pathPoints = route.path
+        } catch (error) {
+          if (import.meta.env.DEV) {
+            console.warn('[livebus] OSRM road route unavailable', error)
+          }
+        }
+      }
+      if (cancelled || !mapRef.current) return
+
+      pathRef.current = pathPoints
+      const line = pathPoints.map((point) => [point.lat, point.lng])
+      lineLayerRef.current =
+        line.length > 1
+          ? L.polyline(line, { color: '#2f6bff', weight: 5, smoothFactor: 0 }).addTo(map)
+          : null
+
+      const startId = routeStart?.id
+      const endId = routeEnd?.id
+      asLatLngs(stops)
+        .map((stop, index) => ({ ...stop, id: stops[index]?.id, name: stops[index]?.name }))
+        .filter((stop) => stop.id !== startId && stop.id !== endId)
+        .forEach((stop) => {
+          const circle = L.circleMarker([stop.lat, stop.lng], {
+            radius: 5,
+            color: '#2f6bff',
+            weight: 2,
+            fillColor: '#ffffff',
+            fillOpacity: 1,
+          }).addTo(map)
+          if (stop.name) circle.bindTooltip(stop.name, { direction: 'top', opacity: 0.95 })
+          circleLayersRef.current.push(circle)
+        })
+
+      if (routeStart && Number.isFinite(Number(routeStart.lat)) && Number.isFinite(Number(routeStart.lng))) {
+        staticMarkersRef.current.push(
+          mountLeafletHtmlMarker({
+            L,
+            map,
+            position: routeStart,
+            zIndex: 2,
+            className: 'rd-pin-host',
+            node: <StartPin />,
+          }),
+        )
+      }
+      if (routeEnd && Number.isFinite(Number(routeEnd.lat)) && Number.isFinite(Number(routeEnd.lng))) {
+        staticMarkersRef.current.push(
+          mountLeafletHtmlMarker({
+            L,
+            map,
+            position: routeEnd,
+            zIndex: 2,
+            className: 'rd-pin-host',
+            node: <EndPin />,
+          }),
+        )
+      }
+
+      builtKeyRef.current = key
+      fittedRef.current = false
+      setReady(true)
+
+      const fitPads = { paddingTopLeft: [28, 64], paddingBottomRight: [28, 36] }
+      const fitMap = () => {
+        if (!mapRef.current) return
+        if (lineLayerRef.current) {
+          mapRef.current.fitBounds(lineLayerRef.current.getBounds(), fitPads)
+        }
+      }
+      fitMap()
+      requestAnimationFrame(() => {
+        if (cancelled || !mapRef.current) return
+        mapRef.current.invalidateSize()
+        fitMap()
+        fittedRef.current = true
+      })
+    }
+
+    build().catch(() => {})
 
     return () => {
       cancelled = true
-      markerHandles.forEach((marker) => marker.clear())
-      circleLayers.forEach((circle) => {
-        try {
-          map?.removeLayer(circle)
-        } catch {
-          /* map already gone */
-        }
-      })
-      if (lineLayer) {
-        try {
-          map?.removeLayer(lineLayer)
-        } catch {
-          /* map already gone */
-        }
-      }
-      map?.remove()
-      map = null
     }
-  }, [points, stops, routeStart, routeEnd, bus, busLabel])
+  }, [points, stops, routeStart, routeEnd])
+
+  // Animate bus marker on poll updates without remounting the route.
+  useEffect(() => {
+    const map = mapRef.current
+    const L = leafletRef.current
+    if (!ready || !map || !L) return undefined
+
+    if (!bus || !Number.isFinite(Number(bus.lat)) || !Number.isFinite(Number(bus.lng))) {
+      cancelAnim()
+      busMarkerRef.current?.clear()
+      busMarkerRef.current = null
+      busPosRef.current = null
+      return undefined
+    }
+
+    const snapped = snapToRoute(bus, pathRef.current)
+    const busPos = snapped?.point || { lat: Number(bus.lat), lng: Number(bus.lng) }
+    const heading = Number.isFinite(Number(snapped?.heading))
+      ? Number(snapped.heading)
+      : Number(bus.heading) || 0
+
+    if (!busMarkerRef.current) {
+      busMarkerRef.current = mountLeafletHtmlMarker({
+        L,
+        map,
+        position: busPos,
+        zIndex: 3,
+        className: 'rd-pin-host',
+        node: <BusTag label={busLabel} heading={heading} />,
+      })
+      busPosRef.current = busPos
+      return undefined
+    }
+
+    animateBus(busMarkerRef.current, busPosRef.current || busPos, busPos, heading, busLabel)
+    return undefined
+  }, [ready, bus, busLabel])
 
   useEffect(() => {
-    const host = hostRef.current
-    if (!host || typeof ResizeObserver === 'undefined') return undefined
-    const observer = new ResizeObserver(() => {
-      host.dispatchEvent(new Event('rd-map-resize'))
-    })
-    observer.observe(host)
-    return () => observer.disconnect()
+    return () => {
+      cancelAnim()
+      busMarkerRef.current?.clear()
+      busMarkerRef.current = null
+      staticMarkersRef.current.forEach((marker) => marker.clear())
+      staticMarkersRef.current = []
+      circleLayersRef.current.forEach((layer) => {
+        try {
+          mapRef.current?.removeLayer(layer)
+        } catch {
+          /* gone */
+        }
+      })
+      circleLayersRef.current = []
+      if (lineLayerRef.current) {
+        try {
+          mapRef.current?.removeLayer(lineLayerRef.current)
+        } catch {
+          /* gone */
+        }
+      }
+      mapRef.current?.remove()
+      mapRef.current = null
+      leafletRef.current = null
+      pathRef.current = []
+      builtKeyRef.current = ''
+    }
   }, [])
 
   return <div ref={hostRef} className="rd-map" />
