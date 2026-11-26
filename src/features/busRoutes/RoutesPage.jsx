@@ -4,7 +4,7 @@ import { Header } from '../../components/Header'
 import { ChevronIcon } from '../../components/icons'
 import { useAppNavigate } from '../../hooks/useAppNavigate'
 import { GOTO_HOME_PATH } from '../../lib/appContext'
-import { parseTripQuery } from '../../lib/tripQuery'
+import { hasRequiredTripParams, parseTripQuery } from '../../lib/tripQuery'
 import { fetchBusRouteOptions } from './api'
 import { LiveBusMap } from './LiveBusMap'
 import { BUS_ROUTE_FILTERS, cardForFilter } from './mapBusRoutes'
@@ -58,13 +58,14 @@ function RouteCard({ card, onView }) {
           {card.vehicleId ? <span className="br-pill">{card.vehicleId}</span> : null}
           {card.scheduled ? <span className="br-pill is-scheduled">Scheduled</span> : null}
         </div>
-        {card.canOpenRoute !== false ? (
-          <button type="button" className="br-view" onClick={() => onView?.(card)}>
-            View Route <ChevronIcon size={14} />
-          </button>
-        ) : (
-          <span className="br-pill">{card.vehicleId || 'Active'}</span>
-        )}
+        <button
+          type="button"
+          className="br-view"
+          onClick={() => onView?.(card)}
+          disabled={card.canOpenRoute === false}
+        >
+          View Route <ChevronIcon size={14} />
+        </button>
       </div>
     </article>
   )
@@ -83,10 +84,9 @@ function flagFromSearch(search, key, defaultValue = false) {
 
 /**
  * /livebus?from_lat&from_lon&to_lat&to_lon&from&to
- * Modes:
- * - show_all=1 — debug full fleet
- * - filter_by_destination=1 + to_lat/to_lon — buses to that dest (source ignored)
- * - filter_by_destination=0 + from_lat/from_lon — nearby by source only
+ * Optional flags (request always sends lat/lon + destination_*):
+ * - filter_by_destination (default true) — false = all buses covering source
+ * - show_all (default false) — true = full fleet (debug)
  */
 export function RoutesPage() {
   const location = useLocation()
@@ -99,23 +99,15 @@ export function RoutesPage() {
     () => flagFromSearch(location.search, 'filter_by_destination', true),
     [location.search],
   )
+  const paramsOk = hasRequiredTripParams(location.search)
   const trip = useMemo(() => {
-    const parsed = parseTripQuery(location.search)
-    const hasDest = parsed.toLat != null && parsed.toLon != null
-    const hasSource = parsed.fromLat != null && parsed.fromLon != null
-    if (showAll) return { ...parsed, showAll: true, filterByDestination }
-    // Destination-only: to_* present, from_* omitted → ignore source, list buses to dest.
-    if (filterByDestination && hasDest && !hasSource) {
-      return { ...parsed, showAll: false, filterByDestination: true }
+    if (!paramsOk) return null
+    return {
+      ...parseTripQuery(location.search),
+      showAll,
+      filterByDestination,
     }
-    if (filterByDestination && hasDest && hasSource) {
-      return { ...parsed, showAll: false, filterByDestination: true }
-    }
-    if (!filterByDestination && hasSource) {
-      return { ...parsed, showAll: false, filterByDestination: false }
-    }
-    return null
-  }, [showAll, filterByDestination, location.search])
+  }, [paramsOk, showAll, filterByDestination, location.search])
   const [view, setView] = useState('list')
   const [filterId, setFilterId] = useState('all')
   const [routes, setRoutes] = useState([])
@@ -126,11 +118,7 @@ export function RoutesPage() {
   useEffect(() => {
     if (!trip) {
       setRoutes([])
-      setError(
-        filterByDestination
-          ? 'to_lat and to_lon are required (from_* optional for destination-only)'
-          : 'from_lat and from_lon are required',
-      )
+      setError('from_lat, from_lon, to_lat and to_lon are required')
       setStatus('error')
       return undefined
     }
@@ -184,7 +172,7 @@ export function RoutesPage() {
       controller?.abort()
       window.clearTimeout(timer)
     }
-  }, [trip, reloadKey, filterByDestination, showAll])
+  }, [trip, reloadKey])
 
   const visible = useMemo(
     () => routes.map((card) => cardForFilter(card, filterId)).filter(Boolean),
@@ -210,14 +198,13 @@ export function RoutesPage() {
 
   const openRoute = useCallback(
     (card) => {
-      if (!card?.vehicleId) return
-      if (card.canOpenRoute === false || !card.destinationStopId) return
+      if (!card?.vehicleId || !card?.destinationStopId) return
       const params = new URLSearchParams(
         location.search.startsWith('?') ? location.search.slice(1) : location.search,
       )
       params.set('route_id', card.routeId)
       if (card.originStopId) params.set('from_stop_id', card.originStopId)
-      if (card.destinationStopId) params.set('to_stop_id', card.destinationStopId)
+      params.set('to_stop_id', card.destinationStopId)
       if (card.code) params.set('code', card.code)
       if (card.vehicleId) params.set('vehicle_id', card.vehicleId)
       if (card.tripId) params.set('trip_id', card.tripId)
@@ -228,14 +215,10 @@ export function RoutesPage() {
     [location.search, navigate],
   )
 
-  const destOnly =
-    trip?.filterByDestination && trip?.toLat != null && trip?.fromLat == null
   const subtitle = trip?.showAll
     ? 'Debug · show_all fleet'
-    : destOnly
-      ? trip?.toPlace
-        ? `To ${trip.toPlace}`
-        : 'Buses to destination'
+    : !trip?.filterByDestination && trip?.fromPlace
+      ? `From ${trip.fromPlace}`
       : trip?.fromPlace && trip?.toPlace
         ? `${trip.fromPlace} → ${trip.toPlace}`
         : null

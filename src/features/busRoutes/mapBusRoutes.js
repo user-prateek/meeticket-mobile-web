@@ -202,15 +202,15 @@ export function routeHeading(fromLat, fromLng, toLat, toLng) {
 
 /**
  * One `/nearby-buses` row → list card and map pin.
- * Normal mode uses boarding/destination. Debug show_all ignores those and still lists the bus.
+ * show_all may omit boarding/destination until API fills them — still list the bus.
+ * filter_by_destination=false may omit destination_stop (any alight).
  */
 export function mapNearbyBus(item, index = 0, { showAll = false } = {}) {
   const board = item?.boarding_stop || null
   const dest = item?.destination_stop || null
   const vehicleId = String(item?.vehicle_id || '')
   if (!vehicleId && !item?.trip_id && !item?.chalo_route_id) return null
-  // Production trip search needs a board + drop; show_all debug lists everything.
-  if (!showAll && (!board?.stop_id || !dest?.stop_id)) return null
+  if (!showAll && !board?.stop_id) return null
 
   const fare = Number(item?.fare)
   const eta = Number(item?.eta_minutes)
@@ -247,7 +247,7 @@ export function mapNearbyBus(item, index = 0, { showAll = false } = {}) {
     code: routeCode(item?.route_name) || 'Bus',
     corridor,
     from: titleLabel(board?.stop_name) || corridorFrom || titleLabel(item?.route_name) || 'Bus',
-    to: titleLabel(dest?.stop_name) || corridorTo || (showAll ? 'Active' : 'In service'),
+    to: titleLabel(dest?.stop_name) || corridorTo || (showAll ? 'Active' : 'Any destination'),
     originStopId: String(board?.stop_id || ''),
     destinationStopId: String(dest?.stop_id || ''),
     lat,
@@ -265,7 +265,6 @@ export function mapNearbyBus(item, index = 0, { showAll = false } = {}) {
     color: busColor(id, index),
     choices: fareInr ? [{ fareInr, category, classId }] : [],
     showAll: Boolean(showAll),
-    // Detail needs a drop stop — show_all debug is list-only.
     canOpenRoute: Boolean(vehicleId && dest?.stop_id),
   }
 }

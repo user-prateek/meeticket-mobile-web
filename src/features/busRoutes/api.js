@@ -5,8 +5,8 @@ import { mapRouteCheckout } from './mapCheckout'
 import { mapVehicleEta } from './mapVehicleEta'
 
 const NEARBY_DEFAULTS = {
-  /** Debug-only: true = every active vehicle; ignores coords. */
   show_all: false,
+  /** Default true: buses covering source that also reach destination. */
   filter_by_destination: true,
   radius_km: 5,
   walk_km: 1,
@@ -16,23 +16,14 @@ const NEARBY_DEFAULTS = {
   eta_provider: 'osrm',
 }
 
-/** Wider search when browsing by destination only (ignore rider source). */
-const DEST_ONLY_DEFAULTS = {
-  radius_km: 50,
-  walk_km: 5,
-  destination_radius_km: 2,
-  max_boarding_stops: 10,
-  max_destination_stops: 10,
-}
-
 /**
  * Live TGSRTC nearby-buses → list cards + map pins.
  *
- * Modes:
- * - show_all=true → full active fleet (debug)
- * - destination-only → to_lat/to_lon + filter_by_destination, no source (source ignored)
- * - production A→B → from + to, filter trips that reach destination near rider
- * - source-only → from_lat/from_lon with filter_by_destination=false
+ * Request signature is always the same (lat/lon + destination_* + flags).
+ * Flags only change API filtering:
+ * - default: source∩destination
+ * - filter_by_destination=false: all buses covering source (any destination)
+ * - show_all=true: full fleet (coords still sent, ignored by API)
  */
 export async function fetchBusRouteOptions(
   trip,
@@ -40,6 +31,14 @@ export async function fetchBusRouteOptions(
 ) {
   const url = urls.nearbyBuses
   if (!url) throw new Error('TGSRTC API is not configured')
+  if (
+    trip?.fromLat == null ||
+    trip?.fromLon == null ||
+    trip?.toLat == null ||
+    trip?.toLon == null
+  ) {
+    throw new Error('from_lat, from_lon, to_lat and to_lon are required')
+  }
 
   const show_all = Boolean(showAll ?? trip?.showAll ?? NEARBY_DEFAULTS.show_all)
   const filter_by_destination = Boolean(
@@ -47,77 +46,22 @@ export async function fetchBusRouteOptions(
       trip?.filterByDestination ??
       NEARBY_DEFAULTS.filter_by_destination,
   )
-  const hasSource = trip?.fromLat != null && trip?.fromLon != null
-  const hasDest = trip?.toLat != null && trip?.toLon != null
 
-  if (show_all) {
-    const payload = {
-      show_all: true,
-      filter_by_destination,
-      eta_provider: NEARBY_DEFAULTS.eta_provider,
-      ...(filter_by_destination && hasDest
-        ? {
-            destination_lat: trip.toLat,
-            destination_lon: trip.toLon,
-          }
-        : {}),
-    }
-    const data = await GetRequest(url, payload, { signal })
-    const rows = Array.isArray(data) ? data : Array.isArray(data?.buses) ? data.buses : []
-    return rows
-      .map((item, index) => mapNearbyBus(item, index, { showAll: true }))
-      .filter(Boolean)
-  }
-
-  // Destination-only browse: ignore source, list buses going to that destination.
-  if (filter_by_destination && hasDest && !hasSource) {
-    const payload = {
-      ...NEARBY_DEFAULTS,
-      ...DEST_ONLY_DEFAULTS,
-      show_all: false,
-      filter_by_destination: true,
-      // API requires lat/lon — center search on destination.
-      lat: trip.toLat,
-      lon: trip.toLon,
-      destination_lat: trip.toLat,
-      destination_lon: trip.toLon,
-    }
-    const data = await GetRequest(url, payload, { signal })
-    const rows = Array.isArray(data) ? data : Array.isArray(data?.buses) ? data.buses : []
-    return rows.map((item, index) => mapNearbyBus(item, index)).filter(Boolean)
-  }
-
-  if (filter_by_destination) {
-    if (!hasSource || !hasDest) {
-      throw new Error('from_lat, from_lon, to_lat and to_lon are required')
-    }
-    const payload = {
-      ...NEARBY_DEFAULTS,
-      show_all: false,
-      filter_by_destination: true,
-      lat: trip.fromLat,
-      lon: trip.fromLon,
-      destination_lat: trip.toLat,
-      destination_lon: trip.toLon,
-    }
-    const data = await GetRequest(url, payload, { signal })
-    const rows = Array.isArray(data) ? data : Array.isArray(data?.buses) ? data.buses : []
-    return rows.map((item, index) => mapNearbyBus(item, index)).filter(Boolean)
-  }
-
-  if (!hasSource) {
-    throw new Error('from_lat and from_lon are required')
-  }
   const payload = {
     ...NEARBY_DEFAULTS,
-    show_all: false,
-    filter_by_destination: false,
+    show_all,
+    filter_by_destination,
     lat: trip.fromLat,
     lon: trip.fromLon,
+    destination_lat: trip.toLat,
+    destination_lon: trip.toLon,
   }
+
   const data = await GetRequest(url, payload, { signal })
   const rows = Array.isArray(data) ? data : Array.isArray(data?.buses) ? data.buses : []
-  return rows.map((item, index) => mapNearbyBus(item, index)).filter(Boolean)
+  return rows
+    .map((item, index) => mapNearbyBus(item, index, { showAll: show_all }))
+    .filter(Boolean)
 }
 
 /**
