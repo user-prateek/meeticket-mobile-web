@@ -1,10 +1,13 @@
 import { GetRequest } from '../../api/client'
 import { tgsrtcBaseUrl, urls } from '../../api/config'
-import { fetchMockCheckout } from './mockApi'
 import { mapNearbyBus } from './mapBusRoutes'
+import { mapRouteCheckout } from './mapCheckout'
 import { mapVehicleEta } from './mapVehicleEta'
 
 const NEARBY_DEFAULTS = {
+  /** false = use lat/lon + destination; true = every active vehicle (ignores coords). */
+  show_all: false,
+  filter_by_destination: true,
   radius_km: 5,
   walk_km: 1,
   destination_radius_km: 1,
@@ -15,26 +18,34 @@ const NEARBY_DEFAULTS = {
 
 /**
  * Live TGSRTC nearby-buses → list cards + map pins.
- * Requires trip from/to lat/lon (same query as /journey).
+ * Requires trip from/to lat/lon unless show_all is true.
  */
-export async function fetchBusRouteOptions(trip, { signal } = {}) {
+export async function fetchBusRouteOptions(trip, { signal, showAll } = {}) {
   const url = urls.nearbyBuses
   if (!url) throw new Error('TGSRTC API is not configured')
+
+  const show_all = Boolean(showAll ?? trip?.showAll ?? NEARBY_DEFAULTS.show_all)
   if (
-    trip?.fromLat == null ||
-    trip?.fromLon == null ||
-    trip?.toLat == null ||
-    trip?.toLon == null
+    !show_all &&
+    (trip?.fromLat == null ||
+      trip?.fromLon == null ||
+      trip?.toLat == null ||
+      trip?.toLon == null)
   ) {
     throw new Error('from_lat, from_lon, to_lat and to_lon are required')
   }
 
   const payload = {
-    lat: trip.fromLat,
-    lon: trip.fromLon,
-    destination_lat: trip.toLat,
-    destination_lon: trip.toLon,
     ...NEARBY_DEFAULTS,
+    show_all,
+    ...(show_all
+      ? {}
+      : {
+          lat: trip.fromLat,
+          lon: trip.fromLon,
+          destination_lat: trip.toLat,
+          destination_lon: trip.toLon,
+        }),
   }
 
   const data = await GetRequest(url, payload, { signal })
@@ -71,7 +82,18 @@ export async function fetchRouteDetail(
   return mapVehicleEta(data)
 }
 
-/** Summary and ticket for the selected bus. Mocked until checkout APIs arrive. */
-export function fetchRouteCheckout(routeId, options) {
-  return fetchMockCheckout(routeId, options)
+/**
+ * Journey summary: vehicle ETA + previous-page query (fare/code/places/stops).
+ */
+export async function fetchRouteCheckout(query, { signal } = {}) {
+  const detail = await fetchRouteDetail(
+    {
+      vehicleId: query.vehicleId,
+      custLat: query.fromLat,
+      custLon: query.fromLon,
+      dropStopId: query.dropStopId || query.toStopId,
+    },
+    { signal },
+  )
+  return mapRouteCheckout(detail, query)
 }

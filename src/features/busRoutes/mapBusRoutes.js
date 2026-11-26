@@ -206,8 +206,10 @@ export function routeHeading(fromLat, fromLng, toLat, toLng) {
  * eta_minutes and distance_m are from the rider to that boarding stop.
  */
 export function mapNearbyBus(item, index = 0) {
-  const board = item?.boarding_stop || {}
-  const dest = item?.destination_stop || {}
+  const board = item?.boarding_stop || null
+  const dest = item?.destination_stop || null
+  // show_all can return vehicles with no boarding/destination — skip those for SRP.
+  if (!board?.stop_id || !dest?.stop_id) return null
   const fare = Number(item?.fare)
   const eta = Number(item?.eta_minutes)
   const distanceM = Number(item?.distance_m)

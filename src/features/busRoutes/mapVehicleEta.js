@@ -31,6 +31,24 @@ export function parseClockToMs(value, now = Date.now()) {
 
 const DEFAULT_LEG_MS = 3 * 60 * 1000
 
+/** Latest crumb from `recent_positions` (`{ lat, lon, time }`). */
+export function latestRecentPosition(positions) {
+  const list = Array.isArray(positions) ? positions : []
+  let best = null
+  let bestMs = -1
+  for (const row of list) {
+    const lat = coord(row?.lat)
+    const lng = coord(row?.lon ?? row?.lng)
+    if (lat == null || lng == null) continue
+    const ms = parseClockToMs(row?.time) ?? 0
+    if (!best || ms >= bestMs) {
+      best = { lat, lng, time: row?.time || '' }
+      bestMs = ms
+    }
+  }
+  return best
+}
+
 /**
  * Estimate bus between last crossed stop and the next using stop clocks.
  * progress ≈ (now − left_stop_time) / (next_stop_time − left_stop_time).
@@ -154,24 +172,26 @@ export function mapVehicleEta(data) {
   const routeEnd = stops.length ? stops[stops.length - 1] : null
   const boarding = stops.find((stop) => stop.role === 'pickup') || routeStart
 
-  // Live GPS when API sends it; else time-based estimate between crossed stops.
-  const liveLat =
-    coord(data?.lat) ??
-    coord(data?.vehicle_lat) ??
-    coord(data?.current_lat) ??
-    coord(data?.vehicle_latitude)
-  const liveLng =
-    coord(data?.lon) ??
-    coord(data?.lng) ??
-    coord(data?.vehicle_lon) ??
-    coord(data?.current_lon) ??
-    coord(data?.vehicle_longitude)
-  const liveHeading = coord(data?.heading) ?? coord(data?.bearing)
+  // Next stop the bus is heading toward (first not yet crossed).
+  let lastCrossedIdx = -1
+  for (let i = stops.length - 1; i >= 0; i -= 1) {
+    if (stops[i].crossed) {
+      lastCrossedIdx = i
+      break
+    }
+  }
+  const nextStop = stops[lastCrossedIdx + 1] || (lastCrossedIdx < 0 ? stops[0] : null) || routeEnd
+
+  // recent_positions → live bus spot; heading faces the next stop.
+  const recent = latestRecentPosition(data?.recent_positions)
   const estimated = estimateBusAlongStops(stops, now)
-  const busLat = liveLat ?? estimated?.lat ?? null
-  const busLng = liveLng ?? estimated?.lng ?? null
-  const busHeading = liveHeading ?? estimated?.heading ?? 0
-  const busSource = liveLat != null && liveLng != null ? 'live' : 'estimate'
+  const busLat = recent?.lat ?? estimated?.lat ?? null
+  const busLng = recent?.lng ?? estimated?.lng ?? null
+  const busHeading =
+    recent && nextStop
+      ? routeHeading(recent.lat, recent.lng, nextStop.lat, nextStop.lng)
+      : estimated?.heading ?? 0
+  const busSource = recent ? 'live' : 'estimate'
 
   const eta = Number(board.eta_minutes)
   const etaMinutes = Number.isFinite(eta) && eta >= 0 ? Math.round(eta) : null
@@ -192,6 +212,17 @@ export function mapVehicleEta(data) {
     })
     .filter(Boolean)
 
+  const boardLat = coord(board.stop_lat) ?? boarding?.lat ?? null
+  const boardLng = coord(board.stop_lon) ?? boarding?.lng ?? null
+  const dropLat = coord(drop.stop_lat) ?? null
+  const dropLng = coord(drop.stop_lon) ?? null
+  const boardDistanceM = Number(board.distance_m)
+  const dropStop =
+    stops.find((stop) => stop.role === 'drop') ||
+    (dropLat != null && dropLng != null
+      ? { id: String(drop.stop_id || ''), name: titleLabel(drop.stop_name), lat: dropLat, lng: dropLng }
+      : null)
+
   return {
     routeId: String(data?.chalo_route_id || ''),
     tripId: String(data?.trip_id || ''),
@@ -203,6 +234,25 @@ export function mapVehicleEta(data) {
     vehicleNo: String(data?.vehicle_number || ''),
     busType: category || 'Bus',
     boardingName: titleLabel(board.stop_name || boarding?.name),
+    alightingName: titleLabel(drop.stop_name || dropStop?.name),
+    boardingDistanceM:
+      Number.isFinite(boardDistanceM) && boardDistanceM > 0 ? boardDistanceM : null,
+    boardingStop: boarding
+      ? {
+          id: boarding.id,
+          name: titleLabel(board.stop_name || boarding.name),
+          lat: boardLat ?? boarding.lat,
+          lng: boardLng ?? boarding.lng,
+        }
+      : null,
+    alightingStop: dropStop
+      ? {
+          id: dropStop.id || String(drop.stop_id || ''),
+          name: titleLabel(drop.stop_name || dropStop.name),
+          lat: dropStop.lat,
+          lng: dropStop.lng,
+        }
+      : null,
     busLabel: etaMinutes != null ? `${etaMinutes} min away` : '',
     bus:
       busLat != null && busLng != null
@@ -212,8 +262,19 @@ export function mapVehicleEta(data) {
             heading: busHeading,
             source: busSource,
             progress: estimated?.progress ?? null,
+            nextStopId: nextStop?.id || null,
           }
         : null,
+    recentPositions: Array.isArray(data?.recent_positions)
+      ? data.recent_positions
+          .map((row) => {
+            const lat = coord(row?.lat)
+            const lng = coord(row?.lon ?? row?.lng)
+            if (lat == null || lng == null) return null
+            return { lat, lng, time: row?.time || '' }
+          })
+          .filter(Boolean)
+      : [],
     /** Full route termini for map (min / max stop_sequence). */
     routeStart,
     routeEnd,

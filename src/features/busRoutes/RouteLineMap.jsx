@@ -282,10 +282,17 @@ export function RouteLineMap({ points = [], stops = [], routeStart, routeEnd, bu
     }
 
     const snapped = snapToRoute(bus, pathRef.current)
-    const busPos = snapped?.point || { lat: Number(bus.lat), lng: Number(bus.lng) }
-    const heading = Number.isFinite(Number(snapped?.heading))
-      ? Number(snapped.heading)
-      : Number(bus.heading) || 0
+    // Live GPS (recent_positions): keep true spot; face next stop via bus.heading.
+    // Estimate: sit on the OSRM line and use path heading when available.
+    const live = bus.source === 'live'
+    const busPos = live
+      ? { lat: Number(bus.lat), lng: Number(bus.lng) }
+      : snapped?.point || { lat: Number(bus.lat), lng: Number(bus.lng) }
+    const heading = live
+      ? Number(bus.heading) || 0
+      : Number.isFinite(Number(snapped?.heading))
+        ? Number(snapped.heading)
+        : Number(bus.heading) || 0
 
     if (!busMarkerRef.current) {
       busMarkerRef.current = mountLeafletHtmlMarker({

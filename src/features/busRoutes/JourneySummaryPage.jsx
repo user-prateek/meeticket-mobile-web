@@ -5,6 +5,7 @@ import { createOrderAndInitiatePg } from '../../api/orders'
 import { Header } from '../../components/Header'
 import { useAppNavigate } from '../../hooks/useAppNavigate'
 import { orderAtom } from '../../store/journey'
+import { parseTripQuery } from '../../lib/tripQuery'
 import { fetchRouteCheckout } from './api'
 import { BusGlyph } from './BusGlyph'
 import { buildLiveBusOrderPayload } from './orderPayload'
@@ -13,7 +14,25 @@ import './JourneySummaryPage.css'
 
 function readQuery(search) {
   const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
-  return { routeId: params.get('route_id') || '', raw: params }
+  const trip = parseTripQuery(params)
+  return {
+    routeId: params.get('route_id') || '',
+    vehicleId: params.get('vehicle_id') || '',
+    tripId: params.get('trip_id') || '',
+    fromStopId: params.get('from_stop_id') || '',
+    toStopId: params.get('to_stop_id') || '',
+    dropStopId: params.get('to_stop_id') || '',
+    code: params.get('code') || '',
+    category: params.get('category') || '',
+    fare: params.get('fare') || '',
+    fromLat: trip.fromLat,
+    fromLon: trip.fromLon,
+    toLat: trip.toLat,
+    toLon: trip.toLon,
+    fromPlace: trip.fromPlace || '',
+    toPlace: trip.toPlace || '',
+    raw: params,
+  }
 }
 
 /** Design: passenger avatar on #060496 disc. */
@@ -88,14 +107,24 @@ export function JourneySummaryPage() {
   const [bookError, setBookError] = useState('')
 
   useEffect(() => {
-    if (!query.routeId) {
+    if (!query.vehicleId) {
       setStatus('error')
-      setError('Route is missing')
+      setError('Vehicle is missing')
+      return undefined
+    }
+    if (query.fromLat == null || query.fromLon == null) {
+      setStatus('error')
+      setError('from_lat and from_lon are required')
+      return undefined
+    }
+    if (!query.toStopId) {
+      setStatus('error')
+      setError('Drop stop is missing')
       return undefined
     }
     const controller = new AbortController()
     setStatus('loading')
-    fetchRouteCheckout(query.routeId, { signal: controller.signal })
+    fetchRouteCheckout(query, { signal: controller.signal })
       .then((next) => {
         setTrip(next)
         setStatus('ready')
@@ -106,7 +135,23 @@ export function JourneySummaryPage() {
         setStatus('error')
       })
     return () => controller.abort()
-  }, [query.routeId])
+  }, [
+    query.vehicleId,
+    query.fromLat,
+    query.fromLon,
+    query.toStopId,
+    query.routeId,
+    query.code,
+    query.category,
+    query.fare,
+    query.fromPlace,
+    query.toPlace,
+    query.toLat,
+    query.toLon,
+    query.tripId,
+    query.fromStopId,
+    query.dropStopId,
+  ])
 
   function goBack() {
     const params = new URLSearchParams(query.raw)
