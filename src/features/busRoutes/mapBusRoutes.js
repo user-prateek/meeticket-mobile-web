@@ -202,38 +202,42 @@ export function routeHeading(fromLat, fromLng, toLat, toLng) {
 
 /**
  * One `/nearby-buses` row → list card and map pin.
- * boarding_stop is where the rider boards; destination_stop is where they alight.
- * eta_minutes and distance_m are from the rider to that boarding stop.
+ * Normal mode uses boarding/destination. Debug show_all ignores those and still lists the bus.
  */
-export function mapNearbyBus(item, index = 0) {
+export function mapNearbyBus(item, index = 0, { showAll = false } = {}) {
   const board = item?.boarding_stop || null
   const dest = item?.destination_stop || null
-  // show_all can return vehicles with no boarding/destination — skip those for SRP.
-  if (!board?.stop_id || !dest?.stop_id) return null
+  const vehicleId = String(item?.vehicle_id || '')
+  if (!vehicleId && !item?.trip_id && !item?.chalo_route_id) return null
+  // Production trip search needs a board + drop; show_all debug lists everything.
+  if (!showAll && (!board?.stop_id || !dest?.stop_id)) return null
+
   const fare = Number(item?.fare)
   const eta = Number(item?.eta_minutes)
   const distanceM = Number(item?.distance_m)
-  // Prefer live vehicle coords when the API sends them; else boarding stop.
   const lat =
     coord(item?.lat) ??
     coord(item?.vehicle_lat) ??
     coord(item?.current_lat) ??
-    coord(board.stop_lat)
+    coord(board?.stop_lat)
   const lng =
     coord(item?.lon) ??
     coord(item?.lng) ??
     coord(item?.vehicle_lon) ??
     coord(item?.current_lon) ??
-    coord(board.stop_lon)
-  const destLat = coord(dest.stop_lat)
-  const destLng = coord(dest.stop_lon)
+    coord(board?.stop_lon)
+  const destLat = coord(dest?.stop_lat)
+  const destLng = coord(dest?.stop_lon)
   const category = titleLabel(item?.service_category)
   const fareInr = Number.isFinite(fare) && fare > 0 ? Math.round(fare) : null
   const classId = serviceClassId(item?.service_category)
   const etaMinutes = Number.isFinite(eta) && eta >= 0 ? Math.round(eta) : null
-  const vehicleId = String(item?.vehicle_id || '')
   const id = vehicleId || String(item?.trip_id || index)
   const liveHeading = coord(item?.heading) ?? coord(item?.bearing)
+  const corridor = routeCorridor(item?.route_name)
+  const [corridorFrom, corridorTo] = corridor
+    ? corridor.split('→').map((part) => part.trim())
+    : ['', '']
   return {
     id,
     vehicleId,
@@ -241,11 +245,11 @@ export function mapNearbyBus(item, index = 0) {
     routeId: String(item?.chalo_route_id || ''),
     routeName: String(item?.route_name || ''),
     code: routeCode(item?.route_name) || 'Bus',
-    corridor: routeCorridor(item?.route_name),
-    from: titleLabel(board.stop_name),
-    to: titleLabel(dest.stop_name),
-    originStopId: String(board.stop_id || ''),
-    destinationStopId: String(dest.stop_id || ''),
+    corridor,
+    from: titleLabel(board?.stop_name) || corridorFrom || titleLabel(item?.route_name) || 'Bus',
+    to: titleLabel(dest?.stop_name) || corridorTo || (showAll ? 'Active' : 'In service'),
+    originStopId: String(board?.stop_id || ''),
+    destinationStopId: String(dest?.stop_id || ''),
     lat,
     lng,
     destLat,
@@ -260,16 +264,29 @@ export function mapNearbyBus(item, index = 0) {
     category,
     color: busColor(id, index),
     choices: fareInr ? [{ fareInr, category, classId }] : [],
+    showAll: Boolean(showAll),
+    // Detail needs a drop stop — show_all debug is list-only.
+    canOpenRoute: Boolean(vehicleId && dest?.stop_id),
   }
 }
 
 export function cardForFilter(card, filterId) {
-  const fare = pickFare(card.choices, filterId)
-  if (filterId !== 'all' && !fare) return null
-  const shown = fare || card.choices[0] || null
+  if (filterId !== 'all') {
+    const fare = pickFare(card.choices, filterId)
+    // No fare_options on show_all — filter by service class id instead.
+    if (!fare && serviceClassId(card.category) !== filterId) return null
+    if (fare) {
+      return {
+        ...card,
+        fareInr: fare.fareInr,
+        category: fare.category || card.category || '',
+      }
+    }
+  }
+  const shown = card.choices[0] || null
   return {
     ...card,
-    fareInr: shown?.fareInr ?? null,
-    category: shown?.category || '',
+    fareInr: shown?.fareInr ?? card.fareInr ?? null,
+    category: shown?.category || card.category || '',
   }
 }

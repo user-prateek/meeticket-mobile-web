@@ -4,7 +4,7 @@ import { Header } from '../../components/Header'
 import { ChevronIcon } from '../../components/icons'
 import { useAppNavigate } from '../../hooks/useAppNavigate'
 import { GOTO_HOME_PATH } from '../../lib/appContext'
-import { hasRequiredTripParams, parseTripQuery } from '../../lib/tripQuery'
+import { parseTripQuery } from '../../lib/tripQuery'
 import { fetchBusRouteOptions } from './api'
 import { LiveBusMap } from './LiveBusMap'
 import { BUS_ROUTE_FILTERS, cardForFilter } from './mapBusRoutes'
@@ -58,9 +58,13 @@ function RouteCard({ card, onView }) {
           {card.vehicleId ? <span className="br-pill">{card.vehicleId}</span> : null}
           {card.scheduled ? <span className="br-pill is-scheduled">Scheduled</span> : null}
         </div>
-        <button type="button" className="br-view" onClick={() => onView?.(card)}>
-          View Route <ChevronIcon size={14} />
-        </button>
+        {card.canOpenRoute !== false ? (
+          <button type="button" className="br-view" onClick={() => onView?.(card)}>
+            View Route <ChevronIcon size={14} />
+          </button>
+        ) : (
+          <span className="br-pill">{card.vehicleId || 'Active'}</span>
+        )}
       </div>
     </article>
   )
@@ -68,19 +72,50 @@ function RouteCard({ card, onView }) {
 
 const NEARBY_POLL_MS = 10_000
 
+function flagFromSearch(search, key, defaultValue = false) {
+  const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
+  if (!params.has(key)) return defaultValue
+  const raw = String(params.get(key) || '').toLowerCase()
+  if (raw === '0' || raw === 'false' || raw === 'no') return false
+  if (raw === '1' || raw === 'true' || raw === 'yes') return true
+  return defaultValue
+}
+
 /**
  * /livebus?from_lat&from_lon&to_lat&to_lon&from&to
- * Same query as /journey. This screen lists direct TGSRTC routes only.
- * Nearby buses are polled every 10s while this screen is mounted.
+ * Modes:
+ * - show_all=1 — debug full fleet
+ * - filter_by_destination=1 + to_lat/to_lon — buses to that dest (source ignored)
+ * - filter_by_destination=0 + from_lat/from_lon — nearby by source only
  */
 export function RoutesPage() {
   const location = useLocation()
   const navigate = useAppNavigate()
-  const paramsOk = hasRequiredTripParams(location.search)
-  const trip = useMemo(
-    () => (paramsOk ? parseTripQuery(location.search) : null),
-    [paramsOk, location.search],
+  const showAll = useMemo(
+    () => flagFromSearch(location.search, 'show_all', false),
+    [location.search],
   )
+  const filterByDestination = useMemo(
+    () => flagFromSearch(location.search, 'filter_by_destination', true),
+    [location.search],
+  )
+  const trip = useMemo(() => {
+    const parsed = parseTripQuery(location.search)
+    const hasDest = parsed.toLat != null && parsed.toLon != null
+    const hasSource = parsed.fromLat != null && parsed.fromLon != null
+    if (showAll) return { ...parsed, showAll: true, filterByDestination }
+    // Destination-only: to_* present, from_* omitted → ignore source, list buses to dest.
+    if (filterByDestination && hasDest && !hasSource) {
+      return { ...parsed, showAll: false, filterByDestination: true }
+    }
+    if (filterByDestination && hasDest && hasSource) {
+      return { ...parsed, showAll: false, filterByDestination: true }
+    }
+    if (!filterByDestination && hasSource) {
+      return { ...parsed, showAll: false, filterByDestination: false }
+    }
+    return null
+  }, [showAll, filterByDestination, location.search])
   const [view, setView] = useState('list')
   const [filterId, setFilterId] = useState('all')
   const [routes, setRoutes] = useState([])
@@ -91,7 +126,11 @@ export function RoutesPage() {
   useEffect(() => {
     if (!trip) {
       setRoutes([])
-      setError('from_lat, from_lon, to_lat and to_lon are required')
+      setError(
+        filterByDestination
+          ? 'to_lat and to_lon are required (from_* optional for destination-only)'
+          : 'from_lat and from_lon are required',
+      )
       setStatus('error')
       return undefined
     }
@@ -109,7 +148,11 @@ export function RoutesPage() {
         setError('')
       }
       try {
-        const next = await fetchBusRouteOptions(trip, { signal: controller.signal })
+        const next = await fetchBusRouteOptions(trip, {
+          signal: controller.signal,
+          showAll: trip.showAll,
+          filterByDestination: trip.filterByDestination,
+        })
         if (cancelled) return
         setRoutes(next)
         setStatus('ready')
@@ -141,7 +184,7 @@ export function RoutesPage() {
       controller?.abort()
       window.clearTimeout(timer)
     }
-  }, [trip, reloadKey])
+  }, [trip, reloadKey, filterByDestination, showAll])
 
   const visible = useMemo(
     () => routes.map((card) => cardForFilter(card, filterId)).filter(Boolean),
@@ -167,7 +210,8 @@ export function RoutesPage() {
 
   const openRoute = useCallback(
     (card) => {
-      if (!card?.routeId && !card?.vehicleId) return
+      if (!card?.vehicleId) return
+      if (card.canOpenRoute === false || !card.destinationStopId) return
       const params = new URLSearchParams(
         location.search.startsWith('?') ? location.search.slice(1) : location.search,
       )
@@ -184,7 +228,17 @@ export function RoutesPage() {
     [location.search, navigate],
   )
 
-  const subtitle = trip?.fromPlace && trip?.toPlace ? `${trip.fromPlace} → ${trip.toPlace}` : null
+  const destOnly =
+    trip?.filterByDestination && trip?.toLat != null && trip?.fromLat == null
+  const subtitle = trip?.showAll
+    ? 'Debug · show_all fleet'
+    : destOnly
+      ? trip?.toPlace
+        ? `To ${trip.toPlace}`
+        : 'Buses to destination'
+      : trip?.fromPlace && trip?.toPlace
+        ? `${trip.fromPlace} → ${trip.toPlace}`
+        : null
 
   return (
     <section className="br-page">
