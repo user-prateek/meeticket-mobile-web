@@ -200,12 +200,68 @@ export function routeHeading(fromLat, fromLng, toLat, toLng) {
   return (Math.atan2(y, x) * 180) / Math.PI
 }
 
+const HEADING_MIN_M = 8
+
+function crumbPoint(row) {
+  const lat = coord(row?.lat)
+  const lng = coord(row?.lon ?? row?.lng)
+  if (lat == null || lng == null) return null
+  return { lat, lng }
+}
+
+function approxMeters(a, b) {
+  const dLat = (a.lat - b.lat) * 111320
+  const dLng =
+    (a.lng - b.lng) * 111320 * Math.max(Math.cos((a.lat * Math.PI) / 180), 0.2)
+  return Math.hypot(dLat, dLng)
+}
+
+/**
+ * nearby-buses `recent_positions` (no path trail drawn):
+ * - last index → map pin (current location)
+ * - earlier → later (e.g. 0 west → 1 east) → triangle faces that travel bearing
+ * - single crumb → pin only, no triangle (direction unknown)
+ */
+export function liveSpotFromRecentPositions(positions) {
+  const list = Array.isArray(positions) ? positions : []
+  if (!list.length) return null
+
+  const latest = crumbPoint(list[list.length - 1])
+  if (!latest) return null
+
+  // Need ≥2 crumbs: bus already moved from older → latest.
+  let heading = null
+  if (list.length >= 2) {
+    for (let i = list.length - 2; i >= 0; i -= 1) {
+      const from = crumbPoint(list[i])
+      if (!from) continue
+      if (approxMeters(from, latest) < HEADING_MIN_M) continue
+      heading = routeHeading(from.lat, from.lng, latest.lat, latest.lng)
+      break
+    }
+    // Even if crumbs are tight, still orient from first → last when we have a pair.
+    if (heading == null) {
+      const from = crumbPoint(list[0])
+      if (from && (from.lat !== latest.lat || from.lng !== latest.lng)) {
+        heading = routeHeading(from.lat, from.lng, latest.lat, latest.lng)
+      }
+    }
+  }
+
+  return { lat: latest.lat, lng: latest.lng, heading }
+}
+
 /**
  * One `/nearby-buses` row → list card and map pin.
  * show_all may omit boarding/destination until API fills them — still list the bus.
  * filter_by_destination=false may omit destination_stop (any alight).
+ * Map pin: recent_positions[last] (+ trail heading) → vehicle lat → boarding.
  */
-export function mapNearbyBus(item, index = 0, { showAll = false } = {}) {
+export function mapNearbyBus(
+  item,
+  index = 0,
+  { showAll = false, filterByDestination = true } = {},
+) {
   const board = item?.boarding_stop || null
   const dest = item?.destination_stop || null
   const vehicleId = String(item?.vehicle_id || '')
@@ -215,17 +271,26 @@ export function mapNearbyBus(item, index = 0, { showAll = false } = {}) {
   const fare = Number(item?.fare)
   const eta = Number(item?.eta_minutes)
   const distanceM = Number(item?.distance_m)
-  const lat =
+  const live = liveSpotFromRecentPositions(item?.recent_positions)
+  const vehicleLat =
+    live?.lat ??
     coord(item?.lat) ??
     coord(item?.vehicle_lat) ??
-    coord(item?.current_lat) ??
-    coord(board?.stop_lat)
-  const lng =
+    coord(item?.current_lat)
+  const vehicleLng =
+    live?.lng ??
     coord(item?.lon) ??
     coord(item?.lng) ??
     coord(item?.vehicle_lon) ??
-    coord(item?.current_lon) ??
-    coord(board?.stop_lon)
+    coord(item?.current_lon)
+  const boardLat = coord(board?.stop_lat)
+  const boardLng = coord(board?.stop_lon)
+  const lat = vehicleLat ?? boardLat
+  const lng = vehicleLng ?? boardLng
+  const hasVehicleGps =
+    live != null ||
+    (coord(item?.lat) ?? coord(item?.vehicle_lat) ?? coord(item?.current_lat)) != null
+  const positionSource = hasVehicleGps ? 'vehicle' : boardLat != null ? 'boarding' : null
   const destLat = coord(dest?.stop_lat)
   const destLng = coord(dest?.stop_lon)
   const category = titleLabel(item?.service_category)
@@ -233,7 +298,8 @@ export function mapNearbyBus(item, index = 0, { showAll = false } = {}) {
   const classId = serviceClassId(item?.service_category)
   const etaMinutes = Number.isFinite(eta) && eta >= 0 ? Math.round(eta) : null
   const id = vehicleId || String(item?.trip_id || index)
-  const liveHeading = coord(item?.heading) ?? coord(item?.bearing)
+  // Triangle only when recent_positions has a from→to bearing; never invent from dest.
+  const heading = Number.isFinite(live?.heading) ? live.heading : null
   const corridor = routeCorridor(item?.route_name)
   const [corridorFrom, corridorTo] = corridor
     ? corridor.split('→').map((part) => part.trim())
@@ -254,7 +320,11 @@ export function mapNearbyBus(item, index = 0, { showAll = false } = {}) {
     lng,
     destLat,
     destLng,
-    heading: liveHeading ?? routeHeading(lat, lng, destLat, destLng),
+    /** Prefer recent_positions[last]; else boarding stop until GPS lands in nearby. */
+    positionSource,
+    heading,
+    showDirection: heading != null,
+
     fareInr,
     distanceM: Number.isFinite(distanceM) && distanceM > 0 ? distanceM : null,
     distanceLabel: formatDistance(distanceM),
@@ -265,7 +335,17 @@ export function mapNearbyBus(item, index = 0, { showAll = false } = {}) {
     color: busColor(id, index),
     choices: fareInr ? [{ fareInr, category, classId }] : [],
     showAll: Boolean(showAll),
-    canOpenRoute: Boolean(vehicleId && dest?.stop_id),
+    filterByDestination: Boolean(filterByDestination),
+    /**
+     * Dest stop is required for ETA in the default mode.
+     * show_all / filter_by_destination=false often omit destination_stop — still
+     * allow View Route when we have a boarding stop to seed the ETA call.
+     */
+    canOpenRoute: Boolean(
+      vehicleId &&
+        (dest?.stop_id ||
+          ((showAll || !filterByDestination) && board?.stop_id)),
+    ),
   }
 }
 

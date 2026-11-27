@@ -12,6 +12,14 @@ import { buildLiveBusOrderPayload } from './orderPayload'
 import { LiveBusMark } from './LiveBusMark'
 import './JourneySummaryPage.css'
 
+function flagFromParams(params, key, defaultValue = false) {
+  if (!params.has(key)) return defaultValue
+  const raw = String(params.get(key) || '').toLowerCase()
+  if (raw === '0' || raw === 'false' || raw === 'no') return false
+  if (raw === '1' || raw === 'true' || raw === 'yes') return true
+  return defaultValue
+}
+
 function readQuery(search) {
   const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
   const trip = parseTripQuery(params)
@@ -22,6 +30,7 @@ function readQuery(search) {
     fromStopId: params.get('from_stop_id') || '',
     toStopId: params.get('to_stop_id') || '',
     dropStopId: params.get('to_stop_id') || '',
+    anyDest: flagFromParams(params, 'any_dest', false),
     code: params.get('code') || '',
     category: params.get('category') || '',
     fare: params.get('fare') || '',

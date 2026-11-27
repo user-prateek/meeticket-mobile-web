@@ -60,16 +60,23 @@ export async function fetchBusRouteOptions(
   const data = await GetRequest(url, payload, { signal })
   const rows = Array.isArray(data) ? data : Array.isArray(data?.buses) ? data.buses : []
   return rows
-    .map((item, index) => mapNearbyBus(item, index, { showAll: show_all }))
+    .map((item, index) =>
+      mapNearbyBus(item, index, {
+        showAll: show_all,
+        filterByDestination: filter_by_destination,
+      }),
+    )
     .filter(Boolean)
 }
 
 /**
  * Live vehicle ETA + stop list for route detail.
  * GET /vehicles/{vehicleId}/eta?cust_lat&cust_lon&drop_stop_id&eta_provider=osrm
+ *
+ * `anyDest`: list had no destination_stop — alighting expands to route end after ETA.
  */
 export async function fetchRouteDetail(
-  { vehicleId, custLat, custLon, dropStopId },
+  { vehicleId, custLat, custLon, dropStopId, anyDest = false },
   { signal } = {},
 ) {
   const id = String(vehicleId || '').trim()
@@ -90,7 +97,7 @@ export async function fetchRouteDetail(
     },
     { signal },
   )
-  return mapVehicleEta(data)
+  return mapVehicleEta(data, { resolveDropToRouteEnd: Boolean(anyDest) })
 }
 
 /**
@@ -103,6 +110,7 @@ export async function fetchRouteCheckout(query, { signal } = {}) {
       custLat: query.fromLat,
       custLon: query.fromLon,
       dropStopId: query.dropStopId || query.toStopId,
+      anyDest: Boolean(query.anyDest),
     },
     { signal },
   )

@@ -31,9 +31,21 @@ export function parseClockToMs(value, now = Date.now()) {
 
 const DEFAULT_LEG_MS = 3 * 60 * 1000
 
-/** Latest crumb from `recent_positions` (`{ lat, lon, time }`). */
+/**
+ * Latest crumb from `recent_positions` (`{ lat, lon, time }`).
+ * Contract: last array index is current; fall back to max `time` if needed.
+ */
 export function latestRecentPosition(positions) {
   const list = Array.isArray(positions) ? positions : []
+  if (!list.length) return null
+
+  const last = list[list.length - 1]
+  const lastLat = coord(last?.lat)
+  const lastLng = coord(last?.lon ?? last?.lng)
+  if (lastLat != null && lastLng != null) {
+    return { lat: lastLat, lng: lastLng, time: last?.time || '' }
+  }
+
   let best = null
   let bestMs = -1
   for (const row of list) {
@@ -126,13 +138,17 @@ function placeFromRoute(routeName, fallback) {
 /**
  * TGSRTC `/vehicles/{id}/eta` → route detail view model (map + stops + departures).
  * Stops are always sorted by stop_sequence (low = start, high = end).
+ *
+ * `resolveDropToRouteEnd`: when list opened without a destination stop (show_all /
+ * filter_by_destination=false), ETA was seeded with boarding as drop — expand
+ * alighting to the last stop so the full route is viewable.
  */
-export function mapVehicleEta(data) {
+export function mapVehicleEta(data, { resolveDropToRouteEnd = false } = {}) {
   const board = data?.nearest_boarding_stop || {}
   const drop = data?.drop_stop || {}
   const rawStops = Array.isArray(data?.stops) ? data.stops : []
   const boardId = String(board.stop_id || '')
-  const dropId = String(drop.stop_id || '')
+  let dropId = String(drop.stop_id || '')
 
   const now = Date.now()
   const stops = rawStops
@@ -161,6 +177,18 @@ export function mapVehicleEta(data) {
     .filter(Boolean)
     .sort((a, b) => a.sequence - b.sequence)
 
+  const routeStart = stops[0] || null
+  const routeEnd = stops.length ? stops[stops.length - 1] : null
+
+  if (resolveDropToRouteEnd && routeEnd?.id) {
+    const boardIdx = boardId ? stops.findIndex((stop) => stop.id === boardId) : -1
+    const seedIdx = dropId ? stops.findIndex((stop) => stop.id === dropId) : -1
+    // Only expand when seed drop is missing, same as board, or at/before board.
+    if (!dropId || dropId === boardId || (boardIdx >= 0 && seedIdx >= 0 && seedIdx <= boardIdx)) {
+      dropId = routeEnd.id
+    }
+  }
+
   // Timeline roles: nearest board / chosen drop (sheet). Map uses first/last by sequence.
   for (const stop of stops) {
     if (stop.id && stop.id === boardId) stop.role = 'pickup'
@@ -168,8 +196,6 @@ export function mapVehicleEta(data) {
     else if (stop.crossed) stop.role = 'passed'
   }
 
-  const routeStart = stops[0] || null
-  const routeEnd = stops.length ? stops[stops.length - 1] : null
   const boarding = stops.find((stop) => stop.role === 'pickup') || routeStart
 
   // Next stop the bus is heading toward (first not yet crossed).
@@ -219,9 +245,10 @@ export function mapVehicleEta(data) {
   const boardDistanceM = Number(board.distance_m)
   const dropStop =
     stops.find((stop) => stop.role === 'drop') ||
-    (dropLat != null && dropLng != null
+    (!resolveDropToRouteEnd && dropLat != null && dropLng != null
       ? { id: String(drop.stop_id || ''), name: titleLabel(drop.stop_name), lat: dropLat, lng: dropLng }
-      : null)
+      : null) ||
+    routeEnd
 
   return {
     routeId: String(data?.chalo_route_id || ''),
@@ -234,7 +261,7 @@ export function mapVehicleEta(data) {
     vehicleNo: String(data?.vehicle_number || ''),
     busType: category || 'Bus',
     boardingName: titleLabel(board.stop_name || boarding?.name),
-    alightingName: titleLabel(drop.stop_name || dropStop?.name),
+    alightingName: titleLabel(dropStop?.name || drop.stop_name),
     boardingDistanceM:
       Number.isFinite(boardDistanceM) && boardDistanceM > 0 ? boardDistanceM : null,
     boardingStop: boarding

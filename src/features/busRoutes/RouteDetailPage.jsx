@@ -12,6 +12,7 @@ const DETAIL_KEYS = [
   'route_id',
   'from_stop_id',
   'to_stop_id',
+  'any_dest',
   'code',
   'fare',
   'category',
@@ -20,6 +21,14 @@ const DETAIL_KEYS = [
   'departure',
 ]
 
+function flagFromParams(params, key, defaultValue = false) {
+  if (!params.has(key)) return defaultValue
+  const raw = String(params.get(key) || '').toLowerCase()
+  if (raw === '0' || raw === 'false' || raw === 'no') return false
+  if (raw === '1' || raw === 'true' || raw === 'yes') return true
+  return defaultValue
+}
+
 function readDetailQuery(search) {
   const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
   const trip = parseTripQuery(params)
@@ -27,6 +36,7 @@ function readDetailQuery(search) {
     vehicleId: params.get('vehicle_id') || '',
     dropStopId: params.get('to_stop_id') || '',
     routeId: params.get('route_id') || '',
+    anyDest: flagFromParams(params, 'any_dest', false),
     custLat: trip.fromLat,
     custLon: trip.fromLon,
   }
@@ -162,6 +172,7 @@ function LiveBusDetailPage() {
             custLat: query.custLat,
             custLon: query.custLon,
             dropStopId: query.dropStopId,
+            anyDest: query.anyDest,
           },
           { signal: controller.signal },
         )
@@ -196,7 +207,7 @@ function LiveBusDetailPage() {
       controller?.abort()
       window.clearTimeout(timer)
     }
-  }, [query.vehicleId, query.custLat, query.custLon, query.dropStopId])
+  }, [query.vehicleId, query.custLat, query.custLon, query.dropStopId, query.anyDest])
 
   // Between ETA polls, creep the bus along the current leg using stop clocks + now.
   useEffect(() => {

@@ -198,13 +198,20 @@ export function RoutesPage() {
 
   const openRoute = useCallback(
     (card) => {
-      if (!card?.vehicleId || !card?.destinationStopId) return
+      if (!card?.vehicleId || card.canOpenRoute === false) return
+      // ETA requires drop_stop_id; when destination is omitted (show_all /
+      // filter_by_destination=false), seed with boarding and let detail expand
+      // alighting to the route end.
+      const dropStopId = card.destinationStopId || card.originStopId
+      if (!dropStopId) return
       const params = new URLSearchParams(
         location.search.startsWith('?') ? location.search.slice(1) : location.search,
       )
       params.set('route_id', card.routeId)
       if (card.originStopId) params.set('from_stop_id', card.originStopId)
-      params.set('to_stop_id', card.destinationStopId)
+      params.set('to_stop_id', dropStopId)
+      if (!card.destinationStopId) params.set('any_dest', '1')
+      else params.delete('any_dest')
       if (card.code) params.set('code', card.code)
       if (card.vehicleId) params.set('vehicle_id', card.vehicleId)
       if (card.tripId) params.set('trip_id', card.tripId)

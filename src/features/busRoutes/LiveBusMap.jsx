@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { mountLeafletHtmlMarker } from '../../lib/leafletHtmlMarker'
 import { loadLeaflet, OSM_ATTRIBUTION, OSM_TILE_URL } from '../../lib/osmMaps'
 
-function BusPin({ code, color = '#2563eb', heading = 0 }) {
+function BusPin({ code, color = '#2563eb', heading = null, showDirection = false }) {
+  const face = showDirection && Number.isFinite(Number(heading))
+  const rotation = face ? Number(heading) : 0
   return (
     <div className="br-bus" role="button" aria-label={`Bus ${code}`}>
       <span className="br-bus__tag">
@@ -16,9 +18,12 @@ function BusPin({ code, color = '#2563eb', heading = 0 }) {
         </svg>
         {code}
       </span>
-      {/* Nose points along travel direction; CSS 0° is up (north). */}
-      <span className="br-bus__rig" style={{ transform: `translate(-50%, -50%) rotate(${heading}deg)` }}>
-        <span className="br-bus__arrow" style={{ borderBottomColor: color }} />
+      {/* Same bus-shape pin as before; rotate only when recent_positions gives a bearing. */}
+      <span
+        className="br-bus__rig"
+        style={{ transform: `translate(-50%, -50%) rotate(${rotation}deg)` }}
+      >
+        {face ? <span className="br-bus__arrow" style={{ borderBottomColor: color }} /> : null}
         <span className="br-bus__body" style={{ background: color }} />
       </span>
     </div>
@@ -69,17 +74,35 @@ function metersBetween(a, b) {
   return Math.hypot(dLat, dLng)
 }
 
-/** Buses that share a boarding stop would stack — fan them out so they read separately. */
+/** Stable hash → [0,1) so overlapping boarding pins keep a fixed micro-offset. */
+function unitHash(value) {
+  const raw = String(value || '')
+  let hash = 2166136261
+  for (let i = 0; i < raw.length; i += 1) {
+    hash ^= raw.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return (hash >>> 0) / 4294967296
+}
+
+/**
+ * Plot true coords when we have vehicle GPS.
+ * nearby-buses often only has boarding_stop — then many buses share one lat/lng.
+ * Use a tiny, id-stable nudge (not a 120 m hex ring) so stacks stay readable
+ * without looking randomly planted off-road.
+ */
 function pinPosition(bus, index, buses) {
-  const stacked = buses.slice(0, index).filter((other) => sameStop(other, bus)).length
-  if (!stacked) return { lat: bus.lat, lng: bus.lng }
-  const ring = Math.floor((stacked - 1) / 6) + 1
-  const slot = (stacked - 1) % 6
-  const angle = (slot / 6) * 2 * Math.PI + ring * 0.4
-  const meters = 120 * ring
+  const base = { lat: Number(bus.lat), lng: Number(bus.lng) }
+  if (bus.positionSource === 'vehicle') return base
+  const stacked = buses.filter((other) => sameStop(other, bus)).length
+  if (stacked <= 1) return base
+  const angle = unitHash(bus.id || bus.vehicleId || index) * Math.PI * 2
+  const meters = 10 + unitHash(`${bus.id}:r`) * 14
   return {
-    lat: bus.lat + (meters / 111320) * Math.cos(angle),
-    lng: bus.lng + (meters / (111320 * Math.cos((bus.lat * Math.PI) / 180))) * Math.sin(angle),
+    lat: base.lat + (meters / 111320) * Math.cos(angle),
+    lng:
+      base.lng +
+      (meters / (111320 * Math.max(Math.cos((base.lat * Math.PI) / 180), 0.2))) * Math.sin(angle),
   }
 }
 
@@ -162,6 +185,12 @@ function OsmLiveBusMap({ center, destination, buses, onSelect }) {
     cancelAnim(id)
     const dist = metersBetween(from, to)
     if (dist < 1) {
+      handle.setPosition(to)
+      handle.lastPos = to
+      return
+    }
+    // Large jumps are boarding↔live GPS swaps or stop reassignment — snap, don't teleport-glide.
+    if (dist > 450) {
       handle.setPosition(to)
       handle.lastPos = to
       return
@@ -272,7 +301,14 @@ function OsmLiveBusMap({ center, destination, buses, onSelect }) {
       const pos = pinPosition(bus, index, buses)
       const existing = markersByIdRef.current.get(bus.id)
       const canOpen = Boolean(bus.routeId || bus.vehicleId)
-      const node = <BusPin code={bus.code} color={bus.color} heading={bus.heading} />
+      const node = (
+        <BusPin
+          code={bus.code}
+          color={bus.color}
+          heading={bus.heading}
+          showDirection={bus.showDirection}
+        />
+      )
       if (existing) {
         existing.update(node)
         animateMarker(bus.id, existing, existing.lastPos || pos, pos)
