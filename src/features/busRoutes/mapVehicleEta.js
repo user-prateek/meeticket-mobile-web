@@ -27,36 +27,61 @@ function clockKey(value) {
   return `${Number(match[1])}:${match[2]}`
 }
 
+/** next_departures entry: `"16:08:13"` or `{ departure_time, vehicle_number }`. */
+function departureStamp(entry) {
+  if (entry == null) return { stamp: '', vehicleNumber: '' }
+  if (typeof entry === 'string' || typeof entry === 'number') {
+    return { stamp: String(entry).trim(), vehicleNumber: '' }
+  }
+  if (typeof entry === 'object') {
+    const stamp = String(
+      entry.departure_time || entry.departureTime || entry.time || entry.st || '',
+    ).trim()
+    const vehicleNumber = String(entry.vehicle_number || entry.vehicleNumber || '').trim()
+    return { stamp, vehicleNumber }
+  }
+  return { stamp: '', vehicleNumber: '' }
+}
+
 /**
  * Departure chips:
- * 1) nearest_boarding_stop `at` (actual) else `st` (scheduled) → first chip
- * 2) remaining from `next_departures` (skip duplicate of that first / its `st`)
+ * 1) nearest_boarding_stop `at` (actual) else `st` (scheduled) → first chip (this vehicle)
+ * 2) remaining from `next_departures` (`{ departure_time, vehicle_number }` opens that bus)
  */
-export function buildDepartures(board, nextDepartures) {
+export function buildDepartures(board, nextDepartures, { currentVehicleNumber = '' } = {}) {
   const firstStamp = board?.at || board?.st || null
   const firstKey = clockKey(firstStamp)
   const scheduledKey = clockKey(board?.st)
+  const currentVehicle = String(currentVehicleNumber || '').trim()
   const seen = new Set()
   const out = []
 
-  function push(stamp, source) {
+  function push(stamp, source, vehicleNumber = '') {
     const raw = String(stamp || '').trim()
     const time = formatClock(raw)
     if (!time) return
     const key = clockKey(raw) || time
     if (seen.has(key)) return
     seen.add(key)
-    out.push({ id: `${source}-${raw}`, time, stamp: raw, source })
+    out.push({
+      id: `${source}-${vehicleNumber || 'bus'}-${raw}`,
+      time,
+      stamp: raw,
+      source,
+      vehicleNumber: vehicleNumber || '',
+    })
   }
 
-  if (firstStamp) push(firstStamp, board?.at ? 'at' : 'st')
+  if (firstStamp) push(firstStamp, board?.at ? 'at' : 'st', currentVehicle)
 
-  for (const stamp of Array.isArray(nextDepartures) ? nextDepartures : []) {
+  for (const entry of Array.isArray(nextDepartures) ? nextDepartures : []) {
+    const { stamp, vehicleNumber } = departureStamp(entry)
     const key = clockKey(stamp)
+    if (!key) continue
     if (firstKey && key === firstKey) continue
     // When first chip used live `at`, drop the scheduled twin so both don't show.
     if (board?.at && scheduledKey && key === scheduledKey) continue
-    push(stamp, 'next')
+    push(stamp, 'next', vehicleNumber)
   }
 
   return out
@@ -278,7 +303,10 @@ export function mapVehicleEta(data, { resolveDropToRouteEnd = false } = {}) {
     to: titleLabel(routeEnd?.name || drop.stop_name),
   })
 
-  const departures = buildDepartures(board, data?.next_departures)
+  const vehicleNo = String(data?.vehicle_number || '').trim()
+  const departures = buildDepartures(board, data?.next_departures, {
+    currentVehicleNumber: vehicleNo,
+  })
 
   const boardLat = coord(board.stop_lat) ?? boarding?.lat ?? null
   const boardLng = coord(board.stop_lon) ?? boarding?.lng ?? null
@@ -300,7 +328,7 @@ export function mapVehicleEta(data, { resolveDropToRouteEnd = false } = {}) {
     fareInr,
     fromPlace: places.from,
     toPlace: places.to,
-    vehicleNo: String(data?.vehicle_number || ''),
+    vehicleNo,
     busType: category || 'Bus',
     boardingName: titleLabel(board.stop_name || boarding?.name),
     alightingName: titleLabel(dropStop?.name || drop.stop_name),

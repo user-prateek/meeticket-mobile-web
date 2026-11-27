@@ -178,7 +178,10 @@ function LiveBusDetailPage() {
         )
         if (cancelled) return
         setDetail(next)
-        setDepartureId((prev) => prev || next.departures[0]?.id || '')
+        // Fresh vehicle → select its first chip; polls keep the current selection.
+        setDepartureId((prev) =>
+          hasLoaded ? prev || next.departures[0]?.id || '' : next.departures[0]?.id || '',
+        )
         setStatus('ready')
         setError('')
         hasLoaded = true
@@ -254,6 +257,23 @@ function LiveBusDetailPage() {
     const params = new URLSearchParams(location.search.startsWith('?') ? location.search.slice(1) : location.search)
     DETAIL_KEYS.forEach((key) => params.delete(key))
     navigate(`/livebus?${params}`)
+  }
+
+  /** Other buses in next_departures → open their /livebus/route via vehicle_number. */
+  function selectDeparture(trip) {
+    const other = String(trip?.vehicleNumber || '').trim()
+    const current = String(detail?.vehicleNo || query.vehicleId || '').trim()
+    if (other && current && other.toUpperCase() !== current.toUpperCase()) {
+      const params = new URLSearchParams(
+        location.search.startsWith('?') ? location.search.slice(1) : location.search,
+      )
+      params.set('vehicle_id', other)
+      params.delete('departure')
+      params.delete('trip_id')
+      navigate(`/livebus/route?${params}`)
+      return
+    }
+    setDepartureId(trip.id)
   }
 
   const pickupAt = detail?.stops.findIndex((stop) => stop.role === 'pickup') ?? -1
@@ -404,7 +424,7 @@ function LiveBusDetailPage() {
                       key={trip.id}
                       type="button"
                       className={trip.id === departureId ? 'is-active' : ''}
-                      onClick={() => setDepartureId(trip.id)}
+                      onClick={() => selectDeparture(trip)}
                     >
                       {clock.time}
                       <small>{clock.period}</small>
