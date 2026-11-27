@@ -40,20 +40,37 @@ export const LIVEBUS_DUMMY_ORDER_PAYLOAD = {
   ],
 }
 
-/** Clone dummy payload; scale ONLINE amount by seats when summary stepper changes. */
-export function buildLiveBusOrderPayload({ seats = 1 } = {}) {
+/**
+ * Clone dummy payload; scale ONLINE amount by seats when summary stepper changes.
+ * When `trip` is present, stamp route number + bus type so pg/status / ticket can show
+ * "505 DELUXE" (route_name / bus_number + service_category).
+ */
+export function buildLiveBusOrderPayload({ seats = 1, trip } = {}) {
   const count = Math.max(1, Number(seats) || 1)
   const base = LIVEBUS_DUMMY_ORDER_PAYLOAD
   const leg = base.legs[0]
   const unitPaise = Number(leg.amount_paise) || 0
+  const routeCode = String(trip?.code || '').trim()
+  const routeName = String(trip?.routeName || routeCode || '').trim()
+  const category = String(trip?.category || '').trim()
+  const board = String(trip?.boardingStop || '').trim()
+  const alight = String(trip?.alightingStop || '').trim()
+
   return {
     ...base,
+    pickup_place_name: board || base.pickup_place_name,
+    drop_place_name: alight || base.drop_place_name,
     legs: [
       {
         ...leg,
         leg_info: {
           ...leg.leg_info,
           adult_count: count,
+          ...(routeName ? { route_name: routeName } : {}),
+          ...(routeCode ? { bus_number: routeCode } : {}),
+          ...(category ? { service_category: category } : {}),
+          ...(board ? { FromLocName: board } : {}),
+          ...(alight ? { ToLocName: alight } : {}),
         },
         amount_paise: unitPaise * count,
       },

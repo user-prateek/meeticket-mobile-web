@@ -164,7 +164,7 @@ export function JourneySummaryPage() {
     setBooking(true)
     setBookError('')
     try {
-      const payload = buildLiveBusOrderPayload({ seats })
+      const payload = buildLiveBusOrderPayload({ seats, trip })
       const order = await createOrderAndInitiatePg(payload)
       setOrder(order)
       navigate('/payment?flow=livebus', { replace: true })

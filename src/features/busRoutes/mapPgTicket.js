@@ -25,10 +25,57 @@ function formatTicketDate(value) {
   return `${dd}-${mm}-${yyyy}`
 }
 
-function routeCodeFromName(routeName) {
-  const name = String(routeName || '')
-  const match = name.match(/^([A-Za-z0-9]+)/)
-  return match ? match[1] : name.slice(0, 8) || 'BUS'
+/** First token of "505 - Dilshukhnagar…" / plain "505" — same as SRP badge. */
+function routeCodeFromLabel(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  const beforeDash = raw.split('-')[0]?.trim() || raw
+  const match = beforeDash.match(/^([A-Za-z0-9]+)/)
+  return match ? match[1] : beforeDash.slice(0, 12)
+}
+
+function firstNonEmpty(...values) {
+  for (const value of values) {
+    const text = String(value ?? '').trim()
+    if (text) return text
+  }
+  return ''
+}
+
+/**
+ * pg/status legs vary: some echo route_name, others bus_number / route_number.
+ * Prefer an explicit number, then full route_name (code is parsed from it).
+ */
+function pickRouteLabel(booking, details) {
+  return firstNonEmpty(
+    details.bus_number,
+    details.route_number,
+    details.route_no,
+    details.RouteNo,
+    details.Routeno,
+    details.service_number,
+    booking.bus_number,
+    booking.route_number,
+    booking.route_no,
+    details.route_name,
+    details.RouteName,
+    details.service_name,
+    booking.route_name,
+    booking.RouteName,
+    booking.service_name,
+  )
+}
+
+function pickServiceCategory(booking, details) {
+  return firstNonEmpty(
+    booking.service_category,
+    details.service_category,
+    details.ServiceCategory,
+    details.bus_type,
+    details.BusType,
+    booking.bus_type,
+    'BUS',
+  )
 }
 
 function pickRtcBooking(pgStatus) {
@@ -49,9 +96,9 @@ export function mapPgStatusToLiveBusTicket(pgStatus, { orderId } = {}) {
   const seats = Math.max(1, Number(booking.adult_count) || 0) + Math.max(0, Number(booking.child_count) || 0)
   const fareInr = paiseToInr(booking.amount_paise)
   const reference = booking.booking_reference_number || ''
-  const routeName = details.route_name || ''
-  const code = routeCodeFromName(routeName)
-  const category = String(booking.service_category || details.service_category || 'BUS').trim()
+  const routeLabel = pickRouteLabel(booking, details)
+  const code = routeCodeFromLabel(routeLabel) || 'BUS'
+  const category = pickServiceCategory(booking, details)
 
   const resolvedOrderId = pgStatus?.order_id || orderId || ''
   return {

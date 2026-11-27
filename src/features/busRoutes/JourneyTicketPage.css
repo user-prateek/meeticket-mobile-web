@@ -223,9 +223,25 @@
   justify-content: space-between;
 }
 
-.tk-ride__head strong {
+.tk-ride__title {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
   font-size: 16px;
   letter-spacing: 0.02em;
+}
+
+.tk-ride__code {
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.tk-ride__type {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .tk-ride__head .lb-bus {

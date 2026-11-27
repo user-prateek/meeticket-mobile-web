@@ -202,8 +202,11 @@ export function JourneyTicketPage() {
 
             <article className="tk-card tk-ride">
               <div className="tk-ride__head">
-                <strong>
-                  {ticket.code} {String(ticket.category).toUpperCase()}
+                <strong className="tk-ride__title">
+                  <span className="tk-ride__code">{ticket.code}</span>
+                  {ticket.category ? (
+                    <span className="tk-ride__type">{String(ticket.category).toUpperCase()}</span>
+                  ) : null}
                 </strong>
                 <LiveBusMark />
               </div>

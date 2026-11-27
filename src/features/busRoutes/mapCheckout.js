@@ -59,6 +59,8 @@ export function mapRouteCheckout(detail, query = {}) {
     tripId: String(query.tripId || detail?.tripId || ''),
     code,
     category,
+    /** Full nearby/ETA route_name when available; else the SRP code (e.g. 505). */
+    routeName: String(detail?.routeName || code || '').trim(),
     fareInr,
     fromPlace,
     toPlace,
