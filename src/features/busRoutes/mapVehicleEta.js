@@ -18,6 +18,50 @@ export function formatClock(value) {
   return `${hour}:${minute} ${period}`
 }
 
+/** HH:MM key so "13:40:35" and "13:40:00" compare as the same chip. */
+function clockKey(value) {
+  const match = String(value || '')
+    .trim()
+    .match(/^(\d{1,2}):(\d{2})/)
+  if (!match) return ''
+  return `${Number(match[1])}:${match[2]}`
+}
+
+/**
+ * Departure chips:
+ * 1) nearest_boarding_stop `at` (actual) else `st` (scheduled) → first chip
+ * 2) remaining from `next_departures` (skip duplicate of that first / its `st`)
+ */
+export function buildDepartures(board, nextDepartures) {
+  const firstStamp = board?.at || board?.st || null
+  const firstKey = clockKey(firstStamp)
+  const scheduledKey = clockKey(board?.st)
+  const seen = new Set()
+  const out = []
+
+  function push(stamp, source) {
+    const raw = String(stamp || '').trim()
+    const time = formatClock(raw)
+    if (!time) return
+    const key = clockKey(raw) || time
+    if (seen.has(key)) return
+    seen.add(key)
+    out.push({ id: `${source}-${raw}`, time, stamp: raw, source })
+  }
+
+  if (firstStamp) push(firstStamp, board?.at ? 'at' : 'st')
+
+  for (const stamp of Array.isArray(nextDepartures) ? nextDepartures : []) {
+    const key = clockKey(stamp)
+    if (firstKey && key === firstKey) continue
+    // When first chip used live `at`, drop the scheduled twin so both don't show.
+    if (board?.at && scheduledKey && key === scheduledKey) continue
+    push(stamp, 'next')
+  }
+
+  return out
+}
+
 /** Parse "HH:MM:SS" onto today's calendar day (ms since epoch). */
 export function parseClockToMs(value, now = Date.now()) {
   const match = String(value || '')
@@ -158,7 +202,11 @@ export function mapVehicleEta(data, { resolveDropToRouteEnd = false } = {}) {
       const lng = coord(stop.stop_lon)
       if (lat == null || lng == null) return null
       const sequence = Number(stop.stop_sequence)
-      const clock = stop.at || stop.st || ''
+      const isBoard = boardId && id === boardId
+      // Boarding row prefers nearest_boarding_stop at/st when present.
+      const at = (isBoard && board.at) || stop.at || ''
+      const st = (isBoard && board.st) || stop.st || ''
+      const clock = at || st || ''
       return {
         id: id || `${lat},${lng}`,
         name: titleLabel(stop.stop_name),
@@ -168,10 +216,10 @@ export function mapVehicleEta(data, { resolveDropToRouteEnd = false } = {}) {
         lng,
         crossed: Boolean(stop.is_crossed),
         sequence: Number.isFinite(sequence) ? sequence : 0,
-        at: stop.at || '',
-        st: stop.st || '',
-        atMs: parseClockToMs(stop.at, now),
-        stMs: parseClockToMs(stop.st, now),
+        at,
+        st,
+        atMs: parseClockToMs(at, now),
+        stMs: parseClockToMs(st, now),
       }
     })
     .filter(Boolean)
@@ -230,13 +278,7 @@ export function mapVehicleEta(data, { resolveDropToRouteEnd = false } = {}) {
     to: titleLabel(routeEnd?.name || drop.stop_name),
   })
 
-  const departures = (Array.isArray(data?.next_departures) ? data.next_departures : [])
-    .map((stamp, index) => {
-      const time = formatClock(stamp)
-      if (!time) return null
-      return { id: `${stamp}-${index}`, time }
-    })
-    .filter(Boolean)
+  const departures = buildDepartures(board, data?.next_departures)
 
   const boardLat = coord(board.stop_lat) ?? boarding?.lat ?? null
   const boardLng = coord(board.stop_lon) ?? boarding?.lng ?? null
